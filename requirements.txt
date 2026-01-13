@@ -1,0 +1,23 @@
+# RentBasket WhatsApp Bot "Ku" - Dependencies
+
+# Core LangGraph/LangChain
+langgraph>=0.0.40
+langchain>=0.1.0
+langchain-openai>=0.0.5
+langchain-community>=0.0.20
+langchain-core>=0.1.0
+
+# Vector store
+chromadb>=0.4.0
+
+# OpenAI
+openai>=1.0.0
+
+# Environment
+python-dotenv>=1.0.0
+
+# HTTP requests (for WhatsApp API)
+requests>=2.31.0
+
+# Optional: Flask for webhook server
+# flask>=3.0.0
