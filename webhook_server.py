@@ -11,6 +11,7 @@ Usage:
 
 import os
 import sys
+import re
 import argparse
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
@@ -20,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 load_dotenv()
 
-from config import BOT_NAME
+from config import BOT_NAME, SALES_PHONE_GURGAON, SALES_PHONE_NOIDA
 from agents.sales_agent import run_agent
 from agents.state import create_initial_state
 from whatsapp.client import WhatsAppClient
@@ -43,6 +44,22 @@ if not PHONE_NUMBER_ID or not ACCESS_TOKEN:
     sys.exit(1)
 
 # ========================================
+# PRICING NEGOTIATION DETECTION
+# ========================================
+
+# Keywords that trigger pricing negotiation escalation
+PRICING_NEGOTIATION_KEYWORDS = [
+    "costly", "expensive", "discount", "cheaper", "go down", 
+    "best price", "offer", "reduce", "negotiate", "too much",
+    "high price", "lower", "budget", "afford", "deal"
+]
+
+def is_pricing_negotiation(text: str) -> bool:
+    """Check if message indicates pricing negotiation intent."""
+    text_lower = text.lower()
+    return any(keyword in text_lower for keyword in PRICING_NEGOTIATION_KEYWORDS)
+
+# ========================================
 # FLASK APP
 # ========================================
 
@@ -50,6 +67,9 @@ app = Flask(__name__)
 
 # Store conversations per phone number
 conversations = {}  # phone_number -> ConversationState
+
+# Store session context for interactive button handling
+session_context = {}  # phone_number -> {last_product, handoff_needed, intent}
 
 # Initialize WhatsApp client
 whatsapp_client = WhatsAppClient(
@@ -116,21 +136,25 @@ def handle_webhook():
         text = message_data.get("text", "")
         message_id = message_data.get("message_id")
         sender_name = message_data.get("sender_name", phone)
+        message_type = message_data.get("type")
+        interactive_response = message_data.get("interactive")
         
         print(f"\n💬 Message from {sender_name} ({phone}):")
-        print(f"   {text}")
+        print(f"   Type: {message_type}")
+        print(f"   Text: {text}")
+        
+        # Send read receipt + typing indicator immediately
+        if message_id:
+            whatsapp_client.send_read_and_typing_indicator(message_id)
+        
+        # Handle interactive button responses
+        if message_type == "interactive" and interactive_response:
+            return handle_interactive_response(phone, sender_name, interactive_response, message_id)
         
         if not text:
             # Skip non-text messages (images, audio, etc.)
             print("   ⚠️ Skipping non-text message")
             return jsonify({"status": "non_text_message"}), 200
-        
-        # Mark message as read
-        if message_id:
-            whatsapp_client.mark_as_read(message_id)
-        
-        # Send typing indicator
-        whatsapp_client.send_typing_indicator(phone)
         
         # Get or create conversation state for this user
         if phone not in conversations:
@@ -139,6 +163,11 @@ def handle_webhook():
             print(f"   📝 New conversation started for {phone}")
         
         state = conversations[phone]
+        
+        # Check for pricing negotiation intent BEFORE processing with agent
+        if is_pricing_negotiation(text):
+            print(f"   💰 Pricing negotiation detected!")
+            return handle_pricing_negotiation(phone, sender_name, text, message_id)
         
         # Process message with the agent
         print(f"   🤖 Processing with {BOT_NAME}...")
@@ -165,6 +194,116 @@ def handle_webhook():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+def handle_pricing_negotiation(phone: str, sender_name: str, text: str, message_id: str):
+    """
+    Handle pricing negotiation by sending interactive buttons.
+    """
+    print(f"   🔔 Sending interactive buttons for pricing negotiation...")
+    
+    # Store context for when user responds
+    session_context[phone] = {
+        "handoff_needed": True,
+        "intent": "pricing_support",
+        "last_message": text,
+        "sender_name": sender_name
+    }
+    
+    # Send interactive buttons
+    buttons = [
+        {"id": "CALL_ME", "title": "📞 Callback in 15 min"},
+        {"id": "WHATSAPP", "title": "💬 Continue here"}
+    ]
+    
+    body_text = """I understand you're looking for the best deal! 😊
+
+I've flagged this for our sales team who can offer special pricing.
+
+**How would you like to proceed?**"""
+    
+    whatsapp_client.send_interactive_buttons(
+        to_phone=phone,
+        body_text=body_text,
+        buttons=buttons,
+        header="💰 Best Price Request",
+        footer=f"Sales: {SALES_PHONE_GURGAON}"
+    )
+    
+    # Log the interaction
+    log_conversation_turn(phone, sender_name, text, "[Sent interactive pricing buttons]")
+    
+    print(f"   ✅ Interactive buttons sent!")
+    return jsonify({"status": "ok", "action": "pricing_negotiation"}), 200
+
+
+def handle_interactive_response(phone: str, sender_name: str, interactive: dict, message_id: str):
+    """
+    Handle user's response to interactive buttons.
+    """
+    try:
+        # Get button ID from response
+        button_reply = interactive.get("button_reply", {})
+        button_id = button_reply.get("id", "")
+        button_title = button_reply.get("title", "")
+        
+        print(f"   🔘 Button pressed: {button_id} ({button_title})")
+        
+        # Get stored context
+        context = session_context.get(phone, {})
+        
+        if button_id == "CALL_ME":
+            # Handle callback request
+            response = f"""📞 **Callback Confirmed!**
+
+Our sales team will call you within **15 minutes** to discuss the best pricing options.
+
+**Your callback is queued!**
+• Priority: High
+• Estimated wait: 10-15 mins
+
+If urgent, call directly:
+• Gurgaon: {SALES_PHONE_GURGAON}
+• Noida: {SALES_PHONE_NOIDA}
+
+Thank you for choosing RentBasket! 😊"""
+            
+            # TODO: Placeholder for sales lead API
+            # create_sales_lead(phone, sender_name, context)
+            print(f"   📋 [Placeholder] Would create sales lead for {phone}")
+            
+        elif button_id == "WHATSAPP":
+            # Continue on WhatsApp - placeholder for negotiator agent
+            response = f"""💬 **Great, let's continue here!**
+
+To help our sales team give you the best quote, please share:
+
+1️⃣ **Products needed**: What items are you looking for?
+2️⃣ **Location**: Your delivery pincode?
+3️⃣ **Duration**: How many months?
+4️⃣ **Budget**: Any budget range in mind?
+
+Our team will review and get back with a special offer! 🎁"""
+            
+            # TODO: Placeholder for negotiator agent
+            # route_to_negotiator_agent(phone, context)
+            print(f"   🤝 [Placeholder] Would route to negotiator agent")
+            
+        else:
+            response = "I received your selection. How can I help you further?"
+        
+        # Send response
+        whatsapp_client.send_text_message(phone, response)
+        
+        # Log
+        log_conversation_turn(phone, sender_name, f"[Button: {button_title}]", response)
+        
+        print(f"   ✅ Button response handled!")
+        return jsonify({"status": "ok", "button": button_id}), 200
+        
+    except Exception as e:
+        print(f"   ⚠️ Error handling interactive response: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 def parse_whatsapp_webhook(payload: dict) -> dict:
     """
     Parse incoming WhatsApp webhook payload.
@@ -187,13 +326,24 @@ def parse_whatsapp_webhook(payload: dict) -> dict:
         contacts = value.get("contacts", [{}])
         contact = contacts[0] if contacts else {}
         
+        # Handle different message types
+        msg_type = message.get("type")
+        text = None
+        interactive = None
+        
+        if msg_type == "text":
+            text = message.get("text", {}).get("body")
+        elif msg_type == "interactive":
+            interactive = message.get("interactive", {})
+        
         return {
             "message_id": message.get("id"),
             "from_phone": message.get("from"),
             "sender_name": contact.get("profile", {}).get("name", ""),
             "timestamp": message.get("timestamp"),
-            "type": message.get("type"),
-            "text": message.get("text", {}).get("body") if message.get("type") == "text" else None,
+            "type": msg_type,
+            "text": text,
+            "interactive": interactive,
         }
         
     except Exception as e:
