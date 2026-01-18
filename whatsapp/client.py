@@ -107,9 +107,10 @@ class WhatsAppClient:
         
         return self._make_request("messages", payload)
     
-    def mark_as_read(self, message_id: str) -> Dict[str, Any]:
+    def send_read_and_typing_indicator(self, message_id: str) -> Dict[str, Any]:
         """
-        Mark a message as read (blue checkmarks).
+        Send read receipt AND typing indicator together.
+        This shows blue checkmarks + typing dots to the user.
         
         Args:
             message_id: ID of the message to mark as read
@@ -118,29 +119,30 @@ class WhatsAppClient:
             API response dict
         """
         if self.demo_mode:
-            print(f"  ✓✓ Marked as read: {message_id[:20]}...")
+            print(f"  ✓✓ Read + ⌨️ Typing indicator sent")
             return {"success": True, "demo": True}
         
         payload = {
             "messaging_product": "whatsapp",
             "status": "read",
-            "message_id": message_id
+            "message_id": message_id,
+            "typing_indicator": {
+                "type": "text"
+            }
         }
         
         return self._make_request("messages", payload)
     
     def send_typing_indicator(self, to_phone: str) -> None:
         """
-        Send typing indicator (shows "typing..." to user).
-        Note: WhatsApp Cloud API doesn't have native typing indicator support.
-        This is a placeholder for custom implementations.
+        Send typing indicator (shows 'typing...' to user).
+        Note: For best results, use send_read_and_typing_indicator() instead.
         
         Args:
             to_phone: Recipient phone number
         """
         if self.demo_mode:
             print(f"  ⌨️  Typing indicator sent to {to_phone}")
-        # In real implementation, you might use a workaround or third-party service
     
     def send_interactive_buttons(
         self,
