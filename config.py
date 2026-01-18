@@ -11,10 +11,11 @@ load_dotenv()
 # ========================================
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# WhatsApp Business API (set when you have credentials)
-WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
-WHATSAPP_ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
-WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "whatsapp_verify_token")
+# WhatsApp Business API (from .env)
+WHATSAPP_PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID", "")
+WHATSAPP_ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "")
+WHATSAPP_VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "12345")
+WHATSAPP_VERSION = os.getenv("VERSION", "v23.0")
 
 # ========================================
 # MODEL CONFIGURATION
