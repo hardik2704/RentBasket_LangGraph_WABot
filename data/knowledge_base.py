@@ -5,7 +5,8 @@ RENTBASKET_KNOWLEDGE_BASE = """
 ## COMPANY OVERVIEW
 - Mission: Democratize lifestyle for young professionals by making urban living comfortable and accessible.
 - Tagline: "Comfort ki Tokri"
-- Business Model: Furniture & appliance rental (3–12 months flexible plans)
+- Business Model: Furniture & appliance rental (3–12+ months flexible plans)
+- **RentBasket Mini**: Short-term rental service for 1-2 months (contact sales team)
 
 
 ## SERVICE AREAS

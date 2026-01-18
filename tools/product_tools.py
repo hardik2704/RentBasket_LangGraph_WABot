@@ -68,7 +68,8 @@ def get_price_tool(product_id: int, duration_months: int = 6) -> str:
     
     Args:
         product_id: The product ID (use search_products_tool to find IDs)
-        duration_months: Rental duration in months (3, 6, 9, 12). Default is 6 months.
+        duration_months: Rental duration in months (minimum 3, any duration accepted). If Duration is less than 3 months, redirect them to the "RentBasket Mini".
+                        Pricing is tiered: 3-5mo=3mo rate, 6-8mo=6mo rate, 9-11mo=9mo rate, 12+mo=12mo rate.
     
     Returns:
         Product name and monthly rental price
@@ -77,9 +78,19 @@ def get_price_tool(product_id: int, duration_months: int = 6) -> str:
     if not product:
         return f"Product with ID {product_id} not found. Please search for products first."
     
-    # Validate duration
+    # Redirect to RentBasket Mini for short-term rentals
     if duration_months < 3:
-        duration_months = 3
+        return f"""
+⚡ **RentBasket Mini** - Short-Term Rentals!
+
+For rentals under 3 months, we have **RentBasket Mini** - our special short-term rental service!
+
+📞 **Contact our sales team to know more:**
+• Gurgaon: +91 9958187021
+• Noida: +91 9211269770
+
+They'll help you with 1-2 month rental options. 😊
+"""
     
     rent = calculate_rent(product_id, duration_months)
     

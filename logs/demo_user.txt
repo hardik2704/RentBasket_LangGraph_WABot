@@ -82,3 +82,40 @@ Could you please provide your contact details so we can finalize the order and a
 If you have any questions or need further assistance, feel free to ask. Enjoy your new TV! 📺✨
 14/01/26, 01:28 am - Demo User: Great!
 14/01/26, 01:28 am - Ku: You're welcome, Hardik! 😊 If you need anything else or have any questions in the future, just drop me a message. Enjoy your TV! 📺🎉
+
+--------------------------------------------------
+18/01/26, 11:36 am - New session started
+18/01/26, 11:36 am - Demo User: Hi, I need a sofa for 6 months
+18/01/26, 11:36 am - Ku: Hi there! 😊 I'd be happy to help you find a sofa for a 6-month rental. Could you please share your location or pincode with me? This will help me check if we can deliver to your area. 🏡
+18/01/26, 11:37 am - Demo User: 122018
+18/01/26, 11:37 am - Ku: Here are some sofa options available for a 6-month rental:
+
+1. **5 Seater Fabric Sofa with Center Table**
+2. **4 Seater Canwood Sofa**
+3. **3+1+1 Fabric Sofa**
+4. **Fabric Green Sofa Set with 2 Puffies & Center Table**
+5. **3 Seater Fabric Sofa**
+6. **2 Seater Fabric Sofa**
+7. **Fabric Grey Sofa Set with 2 Puffies & Center Table**
+8. **Fabric Beige Sofa Set with 2 Puffies & Center Table**
+
+Let me know which one you're interested in, and I'll get the rental prices for you! 🛋️✨
+18/01/26, 11:37 am - Demo User: 3 Seater Fabric Sofa - what's the price?
+18/01/26, 11:37 am - Ku: The **3 Seater Fabric Sofa** is available for a 6-month rental at ₹899 per month. 😊
+
+Here's a quick look at the pricing for different durations:
+- **3 months**: ₹980/month
+- **6 months**: ₹899/month
+- **9 months**: ₹799/month
+- **12 months**: ₹699/month
+
+Would you like to proceed with this option, or do you have any other questions? 🛋️
+18/01/26, 11:38 am - Demo User: What is your refund policy?
+18/01/26, 11:38 am - Ku: Here's a quick overview of our **Refund Policy**:
+
+- **Timeline**: Refunds are processed within 7 days after the pickup of the items.
+- **Deductions**: Any repairs or logistics costs may be deducted from the refund.
+- **Early Termination**: If you terminate the rental early, the refund is calculated as:
+  \[(Actual Rate – Contract Rate) × Months Used\] + Pickup/Labor Cost
+
+If you have more questions or need further assistance, feel free to ask! 😊
