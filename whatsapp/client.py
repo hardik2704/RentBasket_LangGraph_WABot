@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config import WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_ACCESS_TOKEN
+from config import WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_ACCESS_TOKEN, WHATSAPP_VERSION
 
 
 class WhatsAppClient:
@@ -20,11 +20,11 @@ class WhatsAppClient:
     2. Set up WhatsApp Business API
     3. Get Phone Number ID and Access Token
     4. Set environment variables:
-       - WHATSAPP_PHONE_NUMBER_ID
-       - WHATSAPP_ACCESS_TOKEN
+       - PHONE_NUMBER_ID
+       - ACCESS_TOKEN
     """
     
-    BASE_URL = "https://graph.facebook.com/v18.0"
+    BASE_URL = f"https://graph.facebook.com/{WHATSAPP_VERSION}"
     
     def __init__(
         self, 
