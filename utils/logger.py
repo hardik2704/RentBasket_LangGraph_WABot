@@ -29,7 +29,7 @@ def get_log_file_path(phone_number: str) -> str:
     """
     ensure_logs_directory()
     # Clean the phone number (remove spaces, +, etc.)
-    clean_number = phone_number.replace("+", "").replace(" ", "").replace("-", "")
+    clean_number = phone_number.replace("+91", "").replace(" ", "").replace("-", "").replace("+", "")
     return os.path.join(LOGS_DIRECTORY, f"{clean_number}.txt")
 
 
