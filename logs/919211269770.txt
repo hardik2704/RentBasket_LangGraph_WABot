@@ -1,0 +1,13 @@
+Conversation with RentBasket Furniture and Appliances
+==================================================
+21/01/26, 11:57 am - RentBasket Furniture and Appliances: Hi
+21/01/26, 11:57 am - Ku: Hello there! 😊 How can I assist you today? Are you looking for rental products or need some information? Let me know!
+
+--------------------------------------------------
+21/01/26, 01:48 pm - New session started
+21/01/26, 01:48 pm - RentBasket Furniture and Appliances: Hi
+21/01/26, 01:48 pm - Ku: Hello! 😊 Welcome to RentBasket. How can I assist you today? Are you looking for something specific to rent?
+21/01/26, 01:50 pm - RentBasket Furniture and Appliances: Test
+21/01/26, 01:50 pm - Ku: Got it! If you have any questions or need assistance with renting products, feel free to ask. I'm here to help! 😊
+21/01/26, 01:59 pm - RentBasket Furniture and Appliances: Hi
+21/01/26, 01:59 pm - Ku: Hello again! 😊 How can I assist you today? Are you looking for rental products or need information on something specific?
