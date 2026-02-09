@@ -229,3 +229,49 @@ Our team will review and get back with a special offer! 🎁
 21/01/26, 01:34 pm - Ku: Hello there! 😊 How can I assist you today? Are you looking for something specific to rent, or do you need help with something else?
 21/01/26, 01:44 pm - Hardik Mahendru: Hi
 21/01/26, 01:44 pm - Ku: Hi again! 😊 Let me know how I can help you today. Are you interested in renting something or have any questions about our services?
+
+--------------------------------------------------
+07/02/26, 01:18 pm - New session started
+07/02/26, 01:18 pm - Hardik Mahendru: Hi
+07/02/26, 01:18 pm - Ku: Hello! 😊 How can I assist you today? Are you looking for rental products or need some information? Let me know!
+07/02/26, 01:19 pm - Hardik Mahendru: Hi
+07/02/26, 01:19 pm - Ku: Hi again! 😊 How can I help you today? If you're looking for rental products or have any questions, feel free to ask!
+
+--------------------------------------------------
+07/02/26, 02:11 pm - New session started
+07/02/26, 02:11 pm - Hardik Mahendru: Hi
+07/02/26, 02:11 pm - Ku: Hello there! 😊 How can I assist you today? Are you looking for something specific to rent, or do you need help with something else?
+07/02/26, 02:12 pm - Hardik Mahendru: Rent a sofa
+07/02/26, 02:12 pm - Ku: Great choice! Sofas can really make a living space cozy. 😊 Could you please share your location or pincode so I can check if we deliver to your area? Also, let me know how long you plan to rent the sofa for.
+07/02/26, 02:12 pm - Hardik Mahendru: 12201
+8
+07/02/26, 02:12 pm - Ku: It seems like the pincode you provided is incomplete. Could you please share a **6-digit pincode** so I can check the serviceability? 😊
+
+We currently serve:
+- Gurgaon (all sectors except Manesar)
+- Noida (all sectors)
+07/02/26, 02:12 pm - Hardik Mahendru: 122018
+07/02/26, 02:12 pm - Ku: Awesome news! 🎉 We can deliver to your location in Gurgaon (pincode 122018). Here are some sofa options available for an 8-month rental:
+
+1. **5 Seater Fabric Sofa with Center Table**
+2. **4 Seater Canwood Sofa**
+3. **3+1+1 Fabric Sofa**
+4. **Fabric Green Sofa Set with 2 Puffies & Center Table**
+5. **3 Seater Fabric Sofa**
+6. **2 Seater Fabric Sofa**
+7. **Fabric Grey Sofa Set with 2 Puffies & Center Table**
+8. **Fabric Beige Sofa Set with 2 Puffies & Center Table**
+
+Would you like to know the rental prices for any of these? Just let me know the product number or name! 😊
+
+--------------------------------------------------
+07/02/26, 02:16 pm - New session started
+07/02/26, 02:16 pm - Hardik Mahendru: Hi
+07/02/26, 02:16 pm - Ku: Hello! 😊 How can I assist you today? Are you looking to rent some furniture or appliances? Let me know what you need!
+07/02/26, 02:16 pm - Hardik Mahendru: I need help afain
+07/02/26, 02:16 pm - Ku: Of course! I'm here to help. 😊 Could you please let me know what you need assistance with?
+
+--------------------------------------------------
+07/02/26, 03:59 pm - New session started
+07/02/26, 03:59 pm - Hardik Mahendru: Hi
+07/02/26, 03:59 pm - Ku: Hello! 😊 Welcome to RentBasket. How can I assist you today? Are you looking for any specific rental products or need help with something else?
