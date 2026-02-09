@@ -133,16 +133,32 @@ class WhatsAppClient:
         
         return self._make_request("messages", payload)
     
-    def send_typing_indicator(self, to_phone: str) -> None:
+    def send_typing_indicator(self, to_phone: str) -> Dict[str, Any]:
         """
         Send typing indicator (shows 'typing...' to user).
-        Note: For best results, use send_read_and_typing_indicator() instead.
+        This makes a real API call every time, unlike read receipts.
         
         Args:
             to_phone: Recipient phone number
+            
+        Returns:
+            API response dict
         """
         if self.demo_mode:
             print(f"  ⌨️  Typing indicator sent to {to_phone}")
+            return {"success": True, "demo": True}
+        
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": to_phone,
+            "type": "typing",
+            "typing": {
+                "action": "start"
+            }
+        }
+        
+        return self._make_request("messages", payload)
     
     def send_interactive_buttons(
         self,

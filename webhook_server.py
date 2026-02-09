@@ -4,9 +4,9 @@ RentBasket WhatsApp Bot "Ku" - Webhook Server
 Flask server for handling real WhatsApp Business API integration
 
 Usage:
-    python webhook_server.py                    # Run on default port 5000
+    python3 webhook_server.py                    # Run on default port 8000
     python webhook_server.py --port 8000        # Run on custom port
-    ngrok http 5000                             # Expose locally (separate terminal)
+    ngrok http 8000                             # Expose locally (separate terminal)
 """
 
 import os
@@ -143,9 +143,12 @@ def handle_webhook():
         print(f"   Type: {message_type}")
         print(f"   Text: {text}")
         
-        # Send read receipt + typing indicator immediately
+        # Send read receipt first (marks message with blue ticks)
         if message_id:
             whatsapp_client.send_read_and_typing_indicator(message_id)
+        
+        # Send typing indicator separately (this works EVERY time!)
+        whatsapp_client.send_typing_indicator(phone)
         
         # Handle interactive button responses
         if message_type == "interactive" and interactive_response:
@@ -362,8 +365,8 @@ def main():
     parser.add_argument(
         "--port",
         type=int,
-        default=5000,
-        help="Port to run the server on (default: 5000)"
+        default=8000,
+        help="Port to run the server on (default: 8000)"
     )
     parser.add_argument(
         "--debug",
