@@ -42,7 +42,7 @@ python main.py
 python main.py --test
 
 # WhatsApp Webhook Server
-python webhook_server.py --port 5000
+python webhook_server.py --port 8000
 ```
 
 ---
@@ -67,7 +67,7 @@ python webhook_server.py --port 5000
 python3 webhook_server.py
 ```
 
-✅ You should see: `🤖 Ku - WhatsApp Webhook Server` running on port 5000
+✅ You should see: `🤖 Ku - WhatsApp Webhook Server` running on port 8000
 
 ---
 
@@ -75,7 +75,7 @@ python3 webhook_server.py
 
 **Open Terminal 2:**
 ```
-ngrok http 5000
+ngrok http 8000
 ```
 
 ✅ Copy the **https** URL → Example: `https://abc123.ngrok-free.app`
