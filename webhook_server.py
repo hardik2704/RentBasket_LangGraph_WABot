@@ -113,6 +113,17 @@ def verify_webhook():
     return "Forbidden", 403
 
 
+def format_bot_response(text: str) -> str:
+    """
+    Apply formatting rules to bot response.
+    Specifically: replace all double asterisks ** with single asterisk *.
+    """
+    if not text:
+        return text
+    # Replace ** with *
+    return text.replace("**", "*")
+
+
 @app.route("/webhook", methods=["POST"])
 def handle_webhook():
     """
@@ -167,6 +178,10 @@ def handle_webhook():
         
         state = conversations[phone]
         
+        # Ensure customer name is in state for the agent
+        if sender_name and not state["collected_info"].get("customer_name"):
+            state["collected_info"]["customer_name"] = sender_name
+        
         # Check for pricing negotiation intent BEFORE processing with agent
         if is_pricing_negotiation(text):
             print(f"   💰 Pricing negotiation detected!")
@@ -178,6 +193,9 @@ def handle_webhook():
         
         # Update conversation state
         conversations[phone] = new_state
+        
+        # Apply formatting rules (replace ** with *)
+        response = format_bot_response(response)
         
         # Send response via WhatsApp
         print(f"   📤 Sending response...")
