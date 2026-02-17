@@ -33,6 +33,7 @@ class ConversationState(TypedDict):
     collected_info: CollectedInfo
     needs_human: bool
     conversation_stage: str  # greeting, inquiry, pricing, quote, handoff
+    active_agent: str  # "sales" | "recommendation"
 
 
 def create_initial_state() -> ConversationState:
@@ -44,7 +45,8 @@ def create_initial_state() -> ConversationState:
             "is_bulk_order": False,
         },
         "needs_human": False,
-        "conversation_stage": "greeting"
+        "conversation_stage": "greeting",
+        "active_agent": "sales",  # Default to sales agent
     }
 
 

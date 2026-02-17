@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 load_dotenv()
 
 from config import BOT_NAME, SALES_PHONE_GURGAON, SALES_PHONE_NOIDA
-from agents.sales_agent import run_agent
+from agents.orchestrator import route_and_run
 from agents.state import create_initial_state
 from whatsapp.client import WhatsAppClient
 from utils.logger import log_conversation_turn, start_new_session
@@ -187,9 +187,9 @@ def handle_webhook():
             print(f"   💰 Pricing negotiation detected!")
             return handle_pricing_negotiation(phone, sender_name, text, message_id)
         
-        # Process message with the agent
+        # Process message with the agent (via orchestrator routing)
         print(f"   🤖 Processing with {BOT_NAME}...")
-        response, new_state = run_agent(text, state)
+        response, new_state = route_and_run(text, state)
         
         # Update conversation state
         conversations[phone] = new_state
@@ -197,12 +197,42 @@ def handle_webhook():
         # Apply formatting rules (replace ** with *)
         response = format_bot_response(response)
         
-        # Send response via WhatsApp
-        print(f"   📤 Sending response...")
-        whatsapp_client.send_text_message(phone, response)
+        # Handle split messages (e.g., from greeting sequence)
+        messages_to_send = []
         
-        # Log the conversation
-        log_conversation_turn(phone, sender_name, text, response)
+        if "|||" in response:
+            messages_to_send = response.split("|||")
+        elif "How can I help you in making your living space more comfortable?😊" in response and "We offer Quality furniture" in response:
+            # Fallback for when LLM replaces ||| with newlines
+            print("   ⚠️ LLM removed delimeters, applying fallback splitting...")
+            
+            # Normalize common newline patterns
+            temp_response = response.replace("\n\n", "|||").replace("\n", " ")
+            
+            # If that didn't work (e.g. just single newlines), force inject based on known text
+            if "|||" not in temp_response:
+                temp_response = response.replace("How can I help you in making your living space more comfortable?😊", "How can I help you in making your living space more comfortable?😊|||")
+                temp_response = temp_response.replace("powered by customer service which is best in the market.", "powered by customer service which is best in the market.|||")
+            
+            messages_to_send = temp_response.split("|||")
+        else:
+            messages_to_send = [response]
+        
+        for i, msg in enumerate(messages_to_send):
+            msg = msg.strip()
+            if not msg:
+                continue
+                
+            print(f"   📤 Sending response part {i+1}/{len(messages_to_send)}...")
+            
+            # Enable link preview if message contains a URL
+            preview = "http" in msg or "https" in msg
+            
+            whatsapp_client.send_text_message(phone, msg, preview_url=preview)
+        
+        # Log the conversation (full combined response for history)
+        log_response = response.replace("|||", "\n")
+        log_conversation_turn(phone, sender_name, text, log_response)
         
         print(f"   ✅ Response sent successfully!")
         
