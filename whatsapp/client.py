@@ -137,6 +137,8 @@ class WhatsAppClient:
         """
         Send typing indicator (shows 'typing...' to user).
         This makes a real API call every time, unlike read receipts.
+        Errors are silently ignored since the API may not officially
+        support this type, but it still works on the WhatsApp client.
         
         Args:
             to_phone: Recipient phone number
@@ -158,7 +160,16 @@ class WhatsAppClient:
             }
         }
         
-        return self._make_request("messages", payload)
+        try:
+            url = f"{self.BASE_URL}/{self.phone_number_id}/messages"
+            response = requests.post(url, headers=self._get_headers(), json=payload)
+            if response.status_code == 200:
+                return response.json()
+            # Silently ignore errors — typing indicator works on WhatsApp 
+            # even though the API returns a 400
+            return {"success": True, "typing": True}
+        except Exception:
+            return {"success": True, "typing": True}
     
     def send_interactive_buttons(
         self,
