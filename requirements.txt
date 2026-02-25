@@ -19,5 +19,11 @@ python-dotenv>=1.0.0
 # HTTP requests (for WhatsApp API)
 requests>=2.31.0
 
-# Optional: Flask for webhook server
+# Text splitting for RAG
+langchain-text-splitters>=0.0.1
+
+# Flask for webhook server
 flask>=3.0.0
+
+# Production WSGI server (used by Render)
+gunicorn>=21.2.0
