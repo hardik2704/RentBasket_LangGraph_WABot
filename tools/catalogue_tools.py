@@ -278,7 +278,7 @@ def get_room_package_tool(room_type: str) -> str:
     lines.append(f"\n🚧 *Combo pricing coming soon!*")
     lines.append(f"For special combo deals, contact our sales team:")
     lines.append(f"  📞 Gurgaon: +91 9958187021")
-    lines.append(f"  📞 Noida: +91 9211269770")
+    lines.append(f"  📞 Noida: +91 9958440038")
     lines.append(f"\nIn the meantime, I can show you individual product prices for any of these items! 😊")
     
     return "\n".join(lines)

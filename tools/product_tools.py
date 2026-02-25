@@ -87,7 +87,7 @@ For rentals under 3 months, we have **RentBasket Mini** - our special short-term
 
 📞 **Contact our sales team to know more:**
 • Gurgaon: +91 9958187021
-• Noida: +91 9211269770
+• Noida: +91 9958440038
 
 They'll help you with 1-2 month rental options. 😊
 """

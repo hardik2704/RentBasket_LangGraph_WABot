@@ -20,7 +20,7 @@ WHATSAPP_VERSION = os.getenv("VERSION", "v23.0")
 # ========================================
 # MODEL CONFIGURATION
 # ========================================
-LLM_MODEL = "gpt-4o"
+LLM_MODEL = "gpt-4o-mini"
 LLM_TEMPERATURE = 0.3  # Slightly creative but consistent
 EMBEDDING_MODEL = "text-embedding-3-small"
 
@@ -47,8 +47,8 @@ GURGAON_OFFICE = {
 NOIDA_OFFICE = {
     "address": "Plot No B.L.K 15, Basement, Sector 116, Noida, UP 201301",
     "hours": "Mon - Sun: 9am - 9pm",
-    "phone": "+91 9211269770",
-    "sales_phone": "+91 9211269770",
+    "phone": "+91 9958440038",
+    "sales_phone": "+91 9958440038",
 }
 
 # Quick access
