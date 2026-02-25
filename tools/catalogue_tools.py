@@ -89,8 +89,8 @@ def get_full_catalogue_overview_tool() -> str:
             variant_text = f"({count} option{'s' if count > 1 else ''})"
             lines.append(f"  • {cat.title()} — starting {_format_price(min_price)}/mo {variant_text}")
     
-    lines.append(f"\n💡 All prices shown are *best prices* with 12-month commitment + 10% upfront discount.")
-    lines.append(f"\n📦 Total: {len(id_to_name)} products across {len(get_all_categories())} categories")
+    lines.append(f"📦 Total: {len(id_to_name)} products across {len(get_all_categories())} categories")
+    lines.append(f"\n💡 All prices shown are *starting prices* with 12-month commitment + 10% upfront discount.")
     lines.append(f"\nWant to explore a specific category? Just ask! 😊")
     
     return "\n".join(lines)
@@ -136,11 +136,11 @@ def browse_category_tool(category: str) -> str:
         twelve_rate = p["prices"][3]  # 12-month rate (before discount)
         trending_badge = " 🔥 *Popular*" if p["id"] == trending_id else ""
         lines.append(f"  • *{p['name']}*{trending_badge}")
-        lines.append(f"    Best Price: {_format_price(best)}/mo (12mo + upfront)")
+        lines.append(f"    Starting Price: {_format_price(best)}/mo")
         lines.append(f"    Standard 12mo: {_format_price(twelve_rate)}/mo")
         lines.append("")
     
-    lines.append(f"💡 *Best prices* include 10% upfront payment discount on 12-month plan.")
+    lines.append(f"💡 *Starting prices* include a 10% upfront payment discount on the 12-month plan.")
     lines.append(f"Want to compare any of these? Or check prices for a different duration?")
     
     return "\n".join(lines)
@@ -327,7 +327,7 @@ def filter_by_budget_tool(max_budget: int, min_budget: int = 0) -> str:
             lines.append(f"  • {name} — {_format_price(price)}/mo")
         lines.append("")
     
-    lines.append(f"💡 Prices shown are best prices (12mo + 10% upfront discount)")
+    lines.append(f"💡 Prices shown are *starting prices* (12mo + 10% upfront discount)")
     lines.append(f"Want details on any of these? I can compare products or create a quote!")
     
     return "\n".join(lines)

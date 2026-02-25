@@ -42,13 +42,13 @@ def search_products_tool(query: str, category: Optional[str] = None) -> str:
         if cat_key in category_to_id:
             products = get_products_by_category(cat_key)
             for p in products[:8]:  # Limit to 8 items
-                results.append(f"• {p['name']} (ID: {p['id']})")
+                results.append(f"• {p['name']}")
     
     # Also search by name
     if query:
         name_results = search_products_by_name(query)
         for p in name_results[:8]:
-            item = f"• {p['name']} (ID: {p['id']})"
+            item = f"• {p['name']}"
             if item not in results:
                 results.append(item)
     

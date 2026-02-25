@@ -13,6 +13,7 @@ import os
 import sys
 import re
 import argparse
+import threading
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 
@@ -70,6 +71,10 @@ conversations = {}  # phone_number -> ConversationState
 # Store session context for interactive button handling
 session_context = {}  # phone_number -> {last_product, handoff_needed, intent}
 
+# Cache for processed message IDs to prevent duplicates (Meta retries)
+processed_ids = set()
+MAX_CACHE_SIZE = 100
+
 # Initialize WhatsApp client
 whatsapp_client = WhatsAppClient(
     phone_number_id=PHONE_NUMBER_ID,
@@ -123,52 +128,17 @@ def format_bot_response(text: str) -> str:
     return text.replace("**", "*")
 
 
-@app.route("/webhook", methods=["POST"])
-def handle_webhook():
+def process_webhook_async(phone, text, sender_name, message_id, message_type, interactive_response):
     """
-    Handle incoming WhatsApp messages (POST request).
+    Process the message logic in a background thread to allow immediate 200 OK response.
     """
     try:
-        payload = request.get_json()
-        
-        # Log incoming payload for debugging
-        print(f"\n📨 Incoming webhook payload:")
-        print(f"   {payload}")
-        
-        # Parse the webhook payload
-        message_data = parse_whatsapp_webhook(payload)
-        
-        if not message_data:
-            # Not a message event (could be status update, etc.)
-            return jsonify({"status": "no_message"}), 200
-        
-        phone = message_data["from_phone"]
-        text = message_data.get("text", "")
-        message_id = message_data.get("message_id")
-        sender_name = message_data.get("sender_name", phone)
-        message_type = message_data.get("type")
-        interactive_response = message_data.get("interactive")
-        
-        print(f"\n💬 Message from {sender_name} ({phone}):")
-        print(f"   Type: {message_type}")
-        print(f"   Text: {text}")
-        
-        # Send read receipt first (marks message with blue ticks)
-        if message_id:
-            whatsapp_client.send_read_and_typing_indicator(message_id)
-        
-        # Send typing indicator separately (this works EVERY time!)
-        whatsapp_client.send_typing_indicator(phone)
-        
-        # Handle interactive button responses
-        if message_type == "interactive" and interactive_response:
-            return handle_interactive_response(phone, sender_name, interactive_response, message_id)
-        
-        if not text:
-            # Skip non-text messages (images, audio, etc.)
-            print("   ⚠️ Skipping non-text message")
-            return jsonify({"status": "non_text_message"}), 200
-        
+        # Check for pricing negotiation intent BEFORE processing with agent
+        if is_pricing_negotiation(text):
+            print(f"   💰 Pricing negotiation detected!")
+            handle_pricing_negotiation(phone, sender_name, text, message_id)
+            return
+
         # Get or create conversation state for this user
         if phone not in conversations:
             conversations[phone] = create_initial_state()
@@ -180,11 +150,6 @@ def handle_webhook():
         # Ensure customer name is in state for the agent
         if sender_name and not state["collected_info"].get("customer_name"):
             state["collected_info"]["customer_name"] = sender_name
-        
-        # Check for pricing negotiation intent BEFORE processing with agent
-        if is_pricing_negotiation(text):
-            print(f"   💰 Pricing negotiation detected!")
-            return handle_pricing_negotiation(phone, sender_name, text, message_id)
         
         # Process message with the agent (via orchestrator routing)
         print(f"   🤖 Processing with {BOT_NAME}...")
@@ -235,7 +200,73 @@ def handle_webhook():
         
         print(f"   ✅ Response sent successfully!")
         
-        return jsonify({"status": "ok"}), 200
+    except Exception as e:
+        print(f"❌ Error in background process: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+@app.route("/webhook", methods=["POST"])
+def handle_webhook():
+    """
+    Handle incoming WhatsApp messages (POST request).
+    """
+    try:
+        payload = request.get_json()
+        
+        # Parse the webhook payload
+        message_data = parse_whatsapp_webhook(payload)
+        
+        if not message_data:
+            # Not a message event (could be status update, etc.)
+            return jsonify({"status": "no_message"}), 200
+        
+        phone = message_data["from_phone"]
+        text = message_data.get("text", "")
+        message_id = message_data.get("message_id")
+        sender_name = message_data.get("sender_name", phone)
+        message_type = message_data.get("type")
+        interactive_response = message_data.get("interactive")
+        
+        # 1. Deduplication check
+        if message_id in processed_ids:
+            print(f"   ⏭️ Skipping duplicate message: {message_id}")
+            return jsonify({"status": "duplicate"}), 200
+        
+        # Add to cache and prune if needed
+        processed_ids.add(message_id)
+        if len(processed_ids) > MAX_CACHE_SIZE:
+            # Remove an old ID (simple pruning using a slightly more robust list conversion)
+            oldest_id = next(iter(processed_ids))
+            processed_ids.remove(oldest_id)
+
+        print(f"\n💬 Message from {sender_name} ({phone}):")
+        print(f"   Type: {message_type}")
+        print(f"   Text: {text}")
+        
+        # Send read receipt first (marks message with blue ticks)
+        if message_id:
+            whatsapp_client.send_read_and_typing_indicator(message_id)
+        
+        # Handle simple interactive button responses synchronously if quick
+        if message_type == "interactive" and interactive_response:
+            return handle_interactive_response(phone, sender_name, interactive_response, message_id)
+        
+        if not text:
+            # Skip non-text messages (images, audio, etc.)
+            print("   ⚠️ Skipping non-text message")
+            return jsonify({"status": "non_text_message"}), 200
+            
+        # 2. START BACKGROUND PROCESSING
+        # We start a thread to do the heavy lifting (AI + multiple tool calls)
+        # and return 200 OK to WhatsApp immediately to stop retries.
+        thread = threading.Thread(
+            target=process_webhook_async,
+            args=(phone, text, sender_name, message_id, message_type, interactive_response)
+        )
+        thread.start()
+        
+        return jsonify({"status": "processing"}), 200
         
     except Exception as e:
         print(f"❌ Error handling webhook: {e}")
