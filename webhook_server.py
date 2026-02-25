@@ -37,11 +37,10 @@ ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "12345")
 VERSION = os.getenv("VERSION", "v23.0")
 
-# Validate credentials
+# Validate credentials (warn instead of exit – Render injects env vars at runtime)
 if not PHONE_NUMBER_ID or not ACCESS_TOKEN:
-    print("❌ Error: Missing WhatsApp credentials in .env file")
-    print("   Required: PHONE_NUMBER_ID, ACCESS_TOKEN")
-    sys.exit(1)
+    print("⚠️ Warning: Missing WhatsApp credentials (PHONE_NUMBER_ID, ACCESS_TOKEN)")
+    print("   Set them as environment variables or in a .env file")
 
 # ========================================
 # PRICING NEGOTIATION DETECTION
@@ -424,18 +423,19 @@ def main():
     
     args = parser.parse_args()
     
+    # Render injects PORT env var; fall back to --port arg
+    port = int(os.environ.get("PORT", args.port))
+    
     print("\n" + "="*60)
     print(f"  🤖 {BOT_NAME} - WhatsApp Webhook Server")
     print("="*60)
-    print(f"\n📍 Server running on: http://localhost:{args.port}")
-    print(f"📍 Webhook URL: http://localhost:{args.port}/webhook")
-    print(f"\n⚡ To expose to internet, run in another terminal:")
-    print(f"   ngrok http {args.port}")
+    print(f"\n📍 Server running on: http://0.0.0.0:{port}")
+    print(f"📍 Webhook URL: http://localhost:{port}/webhook")
     print("\n" + "-"*60 + "\n")
     
     app.run(
         host="0.0.0.0",
-        port=args.port,
+        port=port,
         debug=args.debug
     )
 
