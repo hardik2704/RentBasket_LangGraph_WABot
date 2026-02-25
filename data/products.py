@@ -175,6 +175,188 @@ id_to_price = {
     1047: [299, 279, 249, 229]
 }
 
+# ========================================
+# CHAT SYNONYMS AND VARIANTS
+# ========================================
+
+PRODUCT_SYNONYMS = {
+  "geyser": [
+    "geyser", "geaser", "giser", "gijar", "water heater", "heater",
+    "hot water", "hotwater", "bathroom heater", "bath geyser",
+    "20 litre geyser", "20l geyser", "20l", "20 ltr",
+    "6 litre geyser", "6l geyser", "6l", "6 ltr",
+    "instant geyser", "storage geyser"
+  ],
+
+  "fridge": [
+    "fridge", "freeze", "freez", "refrigerator", "refridgerator",
+    "ref", "cooler fridge", "single door fridge", "1 door fridge",
+    "double door fridge", "2 door fridge", "2door", "dd fridge",
+    "190 ltr fridge", "190l fridge", "190 litre", "small fridge",
+    "big fridge"
+  ],
+
+  "tv": [
+    "tv", "television", "smart tv", "android tv", "led", "led tv",
+    "smart led", "32 inch tv", "32in", "32\"", "40 inch tv", "40in", "40\"",
+    "43 inch tv", "43in", "43\"", "48 inch tv", "48in", "48\"",
+    "screen", "flat tv"
+  ],
+
+  "washing machine": [
+    "washing machine", "washing", "washer", "wm", "wash machine",
+    "fully automatic", "full automatic", "automatic washer",
+    "semi automatic", "semi-auto", "semi auto",
+    "top load", "topload", "top loading", "top-loader",
+    "clothes washer"
+  ],
+
+  "ac": [
+    "ac", "a/c", "aircon", "air con", "air conditioner", "air conditioning",
+    "window ac", "window", "split ac", "split",
+    "1.5 ton", "1.5t", "1.5ton", "one and half ton",
+    "cooling", "need ac", "room ac"
+  ],
+
+  "water purifier": [
+    "water purifier", "purifier", "ro", "r/o", "aqua guard", "aquaguard",
+    "kent", "livpure", "filter", "water filter", "drinking water machine",
+    "uv", "uf", "ro+uv", "ro uv"
+  ],
+
+  "microwave": [
+    "microwave", "micro wave", "oven", "mw", "solo microwave",
+    "microwave oven", "heat food machine", "reheat", "re-heater"
+  ],
+
+  "bed": [
+    "bed", "double bed", "single bed", "king bed", "queen bed",
+    "cot", "palang", "bed frame", "bedframe",
+    "storage bed", "box bed", "hydraulic bed",
+    "non storage", "non-storage", "without storage",
+    "6x6", "6 x 6", "6x5", "6 x 5", "6x3", "6 x 3"
+  ],
+
+  "mattress": [
+    "mattress", "gadda", "gadde", "foam mattress", "spring mattress",
+    "double mattress", "single mattress", "king mattress", "queen mattress",
+    "4 inch", "4in", "4\"", "5 inch", "5in", "5\"", "6 inch", "6in", "6\"",
+    "pair mattress", "two mattress", "1 piece mattress", "one piece"
+  ],
+
+  "sofa": [
+    "sofa", "couch", "settee", "l couch", "l-shape", "sofa set",
+    "3 seater", "3-seater", "two seater", "2 seater", "1 seater",
+    "3+1+1", "sofa with table", "sofa with center table",
+    "puffy", "puffies", "pouffe", "ottoman", "center table"
+  ],
+
+  "sofa chair": [
+    "sofa chair", "single sofa", "1 seater sofa", "accent chair",
+    "lounge chair", "arm chair", "armchair", "reading chair"
+  ],
+
+  "dining table": [
+    "dining table", "dinner table", "table for dining",
+    "4 seater dining", "4-seater dining", "6 seater dining", "6-seater dining",
+    "dining set", "dining with chairs", "dining table set"
+  ],
+
+  "center table": [
+    "center table", "centre table", "sofa table", "living table",
+    "drawing room table", "hall table"
+  ],
+
+  "coffee table": [
+    "coffee table", "tea table", "small table", "low table",
+    "coffee/center table"
+  ],
+
+  "side table": [
+    "side table", "bedside table", "night table", "nightstand",
+    "lamp table", "corner table"
+  ],
+
+  "study table": [
+    "study table", "study desk", "desk", "work desk", "office desk",
+    "computer table", "laptop table", "table for work", "workstation"
+  ],
+
+  "study chair": [
+    "study chair", "office chair", "computer chair", "desk chair",
+    "chair for study", "work chair", "ergonomic chair"
+  ],
+
+  "bookshelf": [
+    "bookshelf", "book shelf", "book rack", "rack", "shelf",
+    "storage rack", "bookstand"
+  ],
+
+  "inverter": [
+    "inverter", "power backup", "backup", "ups", "u p s",
+    "battery backup", "light backup", "home inverter",
+    "single battery", "double battery"
+  ],
+
+  "inverter battery": [
+    "inverter battery", "battery", "ups battery", "backup battery",
+    "tubular battery", "exide battery", "amaron battery"
+  ],
+
+  "gas stove": [
+    "gas stove", "stove", "gas chulha", "chulha", "cooktop",
+    "2 burner", "2-burner", "two burner", "3 burner", "3-burner", "three burner",
+    "hob", "gas top"
+  ],
+
+  "chimney": [
+    "chimney", "kitchen chimney", "exhaust", "exhaust chimney",
+    "chimni", "cooker hood", "range hood"
+  ],
+
+  "dressing table": [
+    "dressing table", "dresser", "mirror table", "makeup table",
+    "vanity", "vanity table"
+  ],
+}
+
+PRODUCT_VARIANTS = {
+  10: ["geyser 20", "20l geyser", "20 litre geyser", "20 ltr geyser", "big geyser", "storage geyser 20"],
+  1010: ["geyser 6", "6l geyser", "6 litre geyser", "6 ltr geyser", "small geyser", "instant geyser 6"],
+
+  11: ["fridge 190", "190l fridge", "single door fridge", "1 door fridge", "small fridge"],
+  36: ["double door fridge", "2 door fridge", "dd fridge", "big fridge", "family fridge"],
+
+  12: ["32 inch tv", "32in tv", "32\" tv", "smart led 32", "led 32"],
+  50: ["40 inch tv", "40in tv", "40\" tv", "smart led 40", "led 40"],
+  1008: ["43 inch tv", "43in tv", "43\" tv", "smart led 43", "led 43"],
+  1011: ["48 inch tv", "48in tv", "48\" tv", "smart led 48", "led 48"],
+
+  13: ["fully automatic washing machine", "automatic wm", "top load automatic", "top load wm"],
+  37: ["semi automatic washing machine", "semi auto wm", "semi-automatic"],
+
+  14: ["window ac", "window a/c", "ac window"],
+  60: ["split ac", "split a/c", "1.5 ton split", "1.5t split", "one and half ton split"],
+
+  15: ["water purifier", "ro", "ro purifier", "ro+uv", "drinking water purifier"],
+  1046: ["utc water purifier", "utc ro", "ro utc", "premium purifier"],
+
+  16: ["microwave", "solo microwave", "mw", "oven (microwave)"],
+
+  34: ["2 burner stove", "two burner stove", "2-burner gas", "gas chulha 2"],
+  49: ["3 burner stove", "three burner stove", "3-burner gas", "gas chulha 3"],
+
+  40: ["study table", "study desk", "computer table", "work desk"],
+  41: ["premium study chair", "office chair premium", "ergonomic chair premium"],
+  1058: ["study chair", "office chair", "desk chair"],
+
+  42: ["bookshelf", "book shelf", "book rack", "rack"],
+
+  1015: ["chimney", "kitchen chimney", "exhaust chimney", "range hood"],
+
+  1047: ["sofa chair", "accent chair", "arm chair", "single sofa chair"],
+}
+
 # Duration to price index mapping
 duration_dict = {3: 0, 6: 1, 9: 2, 12: 3, 18: 3, 24: 3}
 

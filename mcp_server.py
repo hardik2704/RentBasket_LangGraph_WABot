@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import local data as fallback
-from data.products import id_to_name, category_to_id, id_to_price
+from data.products import id_to_name, category_to_id, id_to_price, PRODUCT_SYNONYMS, PRODUCT_VARIANTS
 
 mcp = FastMCP("rentbasket-products")
 API_BASE = "https://testapi.rentbasket.com"
@@ -62,8 +62,18 @@ def build_semantic_index() -> str:
         cats = ", ".join(pid_to_cats.get(pid, []))
         prices = id_to_price.get(pid, [0, 0, 0, 0])
         
-        # Searchable text
-        doc = f"{name} | {cats}"
+        # Collect all synonyms for categories matched to this product
+        cat_synonyms = []
+        for cat in pid_to_cats.get(pid, []):
+            if cat in PRODUCT_SYNONYMS:
+                cat_synonyms.extend(PRODUCT_SYNONYMS[cat])
+        
+        # Collect product-specific variants
+        variants = PRODUCT_VARIANTS.get(pid, [])
+        
+        # Create a rich searchable document
+        synonym_text = ", ".join(list(set(cat_synonyms + variants)))
+        doc = f"{name} | {cats} | {synonym_text}"
         
         ids.append(str(pid))
         documents.append(doc)
