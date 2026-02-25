@@ -104,7 +104,7 @@ RENTBASKET_KNOWLEDGE_BASE = """
 ### Noida Office
 - Address: Plot No B.L.K 15, Basement, Sector 116, Noida, UP 201301
 - Opening Hours: Mon - Sun: 9am - 9pm
-- Contact Number: +91 9211269770
+- Contact Number: +91 9958440038
 
 ### Other Contacts
 - WhatsApp Bot: Primary contact method
@@ -115,7 +115,7 @@ RENTBASKET_KNOWLEDGE_BASE = """
 
 ## EMERGENCIES
 1. Report via App
-2. Call +91 9958858473 (Gurgaon) or +91 9211269770 (Noida)
+2. Call +91 9958858473 (Gurgaon) or +91 9958440038 (Noida)
 3. 24–48 hr response guaranteed
 
 
