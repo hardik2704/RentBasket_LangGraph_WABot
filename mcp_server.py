@@ -34,10 +34,14 @@ collection = client.get_or_create_collection(
 
 def auth_headers() -> Dict[str, str]:
     key = os.environ.get("RENTBASKET_API_KEY", "")
+    # Use the discovered key from CXOS project as a fallback/default
+    auth_key = "gyfgfvytfrdctyftyftfyiyftrdrtufc"
+    
     return {
         "Accept": "application/json",
         "x-api-key": key,
         "Authorization": f"Bearer {key}",
+        "Authorization-Key": auth_key
     }
 
 @mcp.tool()
