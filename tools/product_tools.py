@@ -61,53 +61,51 @@ def search_products_tool(query: str, category: Optional[str] = None) -> str:
 
 
 @tool
-def get_price_tool(product_id: int, duration_months: int = 6) -> str:
+def get_price_tool(product_id: int, duration: int = 6, unit: str = "months") -> str:
     """
-    Get the rental price for a specific product.
+    Get the rental price for a specific product for any duration.
     Use this when the customer asks for the rent/price of a specific item.
     
     Args:
         product_id: The product ID (use search_products_tool to find IDs)
-        duration_months: Rental duration in months (minimum 3, any duration accepted). If Duration is less than 3 months, redirect them to the "RentBasket Mini".
-                        Pricing is tiered: 3-5mo=3mo rate, 6-8mo=6mo rate, 9-11mo=9mo rate, 12+mo=12mo rate.
+        duration: Rental duration value
+        unit: Unit of duration ("days" or "months"). Default is "months".
     
     Returns:
-        Product name and monthly rental price
+        Product name and rental price details
     """
     product = get_product_by_id(product_id)
     if not product:
         return f"Product with ID {product_id} not found. Please search for products first."
     
-    # Redirect to RentBasket Mini for short-term rentals
-    if duration_months < 3:
-        return f"""
-⚡ **RentBasket Mini** - Short-Term Rentals!
-
-For rentals under 3 months, we have **RentBasket Mini** - our special short-term rental service!
-
-📞 **Contact our sales team to know more:**
-• Gurgaon: +91 9958187021
-• Noida: +91 9958440038
-
-They'll help you with 1-2 month rental options. 😊
-"""
-    
-    rent = calculate_rent(product_id, duration_months)
+    rent = calculate_rent(product_id, duration, unit)
     
     # Get prices for all durations for comparison
     prices = product['prices']
     
+    # Pricing help text based on structure [0:1d, 1:8d, 2:15d, 3:30d, 4:60d, 5:3m, 6:6m, 7:9m, 8:12m+]
+    price_info = ""
+    if len(prices) >= 9:
+        price_info = f"""
+Additional Pricing Options (Live Rates):
+• 1 Day (1-7d): ₹{prices[0]}/day
+• 8 Days (8-14d): ₹{prices[1]} total
+• 15 Days (15-29d): ₹{prices[2]} total
+• 1 Month: ₹{prices[3]}/month
+• 3 Months: ₹{prices[5]}/month
+• 6 Months: ₹{prices[6]}/month
+• 12+ Months: ₹{prices[8]}/month
+"""
+    else:
+        # Fallback for old/shortened data
+        price_info = "\n".join([f"• Option {i+1}: ₹{p}" for i, p in enumerate(prices)])
+
     return f"""
 **{product['name']}**
-Monthly rent for {duration_months} months: ₹{rent}/month
+Rent for {duration} {unit}: ₹{rent}{"/month" if unit == "months" else ""}
 
-All duration options:
-• 3 months: ₹{prices[0]}/month
-• 6 months: ₹{prices[1]}/month  
-• 9 months: ₹{prices[2]}/month
-• 12 months: ₹{prices[3]}/month
-
-💡 Tip: Longer duration = lower monthly rent!
+{price_info}
+💡 Tip: Longer durations often result in better monthly rates!
 """
 
 

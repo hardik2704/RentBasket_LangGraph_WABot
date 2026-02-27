@@ -56,6 +56,7 @@ SALES_PHONE_GURGAON = GURGAON_OFFICE["sales_phone"]
 SALES_PHONE_NOIDA = NOIDA_OFFICE["sales_phone"]
 SUPPORT_EMAIL = "support@rentbasket.com"
 WEBSITE = "https://rentbasket.com"
+KU_REFERRAL_LINK = "https://qr.rentbasket.com/dealer?referral_code=AS1c2NzAy"
 
 # ========================================
 # LOGGING CONFIGURATION
@@ -92,5 +93,5 @@ BORDER_PINCODES = {
 # ========================================
 # DURATION OPTIONS
 # ========================================
-VALID_DURATIONS = [3, 6, 9, 12, 18, 24]
-DURATION_TO_INDEX = {3: 0, 6: 1, 9: 2, 12: 3, 18: 3, 24: 3}
+VALID_DURATIONS = ["1d", "8d", "15d", "30d", "60d", "3m", "6m", "9m", "12m+"]
+DURATION_TO_INDEX = {dur: i for i, dur in enumerate(VALID_DURATIONS)}

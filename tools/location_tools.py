@@ -14,6 +14,16 @@ from config import (
     SALES_PHONE_GURGAON,
     SALES_PHONE_NOIDA
 )
+from logistics import DistanceEngine, calculate_delivery_price
+
+# Initialize Distance Engine
+distance_engine = DistanceEngine()
+
+# Office Pincodes for distance logging
+OFFICE_PINCODES = {
+    "Gurgaon": "122003",
+    "Noida": "201301"
+}
 
 
 def _extract_pincode(text: str) -> str:
@@ -119,6 +129,12 @@ We currently serve:
     if pincode in SERVICEABLE_PINCODES:
         return f"""
 ✅ **Great news! Pincode {pincode} ({city}) is serviceable!**
+
+# Distance Logging (Internal Logs Only)
+for office, off_pin in OFFICE_PINCODES.items():
+    dist = distance_engine.estimate_road_km(off_pin, pincode)
+    if dist is not None:
+        print(f"{{{{{dist:.2f} km from the {office} office}}}}")
 
 We can deliver to your location.
 • Standard delivery: 2-5 business days

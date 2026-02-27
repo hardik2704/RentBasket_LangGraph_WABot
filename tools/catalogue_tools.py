@@ -34,7 +34,7 @@ def _best_price(product_id: int) -> int:
     prices = id_to_price.get(product_id)
     if not prices:
         return 0
-    twelve_month_rate = prices[3]  # Index 3 = 12-month rate
+    twelve_month_rate = prices[-1]  # Get the longest available duration rate (12m+ in new structure)
     return round(twelve_month_rate * (1 - UPFRONT_DISCOUNT))
 
 
@@ -133,11 +133,10 @@ def browse_category_tool(category: str) -> str:
     
     for p in products:
         best = _best_price(p["id"])
-        twelve_rate = p["prices"][3]  # 12-month rate (before discount)
+        twelve_rate = p["prices"][-1]  # Get the longest duration (12m+) rate
         trending_badge = " 🔥 *Popular*" if p["id"] == trending_id else ""
         lines.append(f"  • *{p['name']}*{trending_badge}")
-        lines.append(f"    Starting Price: {_format_price(best)}/mo")
-        lines.append(f"    Standard 12mo: {_format_price(twelve_rate)}/mo")
+        lines.append(f"    Starting Price: {_format_price(best)}/mo (12-month plan with upfront discount)")
         lines.append("")
     
     lines.append(f"💡 *Starting prices* include a 10% upfront payment discount on the 12-month plan.")
