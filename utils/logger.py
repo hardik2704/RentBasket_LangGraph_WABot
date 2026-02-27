@@ -20,17 +20,19 @@ def ensure_logs_directory():
 def get_log_file_path(phone_number: str) -> str:
     """
     Get the path to the log file for a phone number.
-    
-    Args:
-        phone_number: User's phone number (used as filename)
-        
-    Returns:
-        Full path to the log file
+    Standardizes on the 91 prefix for Indian numbers.
     """
     ensure_logs_directory()
-    # Clean the phone number (remove spaces, +, etc.)
-    clean_number = phone_number.replace("+91", "").replace(" ", "").replace("-", "").replace("+", "")
-    return os.path.join(LOGS_DIRECTORY, f"{clean_number}.txt")
+    # Clean the phone number (remove spaces, symbols)
+    clean = phone_number.replace(" ", "").replace("-", "").replace("+", "")
+    
+    # Standardize Indian numbers: if 10 digits, add 91. If 12 digits starting with 91, keep it.
+    if len(clean) == 10:
+        clean = "91" + clean
+    elif len(clean) == 12 and clean.startswith("91"):
+        pass 
+    
+    return os.path.join(LOGS_DIRECTORY, f"{clean}.txt")
 
 
 def format_timestamp() -> str:
@@ -47,20 +49,21 @@ def log_message(
 ) -> None:
     """
     Log a single message to the conversation file.
-    
-    Args:
-        phone_number: User's phone number (for file identification)
-        sender_name: Name of the sender (user name or bot name)
-        message: The message content
-        is_bot: Whether this is a bot message
     """
     log_path = get_log_file_path(phone_number)
     timestamp = format_timestamp()
     
+    # Ensure phone number is clean for display
+    display_phone = phone_number.replace("+", "")
+    if len(display_phone) == 10:
+        display_phone = "91" + display_phone
+
     if is_bot:
         sender = BOT_NAME
     else:
-        sender = sender_name or phone_number
+        # Include both name and number for better tracking/knowledge
+        name = sender_name or "User"
+        sender = f"{name} ({display_phone})"
     
     # Format: DD/MM/YY, HH:MM am - Sender: Message
     log_entry = f"{timestamp} - {sender}: {message}\n"
