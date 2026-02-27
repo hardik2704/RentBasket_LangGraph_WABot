@@ -5,8 +5,8 @@ RENTBASKET_KNOWLEDGE_BASE = """
 ## COMPANY OVERVIEW
 - Mission: Democratize lifestyle for young professionals by making urban living comfortable and accessible.
 - Tagline: "Comfort ki Tokri"
-- Business Model: Furniture & appliance rental (3–12+ months flexible plans)
-- **RentBasket Mini**: Short-term rental service for 1-2 months (contact sales team)
+- Business Model: Furniture & appliance rental (Daily to 24+ months flexible plans)
+- **RentBasket Mini**: Our short-term rental service for durations from 1 day up to 2 months.
 
 
 ## SERVICE AREAS
@@ -27,11 +27,11 @@ RENTBASKET_KNOWLEDGE_BASE = """
 ## TERMS & CONDITIONS
 
 ### 1. RENTAL TERMS & TERMINATION
-- Minimum Commitment: 3 months
+- Minimum Commitment: 1 day
 - Lock-in: As per Annexure I
-- Early Termination: 30 days notice + penalty
+- Early Termination: 30 days notice + penalty (for monthly plans)
 - Penalty Rates:
-  - <3 months: Full 3-month rent
+  - Short-term (<3 months): As per fixed daily/monthly rates
   - 3–6: 3-month rate
   - 6–9: 6-month rate
   - 9–12: 9-month rate
@@ -170,7 +170,7 @@ RENTBASKET_KNOWLEDGE_BASE = """
 
 # Structured FAQs for quick lookup
 FAQS = {
-    "minimum_duration": "Our minimum rental duration is 3 months.",
+    "minimum_duration": "Our minimum rental duration is 1 day.",
     "security_deposit": "Security deposit is refundable within 7 days after pickup, minus any damage charges.",
     "payment_due": "Monthly rent is due by the 7th of each month.",
     "late_fee": "Late fees: ₹100 by 15th, +5% after 15th, +10% after 25th.",

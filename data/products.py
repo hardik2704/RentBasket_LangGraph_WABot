@@ -482,7 +482,7 @@ def format_product_for_display(product: Dict[str, Any], duration: int = 6) -> st
     return f"• {product['name']}: ₹{rent}/month ({duration}mo)"
 
 
-def create_bundle_quote(product_ids: List[int], duration: int) -> Dict[str, Any]:
+def create_bundle_quote(product_ids: List[int], duration: int, unit: str = "months") -> Dict[str, Any]:
     """Create a quote for multiple products."""
     items = []
     total_rent = 0
@@ -490,19 +490,21 @@ def create_bundle_quote(product_ids: List[int], duration: int) -> Dict[str, Any]
     for pid in product_ids:
         product = get_product_by_id(pid)
         if product:
-            rent = calculate_rent(pid, duration)
+            rent = calculate_rent(pid, duration, unit)
             items.append({
                 "product": product["name"],
-                "monthly_rent": rent
+                "monthly_rent" if unit == "months" else "total_rent": rent
             })
             total_rent += rent
     
     # Estimate security (roughly 2x monthly rent, capped)
+    # For daily rentals, security might be different, but let's keep it simple for now or use a heuristic.
     security = min(total_rent * 2, 15000)
     
     return {
         "items": items,
-        "total_monthly_rent": total_rent,
+        "total_monthly_rent" if unit == "months" else "total_rent": total_rent,
         "security_deposit": security,
-        "duration_months": duration
+        "duration": duration,
+        "unit": unit
     }

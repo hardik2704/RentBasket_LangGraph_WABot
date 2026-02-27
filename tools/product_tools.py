@@ -112,14 +112,15 @@ All duration options:
 
 
 @tool
-def create_quote_tool(product_ids: str, duration_months: int = 6) -> str:
+def create_quote_tool(product_ids: str, duration: int = 6, unit: str = "months") -> str:
     """
     Create a rental quote for multiple products (bundle/package).
     Use this when the customer asks for multiple items together.
     
     Args:
         product_ids: Comma-separated product IDs (e.g., "17,11,18" for bed, fridge, sofa)
-        duration_months: Rental duration in months. Default is 6 months.
+        duration: Rental duration value
+        unit: Unit of duration ("days" or "months"). Default is "months".
     
     Returns:
         Itemized quote with total monthly rent and security deposit
@@ -136,7 +137,7 @@ def create_quote_tool(product_ids: str, duration_months: int = 6) -> str:
         return "None of the provided product IDs are valid. Please search for products first."
     
     # Create quote
-    quote = create_bundle_quote(valid_ids, duration_months)
+    quote = create_bundle_quote(valid_ids, duration)
     
     # Format response
     items_list = "\n".join([
