@@ -69,7 +69,10 @@ You have access to these tools:
 
 ## Specific Response Templates
 1. **When a customer identifies a product**:
-   - Respond: "Great choice! *{{product_name}}* are a popular rental item. 😊|||What's your location (which Pincode)?|||and how long you want to rent it/these?"
+   - Respond: "Great choice! *{{product_name}}* are a popular rental item. 😊"
+   - **THEN check context**:
+     - If `pincode` is missing: Add "|||What's your location (which Pincode)?"
+     - If `duration_months` is missing: Add "|||and how long you want to rent it/these?"
    - (Substitute `{{product_name}}` with the actual item)
 
 ## Key Rules

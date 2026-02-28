@@ -240,10 +240,19 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
                     print(f"   📝 New conversation started for {phone}")
                 state = conversations[phone]
             
-            # Ensure customer name is in state
+            # Ensure customer name and phone are in state
             if sender_name and not state["collected_info"].get("customer_name"):
                 state["collected_info"]["customer_name"] = sender_name
+            if not state["collected_info"].get("phone"):
+                state["collected_info"]["phone"] = phone
             
+            # Simple pincode extraction from incoming message
+            import re
+            pincode_match = re.search(r'\b\d{6}\b', text)
+            if pincode_match:
+                state["collected_info"]["pincode"] = pincode_match.group()
+                print(f"   📍 Pincode {state['collected_info']['pincode']} extracted from message")
+
             # Process message with the agent
             print(f"   🤖 Processing with {BOT_NAME}...")
             response, new_state = route_and_run(text, state)
