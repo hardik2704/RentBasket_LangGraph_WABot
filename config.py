@@ -68,7 +68,7 @@ LOGS_DIRECTORY = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "lo
 # BOT PERSONALITY
 # ========================================
 BOT_NAME = "Ku"
-BOT_GREETING = f"Hi! I'm *{BOT_NAME}*, RentBasket's WhatsApp assistant. 😊"
+BOT_GREETING = f"Hi! I'm *{BOT_NAME}* from RentBasket. 😊"
 
 # ========================================
 # SERVICE AREAS
