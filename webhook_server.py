@@ -100,6 +100,83 @@ def home():
     })
 
 
+# ========================================
+# LOG DOWNLOAD ENDPOINTS (for production testing)
+# ========================================
+
+LOGS_SECRET = VERIFY_TOKEN  # Reuse the webhook verify token as auth
+
+@app.route("/logs", methods=["GET"])
+def list_logs():
+    """List all log files. Auth: ?secret=YOUR_VERIFY_TOKEN"""
+    if request.args.get("secret") != LOGS_SECRET:
+        return "Forbidden", 403
+    
+    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+    if not os.path.exists(log_dir):
+        return jsonify({"files": []})
+    
+    files = []
+    for f in sorted(os.listdir(log_dir)):
+        if f.endswith(".txt"):
+            path = os.path.join(log_dir, f)
+            files.append({
+                "name": f,
+                "size_bytes": os.path.getsize(path),
+                "url": f"/logs/{f}?secret={LOGS_SECRET}"
+            })
+    return jsonify({"files": files})
+
+
+@app.route("/logs/<filename>", methods=["GET"])
+def download_log(filename):
+    """Download a specific log file. Auth: ?secret=YOUR_VERIFY_TOKEN"""
+    if request.args.get("secret") != LOGS_SECRET:
+        return "Forbidden", 403
+    
+    # Sanitize filename to prevent directory traversal
+    if ".." in filename or "/" in filename:
+        return "Bad request", 400
+    
+    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+    log_path = os.path.join(log_dir, filename)
+    
+    if not os.path.exists(log_path):
+        return "Not found", 404
+    
+    with open(log_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    
+    from flask import Response
+    return Response(content, mimetype="text/plain",
+                    headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+
+@app.route("/logs/download-all", methods=["GET"])
+def download_all_logs():
+    """Download ALL log files as a single zip. Auth: ?secret=YOUR_VERIFY_TOKEN"""
+    if request.args.get("secret") != LOGS_SECRET:
+        return "Forbidden", 403
+    
+    import zipfile
+    import io
+    
+    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+    if not os.path.exists(log_dir):
+        return "No logs yet", 404
+    
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in sorted(os.listdir(log_dir)):
+            if f.endswith(".txt"):
+                zf.write(os.path.join(log_dir, f), f)
+    
+    buf.seek(0)
+    from flask import send_file
+    return send_file(buf, mimetype="application/zip",
+                     as_attachment=True, download_name="rentbasket_logs.zip")
+
+
 @app.route("/webhook", methods=["GET"])
 def verify_webhook():
     """
