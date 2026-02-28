@@ -14,6 +14,7 @@ import sys
 import re
 import argparse
 import threading
+import time
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 
@@ -75,6 +76,11 @@ session_context = {}  # phone_number -> {last_product, handoff_needed, intent}
 processed_ids = set()
 MAX_CACHE_SIZE = 100
 
+# THREAD SAFETY: Global lock for shared dictionaries and per-phone processing
+conversations_lock = threading.Lock()
+per_phone_locks = {}  # phone_number -> threading.Lock
+per_phone_locks_lock = threading.Lock() # Lock for the per_phone_locks dict itself
+
 # Initialize WhatsApp client
 whatsapp_client = WhatsAppClient(
     phone_number_id=PHONE_NUMBER_ID,
@@ -130,80 +136,75 @@ def format_bot_response(text: str) -> str:
 
 def process_webhook_async(phone, text, sender_name, message_id, message_type, interactive_response):
     """
-    Process the message logic in a background thread to allow immediate 200 OK response.
+    Process the message logic in a background thread.
+    Uses a per-phone lock to ensure messages from the same user are processed sequentially.
     """
-    try:
-        # Check for pricing negotiation intent BEFORE processing with agent
-        if is_pricing_negotiation(text):
-            print(f"   💰 Pricing negotiation detected!")
-            handle_pricing_negotiation(phone, sender_name, text, message_id)
-            return
+    # 1. Get or create a lock for this specific phone number
+    with per_phone_locks_lock:
+        if phone not in per_phone_locks:
+            per_phone_locks[phone] = threading.Lock()
+        user_lock = per_phone_locks[phone]
 
-        # Get or create conversation state for this user
-        if phone not in conversations:
-            conversations[phone] = create_initial_state()
-            start_new_session(phone, sender_name)
-            print(f"   📝 New conversation started for {phone}")
-        
-        state = conversations[phone]
-        
-        # Ensure customer name is in state for the agent
-        if sender_name and not state["collected_info"].get("customer_name"):
-            state["collected_info"]["customer_name"] = sender_name
-        
-        # Process message with the agent (via orchestrator routing)
-        print(f"   🤖 Processing with {BOT_NAME}...")
-        response, new_state = route_and_run(text, state)
-        
-        # Update conversation state
-        conversations[phone] = new_state
-        
-        # Apply formatting rules (replace ** with *)
-        response = format_bot_response(response)
-        
-        # Handle split messages (e.g., from greeting sequence)
-        messages_to_send = []
-        
-        if "|||" in response:
-            messages_to_send = response.split("|||")
-        elif "How can I help you in making your living space more comfortable?😊" in response and "We offer Quality furniture" in response:
-            # Fallback for when LLM replaces ||| with newlines
-            print("   ⚠️ LLM removed delimeters, applying fallback splitting...")
+    # 2. Acquire user_lock to ensure FIFO processing for this user
+    with user_lock:
+        print(f"   🔒 Processing message {message_id} for {phone} (Lock acquired)")
+        try:
+            # Check for pricing negotiation intent
+            if is_pricing_negotiation(text):
+                print(f"   💰 Pricing negotiation detected!")
+                handle_pricing_negotiation(phone, sender_name, text, message_id)
+                return
+
+            # Get state within the global conversations lock
+            with conversations_lock:
+                if phone not in conversations:
+                    conversations[phone] = create_initial_state()
+                    start_new_session(phone, sender_name)
+                    print(f"   📝 New conversation started for {phone}")
+                state = conversations[phone]
             
-            # Normalize common newline patterns
-            temp_response = response.replace("\n\n", "|||").replace("\n", " ")
+            # Ensure customer name is in state
+            if sender_name and not state["collected_info"].get("customer_name"):
+                state["collected_info"]["customer_name"] = sender_name
             
-            # If that didn't work (e.g. just single newlines), force inject based on known text
-            if "|||" not in temp_response:
+            # Process message with the agent
+            print(f"   🤖 Processing with {BOT_NAME}...")
+            response, new_state = route_and_run(text, state)
+            
+            # Update state within global lock
+            with conversations_lock:
+                conversations[phone] = new_state
+            
+            # Apply formatting
+            response = format_bot_response(response)
+            
+            # Split and send messages
+            messages_to_send = []
+            if "|||" in response:
+                messages_to_send = response.split("|||")
+            elif "How can I help you in making your living space more comfortable?😊" in response and "We offer Quality furniture" in response:
                 temp_response = response.replace("How can I help you in making your living space more comfortable?😊", "How can I help you in making your living space more comfortable?😊|||")
                 temp_response = temp_response.replace("powered by customer service which is best in the market.", "powered by customer service which is best in the market.|||")
+                messages_to_send = temp_response.split("|||")
+            else:
+                messages_to_send = [response]
             
-            messages_to_send = temp_response.split("|||")
-        else:
-            messages_to_send = [response]
-        
-        for i, msg in enumerate(messages_to_send):
-            msg = msg.strip()
-            if not msg:
-                continue
-                
-            print(f"   📤 Sending response part {i+1}/{len(messages_to_send)}...")
+            for i, msg in enumerate(messages_to_send):
+                msg = msg.strip()
+                if not msg: continue
+                whatsapp_client.send_text_message(phone, msg, preview_url="http" in msg)
+                if len(messages_to_send) > 1:
+                    time.sleep(0.5) # Slight delay between split messages
             
-            # Enable link preview if message contains a URL
-            preview = "http" in msg or "https" in msg
-            
-            whatsapp_client.send_text_message(phone, msg, preview_url=preview)
-        
-        # Log the conversation (full combined response for history)
-        log_response = response.replace("|||", "\n")
-        log_conversation_turn(phone, sender_name, text, log_response)
-        
-        print(f"   ✅ Response sent successfully!")
-        
-    except Exception as e:
-        print(f"❌ Error in background process: {e}")
-        import traceback
-        traceback.print_exc()
+            # Log turn (synchronized by user_lock)
+            log_response = response.replace("|||", "\n")
+            log_conversation_turn(phone, sender_name, text, log_response)
+            print(f"   ✅ Response sent successfully for {phone}")
+
+        except Exception as e:
+            print(f"❌ Error in background process for {phone}: {e}")
+            import traceback
+            traceback.print_exc()
 
 
 @app.route("/webhook", methods=["POST"])
@@ -228,17 +229,17 @@ def handle_webhook():
         message_type = message_data.get("type")
         interactive_response = message_data.get("interactive")
         
-        # 1. Deduplication check
-        if message_id in processed_ids:
-            print(f"   ⏭️ Skipping duplicate message: {message_id}")
-            return jsonify({"status": "duplicate"}), 200
-        
-        # Add to cache and prune if needed
-        processed_ids.add(message_id)
-        if len(processed_ids) > MAX_CACHE_SIZE:
-            # Remove an old ID (simple pruning using a slightly more robust list conversion)
-            oldest_id = next(iter(processed_ids))
-            processed_ids.remove(oldest_id)
+        # 1. Deduplication check (Thread-safe)
+        with conversations_lock:
+            if message_id in processed_ids:
+                print(f"   ⏭️ Skipping duplicate message: {message_id}")
+                return jsonify({"status": "duplicate"}), 200
+            
+            # Add to cache and prune if needed
+            processed_ids.add(message_id)
+            if len(processed_ids) > MAX_CACHE_SIZE:
+                # Remove an old ID
+                processed_ids.remove(next(iter(processed_ids)))
 
         print(f"\n💬 Message from {sender_name} ({phone}):")
         print(f"   Type: {message_type}")
