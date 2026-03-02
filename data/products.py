@@ -29,7 +29,7 @@ id_to_name = {
     44: "Mattress Pair 5 Inches",
     45: "Inverter Double Battery",
     49: "Gas Stove 3 Burner",
-    50: "SMART LED 40",
+    50: "SMART LED 40\"",
     51: "Side Table Glass Top",
     53: "Coffee Table",
     56: "Inverter Battery",
@@ -355,6 +355,10 @@ PRODUCT_VARIANTS = {
   1015: ["chimney", "kitchen chimney", "exhaust chimney", "range hood"],
 
   1047: ["sofa chair", "accent chair", "arm chair", "single sofa chair"],
+  1048: ["7 seater sofa", "7 seater couch", "7 seater sofa set", "7 seater couch set"],
+  1041: ["7 seater sofa", "7 seater couch", "7 seater sofa set", "7 seater couch set"],
+  1049: ["7 seater sofa", "7 seater couch", "7 seater sofa set", "7 seater couch set"]
+
 }
 
 # Duration to price index mapping
