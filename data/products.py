@@ -55,14 +55,14 @@ id_to_name = {
     1036: "6 Seater Dining Table Sheesham Wood Cushion",
     1037: "4 Seater Dining Table Sheesham Wood Cushion",
     1039: "3+1+1 Fabric Sofa",
-    1041: "Fabric Green Sofa Set with 2 Puffies & CT",
+    1041: "7 Seater Fabric Green Sofa Set with 2 Puffies & CT",
     1042: "3 Seater Fabric Sofa",
     1043: "2 Seater Fabric Sofa",
     1044: "Std Dressing Table",
     1046: "Water Purifier UTC",
     1047: "Sofa Chair P",
-    1048: "Fabric Grey Sofa Set with 2 Puffies & CT",
-    1049: "Fabric Beige Sofa Set with 2 Puffies & CT",
+    1048: "7 Seater Fabric Grey Sofa Set with 2 Puffies & CT",
+    1049: "7 Seater Fabric Beige Sofa Set with 2 Puffies & CT",
     1050: "QS Mattress One Piece 6 Inches ( 6X5X6 )",
     1051: "QS Mattress One Piece 5 Inches ( 6X5X5 )",
     1052: "QS Mattress Pair 6 Inches ( 6X5X6 )",
@@ -522,7 +522,7 @@ PRODUCT_VARIANTS = {
     "7 seater sofa", "7 seater couch", "7 seater sofa set", "7 seater couch set",
     "green sofa set", "fabric green sofa", "sofa with puffies", "sofa with ottoman",
     "sofa set with puffies green", "green 7 seater", "seven seater sofa green",
-    "large sofa set green", "sofa with puffy and table green"
+    "large sofa set green", "sofa with puffy and table green", "7-seater sofa", "7-seater couch"
   ],
   1042: [
     "3 seater sofa", "3 seater couch", "three seater sofa", "3 seater fabric sofa",
@@ -547,14 +547,14 @@ PRODUCT_VARIANTS = {
     "grey sofa set", "gray sofa set", "fabric grey sofa", "sofa with puffies",
     "sofa with ottoman", "sofa set with puffies grey", "grey 7 seater",
     "seven seater sofa grey", "large sofa set grey", "gray 7 seater",
-    "sofa with puffy and table grey"
+    "sofa with puffy and table grey", "7-seater sofa", "7-seater couch"
   ],
   1049: [
     "7 seater sofa", "7 seater couch", "7 seater sofa set", "7 seater couch set",
     "beige sofa set", "fabric beige sofa", "sofa with puffies",
     "sofa with ottoman", "sofa set with puffies beige", "beige 7 seater",
     "seven seater sofa beige", "large sofa set beige", "cream sofa set",
-    "sofa with puffy and table beige", "neutral sofa set"
+    "sofa with puffy and table beige", "neutral sofa set", "7-seater sofa", "7-seater couch"
   ],
 
   # ── MATTRESSES ──
