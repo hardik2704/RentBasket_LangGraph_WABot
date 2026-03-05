@@ -26,11 +26,11 @@ def get_log_file_path(phone_number: str) -> str:
     # Clean the phone number (remove spaces, symbols)
     clean = phone_number.replace(" ", "").replace("-", "").replace("+", "")
     
-    # Standardize Indian numbers: if 10 digits, add 91. If 12 digits starting with 91, keep it.
-    if len(clean) == 10:
-        clean = "91" + clean
-    elif len(clean) == 12 and clean.startswith("91"):
-        pass 
+    # # Standardize Indian numbers: if 10 digits, add 91. If 12 digits starting with 91, keep it.
+    # if len(clean) == 10:
+    #     clean = "91" + clean
+    # elif len(clean) == 12 and clean.startswith("91"):
+    #     pass 
     
     return os.path.join(LOGS_DIRECTORY, f"{clean}.txt")
 

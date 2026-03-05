@@ -1,0 +1,51 @@
+# Log Synchronization Walkthrough
+
+I've implemented a robust synchronization script that allows you to pull the latest conversation logs from your Render backend server directly into your local [logs/](file:///Users/hardik/AI/RentBasket_LangGraph_WABot/scripts/sync_logs.py#22-93) directory.
+
+## Changes Made
+
+### [Scripts]
+
+#### [sync_logs.py](file:///Users/hardik/AI/RentBasket_LangGraph_WABot/scripts/sync_logs.py)
+This script handles the connection to your Render server and automates the log downloads.
+- **Authentication**: Uses your `VERIFY_TOKEN` (12345) for secure access.
+- **Efficiency**: Only downloads new or updated logs to save bandwidth.
+- **Configuration**: Pre-configured with your Render URL (`https://rentbasket-wabot.onrender.com`).
+
+## Verification Results
+
+I verified the script by running it in your environment. It successfully:
+1. Connected to the Render backend.
+2. Retrieved the list of available log files (10 files found).
+3. Compared them with your local [logs/](file:///Users/hardik/AI/RentBasket_LangGraph_WABot/scripts/sync_logs.py#22-93) directory.
+
+### Sync Execution Output
+```bash
+python3 scripts/sync_logs.py
+🔄 Syncing logs from: https://rentbasket-wabot.onrender.com
+📁 Target directory: /Users/hardik/AI/RentBasket_LangGraph_WABot/logs
+🔍 Fetching file list...
+📊 Found 10 log files.
+
+✅ Sync Complete!
+  📥 Downloaded/Updated: 0
+  ⏭️ Already Current: 10
+```
+
+## How to Use
+
+### 1. Manual Sync (Once)
+Run this whenever you want a quick update:
+```bash
+python3 scripts/sync_logs.py
+```
+
+### 2. Live Sync (Watch Mode)
+Run this to keep it "automatic". It will check for new logs every 60 seconds (like a live feed):
+```bash
+python3 scripts/sync_logs.py --watch
+```
+
+> [!TIP]
+> You can change the interval (e.g., every 30 seconds) using:
+> `python3 scripts/sync_logs.py --watch --interval 30`
