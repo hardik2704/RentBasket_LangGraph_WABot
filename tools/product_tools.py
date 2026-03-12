@@ -89,31 +89,67 @@ def get_price_tool(product_id: int, duration: int = 6, unit: str = "months") -> 
     if not product:
         return f"Product with ID {product_id} not found. Please search for products first."
     
-    rent = calculate_rent(product_id, duration, unit)
-    
+    # Try fetching effective price from Supabase first
+    effective_data = None
+    if unit == "months":
+        try:
+            from utils.db import is_db_available, execute_query_one
+            if is_db_available():
+                query = "SELECT calculate_effective_price(%s, %s)"
+                result = execute_query_one(query, (product_id, duration))
+                if result and result[0]:
+                    effective_data = result[0]
+                    if "error" in effective_data:
+                        effective_data = None
+        except Exception as e:
+            print(f"⚠️ Pricing Engine Error: {e}")
+            effective_data = None
+
+    if effective_data:
+        # Use DB data (with discounts and formatting (~))
+        rent_display = effective_data.get('display_text')
+        rent_value = effective_data.get('final_price')
+        source = effective_data.get('discount_source', 'none')
+        discount_percent = effective_data.get('discount_percent', 0)
+    else:
+        # Fallback to local math
+        rent_value = calculate_rent(product_id, duration, unit)
+        rent_display = f"₹{rent_value}/month" if unit == "months" else f"₹{rent_value}"
+
     # Get prices for all durations for comparison
-    prices = product['prices']
-    
+    def _get_formatted_price(pid, dur):
+        if unit != "months":
+            val = calculate_rent(pid, dur, unit)
+            return f"₹{val}"
+        
+        try:
+            from utils.db import is_db_available, execute_query_one
+            if is_db_available():
+                query = "SELECT calculate_effective_price(%s, %s)"
+                res = execute_query_one(query, (pid, dur))
+                if res and res[0] and "error" not in res[0]:
+                    return res[0].get('display_text', f"₹{res[0]['final_price']}/month")
+        except:
+            pass
+        val = calculate_rent(pid, dur, unit)
+        return f"₹{val}/month"
+
     # Pricing help text based on structure [0:1d, 1:8d, 2:15d, 3:30d, 4:60d, 5:3m, 6:6m, 7:9m, 8:12m+]
-    price_info = ""
-    if len(prices) >= 9:
+    if unit == "months":
         price_info = f"""
 Additional Pricing Options (Live Rates):
-• 1 Day (1-7d): ₹{prices[0]}/day
-• 8 Days (8-14d): ₹{prices[1]} total
-• 15 Days (15-29d): ₹{prices[2]} total
-• 1 Month: ₹{prices[3]}/month
-• 3 Months: ₹{prices[5]}/month
-• 6 Months: ₹{prices[6]}/month
-• 12+ Months: ₹{prices[8]}/month
+• 1 Month: {_get_formatted_price(product_id, 1)}
+• 3 Months: {_get_formatted_price(product_id, 3)}
+• 6 Months: {_get_formatted_price(product_id, 6)}
+• 12+ Months: {_get_formatted_price(product_id, 12)}
 """
     else:
-        # Fallback for old/shortened data
+        prices = product['prices']
         price_info = "\n".join([f"• Option {i+1}: ₹{p}" for i, p in enumerate(prices)])
 
     return f"""
-**{product['name']}**
-Rent for {duration} {unit}: ₹{rent}{"/month" if unit == "months" else ""}
+*{product['name']}*
+Rent for {duration} {unit}: {rent_display}
 
 {price_info}
 💡 Tip: Longer durations often result in better monthly rates!
@@ -145,23 +181,58 @@ def create_quote_tool(product_ids: str, duration: int = 6, unit: str = "months")
     if not valid_ids:
         return "None of the provided product IDs are valid. Please search for products first."
     
-    # Create quote
-    quote = create_bundle_quote(valid_ids, duration)
+    # Try using Supabase for effective bundle pricing
+    items_data = []
+    total_rent = 0
+    use_db = False
     
-    # Format response
-    items_list = "\n".join([
-        f"  • {item['product']}: ₹{item['monthly_rent']}/month" 
-        for item in quote['items']
-    ])
+    if unit == "months":
+        try:
+            from utils.db import is_db_available, execute_query_one
+            if is_db_available():
+                use_db = True
+                for pid in valid_ids:
+                    # Call RPC with cart context (valid_ids) to detect combo discounts
+                    query = "SELECT calculate_effective_price(%s, %s, %s)"
+                    result = execute_query_one(query, (pid, duration, valid_ids))
+                    
+                    if result and result[0] and "error" not in result[0]:
+                        data = result[0]
+                        total_rent += data['final_price']
+                        items_data.append({
+                            "name": data['product_name'],
+                            "display": data['display_text']
+                        })
+                    else:
+                        # Item-specific fallback
+                        rent = calculate_rent(pid, duration, unit)
+                        total_rent += rent
+                        items_data.append({
+                            "name": id_to_name.get(pid, f"Product {pid}"),
+                            "display": f"₹{rent}/month"
+                        })
+        except Exception as e:
+            print(f"⚠️ Pricing Engine Error in bundle: {e}")
+            use_db = False
+
+    if not use_db:
+        # Complete fallback to local logic
+        quote = create_bundle_quote(valid_ids, duration)
+        total_rent = quote['total_monthly_rent']
+        items_str = "\n".join([f"  • {item['product']}: ₹{item['monthly_rent']}/month" for item in quote['items']])
+    else:
+        items_str = "\n".join([f"  • {item['name']}: {item['display']}" for item in items_data])
+        
+    security = min(total_rent * 2, 15000)
     
     return f"""
-📋 **RENTAL QUOTE** ({quote['duration_months']} months)
+📋 **RENTAL QUOTE** ({duration} months)
 
-{items_list}
+{items_str}
 
 ━━━━━━━━━━━━━━━━━━
-**Total Monthly Rent: ₹{quote['total_monthly_rent']}**
-**Security Deposit: ₹{quote['security_deposit']}** (refundable)
+**Total Monthly Rent: ₹{total_rent}**
+**Security Deposit: ₹{security}** (refundable)
 ━━━━━━━━━━━━━━━━━━
 
 ✅ Free delivery & installation
@@ -184,18 +255,31 @@ def get_trending_products_tool(category: Optional[str] = None) -> str:
     Returns:
         List of trending products with prices
     """
+    def _get_price_helper(pid, dur):
+        try:
+            from utils.db import is_db_available, execute_query_one
+            if is_db_available():
+                query = "SELECT calculate_effective_price(%s, %s)"
+                result = execute_query_one(query, (pid, dur))
+                if result and result[0] and "error" not in result[0]:
+                    return result[0]['display_text']
+        except:
+            pass
+        rent = calculate_rent(pid, dur)
+        return f"₹{rent}/month"
+
     if category and category.lower() in TRENDING_PRODUCTS:
         pid = TRENDING_PRODUCTS[category.lower()]
         product = get_product_by_id(pid)
-        rent_6mo = calculate_rent(pid, 6)
-        return f"🔥 Trending in {category}: {product['name']} - ₹{rent_6mo}/month (6mo)"
+        rent_display = _get_price_helper(pid, 6)
+        return f"🔥 Trending in {category}: {product['name']} - {rent_display} (6mo)"
     
     # Return all trending products
     results = ["🔥 **Trending Products:**\n"]
     for cat, pid in TRENDING_PRODUCTS.items():
         product = get_product_by_id(pid)
         if product:
-            rent = calculate_rent(pid, 6)
-            results.append(f"• {cat.title()}: {product['name']} - ₹{rent}/mo")
+            rent_display = _get_price_helper(pid, 6)
+            results.append(f"• {cat.title()}: {product['name']} - {rent_display} (6mo)")
     
     return "\n".join(results)
