@@ -210,4 +210,11 @@ def route_and_run(
     # Ensure active_agent persists in new state
     new_state["active_agent"] = target_agent
     
+    # Attach routing metadata for the caller (webhook_server)
+    # This lets the DB logger record which agent + intent handled this turn
+    new_state["_routing_meta"] = {
+        "intent": intent,
+        "agent_used": target_agent,
+    }
+    
     return response, new_state

@@ -112,7 +112,7 @@ RECOMMENDATION_TOOLS = [
 # AGENT GRAPH
 # ========================================
 
-def create_recommendation_agent():
+def create_recommendation_agent(checkpointer=None):
     """Create and return the recommendation agent graph."""
     
     llm = ChatOpenAI(model=LLM_MODEL, temperature=LLM_TEMPERATURE)
@@ -190,7 +190,7 @@ def create_recommendation_agent():
     )
     graph.add_edge("tools", "agent")
     
-    return graph.compile()
+    return graph.compile(checkpointer=checkpointer)
 
 
 # ========================================

@@ -3,3 +3,64 @@
 <title>404 Not Found</title>
 <h1>Not Found</h1>
 <p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>
+
+--------------------------------------------------
+12/03/26, 05:54 am - New session started
+12/03/26, 05:54 am - Hardik Mahendru (919958448249): HELOO
+12/03/26, 05:54 am - Ku: Hi Hardik Mahendru 👋, I am Ku from RentBasket - your Personal Digital Assistant. We offer Quality furniture and appliances on rent at affordable prices, powered by customer service which is best in the market. Check out our website for more details: https://rentbasket.com
+12/03/26, 05:55 am - Hardik Mahendru (919958448249): Important Ideas for my rental give me ideas?
+12/03/26, 05:55 am - Ku: Here are some important ideas for your rental setup! 🏠✨
+
+### Furniture
+- *Bed*: Starting at ₹378/mo
+- *Sofa*: Starting at ₹629/mo
+- *Dining Table*: Starting at ₹1,007/mo
+
+### Appliances
+- *Fridge*: Starting at ₹1,146/mo
+- *TV*: Starting at ₹882/mo
+- *Washing Machine*: Starting at ₹567/mo
+
+### Power
+- *Inverter*: Starting at ₹1,259/mo
+
+We have a total of 64 products across 19 categories! If you want to explore a specific category or need help with a room setup, just let me know! 😊
+12/03/26, 05:55 am - Hardik Mahendru (919958448249): Mattress?
+12/03/26, 05:55 am - Ku: Here are the mattress options available for rent! 🛏️✨
+
+1. *Mattress Pair 4 Inches*  
+   - Starting Price: ₹441/mo
+
+2. *Mattress Pair 5 Inches* 🔥 *Popular*  
+   - Starting Price: ₹503/mo
+
+3. *QS Mattress Pair 6X5X6*  
+   - Starting Price: ₹692/mo
+
+4. *Mattress Pair 6 Inches (6X6X6)*  
+   - Starting Price: ₹692/mo
+
+5. *QS Mattress One Piece 6 Inches (6X5X6)*  
+   - Starting Price: ₹692/mo
+
+6. *QS Mattress One Piece 5 Inches (6X5X5)*  
+   - Starting Price: ₹503/mo
+
+7. *QS Mattress Pair 6 Inches (6X5X6)*  
+   - Starting Price: ₹692/mo
+
+8. *Mattress Single 4 Inches*  
+   - Starting Price: ₹251/mo
+
+Let me know if you want to compare any of these or check prices for a different duration! 😊
+12/03/26, 05:56 am - Hardik Mahendru (919958448249): Tell me how to buy the ⁠Mattress Single 4 Inches
+12/03/26, 05:56 am - Ku: To rent the *Mattress Single 4 Inches*, I'll need a couple of details from you:
+
+- *Your location (Pincode)*? 
+- *How long do you want to rent it for*? (e.g., 1 month, 6 months, etc.)
+
+Once I have that, I can get the rental price and help you proceed! 😊
+12/03/26, 05:57 am - Hardik Mahendru (919958448249): 122018
+12/03/26, 05:57 am - Ku: It seems I'm having trouble checking the serviceability for your pincode right now. 😅 
+
+Could you please let me know how long you want to rent the *Mattress Single 4 Inches* for? This way, I can provide you with the rental price!

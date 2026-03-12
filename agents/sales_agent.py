@@ -182,7 +182,7 @@ ALL_TOOLS = [
 ]
 
 
-def create_sales_agent():
+def create_sales_agent(checkpointer=None):
     """Create and return the sales agent graph."""
     
     # Initialize LLM with tools
@@ -268,7 +268,7 @@ def create_sales_agent():
     graph.add_edge("tools", "agent")
     
     # Compile and return
-    return graph.compile()
+    return graph.compile(checkpointer=checkpointer)
 
 
 # ========================================

@@ -27,7 +27,14 @@ from config import BOT_NAME, SALES_PHONE_GURGAON, SALES_PHONE_NOIDA
 from agents.orchestrator import route_and_run
 from agents.state import create_initial_state
 from whatsapp.client import WhatsAppClient
-from utils.logger import log_conversation_turn, start_new_session
+from utils.logger import log_conversation_turn as file_log_turn, start_new_session as file_start_session
+from utils.db_logger import (
+    log_conversation_turn,
+    start_new_session,
+    get_or_create_session,
+    update_session,
+    log_event,
+)
 
 # ========================================
 # CONFIGURATION
@@ -240,6 +247,9 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
                     print(f"   📝 New conversation started for {phone}")
                 state = conversations[phone]
             
+            # Get or create DB session
+            session_id = get_or_create_session(phone, sender_name)
+            
             # Ensure customer name and phone are in state
             if sender_name and not state["collected_info"].get("customer_name"):
                 state["collected_info"]["customer_name"] = sender_name
@@ -257,9 +267,23 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
             print(f"   🤖 Processing with {BOT_NAME}...")
             response, new_state = route_and_run(text, state)
             
+            # Extract routing metadata for DB logging
+            routing_meta = new_state.pop("_routing_meta", {})
+            intent = routing_meta.get("intent")
+            agent_used = routing_meta.get("agent_used")
+            
             # Update state within global lock
             with conversations_lock:
                 conversations[phone] = new_state
+            
+            # Update session in DB with latest state info
+            update_session(
+                session_id,
+                conversation_stage=new_state.get("conversation_stage"),
+                active_agent=agent_used,
+                collected_info=new_state.get("collected_info"),
+                needs_human=new_state.get("needs_human"),
+            )
             
             # Apply formatting
             response = format_bot_response(response)
@@ -282,9 +306,15 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
                 if len(messages_to_send) > 1:
                     time.sleep(0.5) # Slight delay between split messages
             
-            # Log turn (synchronized by user_lock)
+            # Log turn with metadata (DB + file)
             log_response = response.replace("|||", "\n")
-            log_conversation_turn(phone, sender_name, text, log_response)
+            log_conversation_turn(
+                phone, sender_name, text, log_response,
+                session_id=session_id,
+                agent_used=agent_used,
+                intent=intent,
+                wa_message_id=message_id,
+            )
             print(f"   ✅ Response sent successfully for {phone}")
 
         except Exception as e:
@@ -397,7 +427,10 @@ I've flagged this for our sales team who can offer special pricing.
     )
     
     # Log the interaction
-    log_conversation_turn(phone, sender_name, text, "[Sent interactive pricing buttons]")
+    session_id = get_or_create_session(phone, sender_name)
+    log_conversation_turn(phone, sender_name, text, "[Sent interactive pricing buttons]",
+                          session_id=session_id)
+    log_event(phone, "pricing_negotiation", {"message": text}, session_id=session_id)
     
     print(f"   ✅ Interactive buttons sent!")
     return jsonify({"status": "ok", "action": "pricing_negotiation"}), 200
@@ -461,8 +494,12 @@ Our team will review and get back with a special offer! 🎁"""
         # Send response
         whatsapp_client.send_text_message(phone, response)
         
-        # Log
-        log_conversation_turn(phone, sender_name, f"[Button: {button_title}]", response)
+        # Log with analytics
+        session_id = get_or_create_session(phone, sender_name)
+        log_conversation_turn(phone, sender_name, f"[Button: {button_title}]", response,
+                              session_id=session_id)
+        log_event(phone, "button_pressed", {"button_id": button_id, "button_title": button_title},
+                  session_id=session_id)
         
         print(f"   ✅ Button response handled!")
         return jsonify({"status": "ok", "button": button_id}), 200

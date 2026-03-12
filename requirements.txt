@@ -31,3 +31,6 @@ gunicorn>=21.2.0
 # Testing
 pytest>=8.0.0
 pytest-mock>=3.12.0
+
+# Database (PostgreSQL via Supabase)
+psycopg2-binary>=2.9.0

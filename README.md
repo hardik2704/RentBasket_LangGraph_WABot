@@ -119,17 +119,28 @@ RentBasket_LangGraph_WABot/
 ├── config.py            # Configuration settings
 ├── .env                 # Environment variables
 ├── agents/              # LangGraph agent logic
+│   ├── orchestrator.py  # Intent router + agent dispatcher
 │   ├── sales_agent.py   # Main sales agent
+│   ├── recommendation_agent.py  # Product discovery agent
 │   └── state.py         # Conversation state
 ├── rag/                 # RAG knowledge retrieval
 │   └── vectorstore.py   # ChromaDB vector store
 ├── tools/               # Agent tools
-│   └── product_tools.py # Product search, pricing
+│   ├── product_tools.py # Product search, pricing
+│   ├── catalogue_tools.py # Catalogue browsing, filtering
+│   ├── location_tools.py  # Serviceability checks
+│   └── human_handoff.py   # Sales team escalation
 ├── whatsapp/            # WhatsApp API client
 │   └── client.py        # Send messages, buttons
-├── data/                # Knowledge base data
-├── logs/                # Conversation logs
-└── utils/               # Utilities
+├── utils/               # Utilities
+│   ├── logger.py        # File-based conversation logger
+│   ├── db.py            # PostgreSQL connection manager
+│   └── db_logger.py     # DB-backed logger + analytics
+├── scripts/             # Utility scripts
+│   ├── setup_db.py      # One-time DB schema setup
+│   └── sync_logs.py     # Sync logs from Render
+├── data/                # Knowledge base & product data
+└── logs/                # Conversation logs (file backup)
 ```
 
 ---
@@ -143,6 +154,8 @@ RentBasket_LangGraph_WABot/
 | `python webhook_server.py` | Start WhatsApp webhook server |
 | `python webhook_server.py --port 8000` | Custom port |
 | `ngrok http 5000` | Expose server to internet |
+| `python scripts/sync_logs.py` | Sync production logs locally |
+| `python scripts/sync_logs.py --watch` | Keep logs synced in real-time |
 
 ---
 
@@ -168,16 +181,47 @@ RentBasket_LangGraph_WABot/
 | `APP_SECRET` | No | Meta App Secret |
 | `VERSION` | No | Graph API version (default: v23.0) |
 | `VERIFY_TOKEN` | No | Webhook verification token (default: 12345) |
+| `DATABASE_URL` | No** | PostgreSQL connection string (Supabase) |
 
 *Required for WhatsApp integration
+**If not set, falls back to file-based logging
 
 ---
 
 ## 📊 Logs
 
-Conversation logs are saved per phone number in the `logs/` folder:
-- `logs/demo_user.txt` - Demo mode logs
-- `logs/919xxxxxxxxx.txt` - WhatsApp user logs
+Conversation logs are stored in **PostgreSQL (Supabase)** for persistence and analytics, with automatic file-based fallback.
+
+### 🗄️ Database Setup (Recommended)
+
+1. Create a free project at [supabase.com](https://supabase.com)
+2. Copy `DATABASE_URL` from **Settings → Database → Connection string (URI)**
+3. Add to `.env`:
+   ```env
+   DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.YOUR_PROJECT.supabase.co:5432/postgres
+   ```
+4. Run the setup script:
+   ```bash
+   python scripts/setup_db.py
+   ```
+5. Add `DATABASE_URL` to Render environment variables and redeploy.
+
+**What gets stored:**
+| Table | Contents |
+|---|---|
+| `sessions` | Session lifecycle, pincode, items, duration, agent, stage |
+| `messages` | Every user↔bot message with intent, agent, tools used |
+| `analytics_events` | Pricing negotiations, handoffs, button presses |
+
+### 🔄 Syncing File Logs from Render
+File-based logs (`.txt`) continue to work as a backup. Sync them locally:
+
+1. **Manual Sync**: `python scripts/sync_logs.py`
+2. **Watch Mode**: `python scripts/sync_logs.py --watch`
+
+3. **Locations**:
+   - `logs/demo_user.txt` - Local demo mode logs
+   - `logs/919xxxxxxxxx.txt` - Synced WhatsApp user logs
 
 ---
 
@@ -190,6 +234,8 @@ Conversation logs are saved per phone number in the `logs/` folder:
 | Webhook verification fails | Ensure `VERIFY_TOKEN` matches Meta dashboard |
 | ngrok URL expired | Restart ngrok; update webhook URL in Meta |
 | No response on WhatsApp | Check webhook server logs; verify ngrok is running |
+| DB connection error | Check `DATABASE_URL` is correct; bot falls back to file logs |
+| `psycopg2` import error | Run `pip install psycopg2-binary` |
 
 ---
 
