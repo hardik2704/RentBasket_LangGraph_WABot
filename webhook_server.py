@@ -68,6 +68,39 @@ def is_pricing_negotiation(text: str) -> bool:
     return any(keyword in text_lower for keyword in PRICING_NEGOTIATION_KEYWORDS)
 
 # ========================================
+# INTERACTIVE BUTTONS & DYNAMIC EXAMPLES
+# ========================================
+
+GREETING_BUTTONS = [
+    {"id": "BROWSE_FURNITURE", "title": "🛋️ Browse Furniture"},
+    {"id": "BROWSE_APPLIANCES", "title": "❄️ Browse Appliances"},
+    {"id": "COMPLETE_HOME_SETUP", "title": "🏡 Complete Home Setup"}
+]
+
+FALLBACK_EXAMPLES = [
+    [
+        "• \"Fridge for 6 months\"",
+        "• \"Sofa in Gurgaon\"",
+        "• \"1BHK setup under ₹3000\""
+    ],
+    [
+        "• \"Washing machine for 3 months\"",
+        "• \"Bed and mattress on rent\"",
+        "• \"Furniture for PG room\""
+    ]
+]
+
+# Track set rotation
+fallback_counter = 0
+
+def get_next_fallback_examples() -> str:
+    """Get the next set of fallback examples (rotated)."""
+    global fallback_counter
+    examples = FALLBACK_EXAMPLES[fallback_counter % len(FALLBACK_EXAMPLES)]
+    fallback_counter += 1
+    return "\n".join(examples)
+
+# ========================================
 # FLASK APP
 # ========================================
 
@@ -302,7 +335,18 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
             for i, msg in enumerate(messages_to_send):
                 msg = msg.strip()
                 if not msg: continue
-                whatsapp_client.send_text_message(phone, msg, preview_url="http" in msg)
+                
+                # Intercept Greeting for Interactive Buttons
+                if "Ku 🐢 from RentBasket" in msg and "Check out our website for more details" in msg:
+                    print(f"   👋 Greeting detected! Sending interactive buttons.")
+                    whatsapp_client.send_interactive_buttons(
+                        to_phone=phone,
+                        body_text=msg,
+                        buttons=GREETING_BUTTONS
+                    )
+                else:
+                    whatsapp_client.send_text_message(phone, msg, preview_url="http" in msg)
+                
                 if len(messages_to_send) > 1:
                     time.sleep(0.5) # Slight delay between split messages
             
@@ -377,6 +421,11 @@ def handle_webhook():
         # 2. START BACKGROUND PROCESSING
         # We start a thread to do the heavy lifting (AI + multiple tool calls)
         # and return 200 OK to WhatsApp immediately to stop retries.
+        
+        # Check for Fallback before background thread
+        if text.lower() in ["help", "option", "options", "menu"]:
+             return handle_fallback(phone, sender_name)
+
         thread = threading.Thread(
             target=process_webhook_async,
             args=(phone, text, sender_name, message_id, message_type, interactive_response)
@@ -441,12 +490,16 @@ def handle_interactive_response(phone: str, sender_name: str, interactive: dict,
     Handle user's response to interactive buttons.
     """
     try:
-        # Get button ID from response
+        # Get reply ID from response (button_reply OR list_reply)
         button_reply = interactive.get("button_reply", {})
-        button_id = button_reply.get("id", "")
-        button_title = button_reply.get("title", "")
+        list_reply = interactive.get("list_reply", {})
         
-        print(f"   🔘 Button pressed: {button_id} ({button_title})")
+        # Unify: list selections come as list_reply, buttons as button_reply
+        reply = button_reply or list_reply
+        button_id = reply.get("id", "")
+        button_title = reply.get("title", "")
+        
+        print(f"   🔘 Interactive reply: {button_id} ({button_title})")
         
         # Get stored context
         context = session_context.get(phone, {})
@@ -488,25 +541,105 @@ Our team will review and get back with a special offer! 🎁"""
             # route_to_negotiator_agent(phone, context)
             print(f"   🤝 [Placeholder] Would route to negotiator agent")
             
+        elif button_id == "BROWSE_FURNITURE":
+            # List Message for Furniture
+            sections = [{
+                "title": "Furniture Categories",
+                "rows": [
+                    {"id": "CAT_BEDS", "title": "Beds & Mattresses"},
+                    {"id": "CAT_SOFAS", "title": "Sofas"},
+                    {"id": "CAT_DINING", "title": "Dining Tables"},
+                    {"id": "CAT_WFH", "title": "Work From Home Setup"},
+                    {"id": "CAT_ALL_FURNITURE", "title": "View All Furniture"}
+                ]
+            }]
+            whatsapp_client.send_list_message(
+                to_phone=phone,
+                body_text="Great choice! 🛋️\nWhat type of furniture are you looking for?",
+                button_text="Select Category",
+                sections=sections
+            )
+            return jsonify({"status": "ok", "action": "list_furniture"}), 200
+
+        elif button_id == "BROWSE_APPLIANCES":
+            # List Message for Appliances
+            sections = [{
+                "title": "Appliance Categories",
+                "rows": [
+                    {"id": "CAT_FRIDGE", "title": "Refrigerators"},
+                    {"id": "CAT_WASHING", "title": "Washing Machines"},
+                    {"id": "CAT_AC", "title": "Air Conditioners"},
+                    {"id": "CAT_RO", "title": "RO Water Purifiers"},
+                    {"id": "CAT_ALL_APPLIANCES", "title": "View All Appliances"}
+                ]
+            }]
+            whatsapp_client.send_list_message(
+                to_phone=phone,
+                body_text="Perfect! ❄️\nWhich appliance do you need?",
+                button_text="Select Category",
+                sections=sections
+            )
+            return jsonify({"status": "ok", "action": "list_appliances"}), 200
+
+        elif button_id == "COMPLETE_HOME_SETUP":
+            response = """Nice! 🏡  
+I can help you set up a complete home in minutes.
+
+Please tell me:
+• City / Location
+• House Type (1RK / 1BHK / 2BHK)
+• Budget per month
+
+Example message:
+"1BHK setup under ₹3000" """
+            whatsapp_client.send_text_message(phone, response)
+            return jsonify({"status": "ok", "action": "complete_home_setup"}), 200
+
+        elif button_id.startswith("CAT_"):
+            # Handle List Selection -> Route back to Agent as Text
+            category_text = button_title
+            print(f"   📋 List item selected: {category_text}. Routing to agent.")
+            
+            thread = threading.Thread(
+                target=process_webhook_async,
+                args=(phone, category_text, sender_name, message_id, "text", None)
+            )
+            thread.start()
+            return jsonify({"status": "ok", "action": "list_route_to_agent"}), 200
+
         else:
             response = "I received your selection. How can I help you further?"
-        
-        # Send response
-        whatsapp_client.send_text_message(phone, response)
-        
-        # Log with analytics
-        session_id = get_or_create_session(phone, sender_name)
-        log_conversation_turn(phone, sender_name, f"[Button: {button_title}]", response,
-                              session_id=session_id)
-        log_event(phone, "button_pressed", {"button_id": button_id, "button_title": button_title},
-                  session_id=session_id)
-        
-        print(f"   ✅ Button response handled!")
-        return jsonify({"status": "ok", "button": button_id}), 200
+            whatsapp_client.send_text_message(phone, response)
+            return jsonify({"status": "ok", "button": button_id}), 200
         
     except Exception as e:
         print(f"   ⚠️ Error handling interactive response: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+def handle_fallback(phone: str, sender_name: str):
+    """Send fallback message with dynamic examples."""
+    examples = get_next_fallback_examples()
+    response = f"""I can help you rent furniture or appliances quickly.
+
+You can also try:
+
+{examples}
+
+Or choose one of the options below."""
+    
+    whatsapp_client.send_interactive_buttons(
+        to_phone=phone,
+        body_text=response,
+        buttons=GREETING_BUTTONS
+    )
+    
+    # Log the interaction
+    session_id = get_or_create_session(phone, sender_name)
+    log_conversation_turn(phone, sender_name, "[FALLBACK TRIGGERED]", response,
+                          session_id=session_id)
+    
+    return jsonify({"status": "ok", "action": "fallback"}), 200
 
 
 def parse_whatsapp_webhook(payload: dict) -> dict:

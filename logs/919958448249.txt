@@ -64,3 +64,19 @@ Once I have that, I can get the rental price and help you proceed! 😊
 12/03/26, 05:57 am - Ku: It seems I'm having trouble checking the serviceability for your pincode right now. 😅 
 
 Could you please let me know how long you want to rent the *Mattress Single 4 Inches* for? This way, I can provide you with the rental price!
+
+--------------------------------------------------
+12/03/26, 02:37 pm - New session started
+12/03/26, 02:37 pm - Test User (919958448249): Hi
+12/03/26, 02:37 pm - Ku: Hi Test User 👋  
+I’m Ku 🐢 from RentBasket, your personal rental assistant.
+
+We offer quality furniture and appliances on rent at affordable prices, powered by customer service which is best in the market.
+
+Check out our website for more details:  
+https://rentbasket.com
+
+--------------------------------------------------
+12/03/26, 02:37 pm - New session started
+12/03/26, 02:37 pm - Test User (919958448249): Hello again
+12/03/26, 02:37 pm - Ku: Test response
