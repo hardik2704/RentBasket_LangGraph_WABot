@@ -77,6 +77,51 @@ GREETING_BUTTONS = [
     {"id": "COMPLETE_HOME_SETUP", "title": "🏡 Complete Home Setup"}
 ]
 
+# Words that count as a greeting (first message or re-greeting)
+GREETING_WORDS = {"hi", "hello", "hey", "hii", "hiii", "helo", "heloo", "helo", "helloo",
+                  "namaste", "namaskar", "good morning", "good afternoon", "good evening",
+                  "hola", "yo", "sup", "start"}
+
+def is_greeting(text: str) -> bool:
+    """Check if the incoming message is a greeting."""
+    return text.strip().lower().rstrip("!.,?") in GREETING_WORDS
+
+def handle_greeting(phone: str, sender_name: str):
+    """
+    Send the structured greeting message with interactive buttons.
+    This bypasses the LLM entirely for a deterministic, instant response.
+    """
+    # Use proper name if it looks real, otherwise generic
+    name = sender_name if sender_name and sender_name.strip() else "there"
+
+    greeting_text = (
+        f"Hi {name} 👋\n"
+        f"I'm Ku 🐢 from RentBasket, your personal rental assistant.\n"
+        f"\n"
+        f"We offer quality furniture and appliances on rent at affordable prices, "
+        f"powered by customer service which is best in the market.\n"
+        f"\n"
+        f"Check out our website for more details:\n"
+        f"https://rentbasket.com"
+    )
+
+    whatsapp_client.send_interactive_buttons(
+        to_phone=phone,
+        body_text=greeting_text,
+        buttons=GREETING_BUTTONS
+    )
+
+    # Log to DB + file
+    session_id = get_or_create_session(phone, sender_name)
+    log_conversation_turn(phone, sender_name, "[Greeting]", greeting_text,
+                          session_id=session_id)
+    log_event(phone, "greeting_sent", {"buttons": [b["id"] for b in GREETING_BUTTONS]},
+              session_id=session_id)
+
+    print(f"   👋 Greeting + interactive buttons sent to {phone}")
+    return jsonify({"status": "ok", "action": "greeting"}), 200
+
+
 FALLBACK_EXAMPLES = [
     [
         "• \"Fridge for 6 months\"",
@@ -335,18 +380,7 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
             for i, msg in enumerate(messages_to_send):
                 msg = msg.strip()
                 if not msg: continue
-                
-                # Intercept Greeting for Interactive Buttons
-                if "Ku 🐢 from RentBasket" in msg and "Check out our website for more details" in msg:
-                    print(f"   👋 Greeting detected! Sending interactive buttons.")
-                    whatsapp_client.send_interactive_buttons(
-                        to_phone=phone,
-                        body_text=msg,
-                        buttons=GREETING_BUTTONS
-                    )
-                else:
-                    whatsapp_client.send_text_message(phone, msg, preview_url="http" in msg)
-                
+                whatsapp_client.send_text_message(phone, msg, preview_url="http" in msg)
                 if len(messages_to_send) > 1:
                     time.sleep(0.5) # Slight delay between split messages
             
@@ -425,6 +459,10 @@ def handle_webhook():
         # Check for Fallback before background thread
         if text.lower() in ["help", "option", "options", "menu"]:
              return handle_fallback(phone, sender_name)
+
+        # Check for Greeting — send interactive buttons directly, skip the LLM
+        if is_greeting(text):
+            return handle_greeting(phone, sender_name)
 
         thread = threading.Thread(
             target=process_webhook_async,
