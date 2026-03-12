@@ -122,30 +122,37 @@ We currently serve:
 • Gurgaon (all sectors except Manesar)
 • Noida (all sectors)
 """
-    
     # We have a pincode - check serviceability
     city = _identify_city_from_pincode(pincode)
+
+    # Calculate distance to nearest office dynamically
+    min_dist = float('inf')
+    closest_office = None
+    for office, off_pin in OFFICE_PINCODES.items():
+        dist = distance_engine.estimate_road_km(off_pin, pincode)
+        if dist is not None and dist < min_dist:
+            min_dist = dist
+            closest_office = office
+            
+    is_serviceable = pincode in SERVICEABLE_PINCODES or min_dist <= 20
+    is_border = pincode in BORDER_PINCODES or (20 < min_dist <= 35)
     
-    if pincode in SERVICEABLE_PINCODES:
+    if is_serviceable:
+        dist_str = f" (approx {min_dist:.1f} km from {closest_office} office)" if closest_office else ""
         return f"""
 ✅ **Great news! Pincode {pincode} ({city}) is serviceable!**
 
-# Distance Logging (Internal Logs Only)
-for office, off_pin in OFFICE_PINCODES.items():
-    dist = distance_engine.estimate_road_km(off_pin, pincode)
-    if dist is not None:
-        print(f"{{{{{dist:.2f} km from the {office} office}}}}")
-
-We can deliver to your location.
+We can deliver to your location{dist_str}.
 • Standard delivery: 2-5 business days
 • Express delivery: Subject to availability
 
 Would you like to proceed with your order?
 """
     
-    if pincode in BORDER_PINCODES:
+    if is_border:
+        dist_str = f" (approx {min_dist:.1f} km from {closest_office})" if closest_office else ""
         return f"""
-⚠️ **Pincode {pincode} is in a border area.**
+⚠️ **Pincode {pincode} is in a border area or slightly far{dist_str}.**
 
 We might be able to cater to this location with special arrangement.
 
@@ -169,15 +176,15 @@ We currently serve only Gurgaon & Noida.
 If you have an alternate address in Gurgaon or Noida, please share it!
 """
     
-    # Gurgaon/Noida pincode but not in our list (edge area)
+    # Non-serviceable, far away
     return f"""
-⚠️ **Pincode {pincode} may have limited coverage.**
+❌ **Sorry, pincode {pincode} is outside our delivery range.**
 
-📞 Please contact our team to confirm:
+We currently serve Gurgaon and Noida.
+
+📞 Please contact our team if you need further assistance:
 • Gurgaon: {SALES_PHONE_GURGAON}
 • Noida: {SALES_PHONE_NOIDA}
-
-They can check exact serviceability and arrange delivery.
 """
 
 
