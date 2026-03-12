@@ -313,7 +313,7 @@ def format_bot_response(text: str) -> str:
     return text.replace("**", "*")
 
 
-def process_webhook_async(phone, text, sender_name, message_id, message_type, interactive_response):
+def process_webhook_async(phone, text, sender_name, message_id, message_type, interactive_response, quoted_message_id=None, reaction=None):
     """
     Process the message logic in a background thread.
     Uses a per-phone lock to ensure messages from the same user are processed sequentially.
@@ -422,6 +422,8 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
                 agent_used=agent_used,
                 intent=intent,
                 wa_message_id=message_id,
+                quoted_message_id=quoted_message_id,
+                reaction_emoji=reaction.get("emoji") if reaction else None
             )
             print(f"   ✅ Response sent successfully for {phone}")
 
@@ -496,7 +498,11 @@ def handle_webhook():
 
         thread = threading.Thread(
             target=process_webhook_async,
-            args=(phone, text, sender_name, message_id, message_type, interactive_response)
+            args=(
+                phone, text, sender_name, message_id, message_type, 
+                interactive_response, message_data.get("quoted_message_id"), 
+                message_data.get("reaction")
+            )
         )
         thread.start()
         
@@ -747,11 +753,16 @@ def parse_whatsapp_webhook(payload: dict) -> dict:
         msg_type = message.get("type")
         text = None
         interactive = None
+        reaction = None
+        context_id = message.get("context", {}).get("id")
         
         if msg_type == "text":
             text = message.get("text", {}).get("body")
         elif msg_type == "interactive":
             interactive = message.get("interactive", {})
+        elif msg_type == "reaction":
+            reaction = message.get("reaction", {})
+            text = f"[Reaction: {reaction.get('emoji')}]"
         
         return {
             "message_id": message.get("id"),
@@ -761,6 +772,8 @@ def parse_whatsapp_webhook(payload: dict) -> dict:
             "type": msg_type,
             "text": text,
             "interactive": interactive,
+            "reaction": reaction,
+            "quoted_message_id": context_id
         }
         
     except Exception as e:

@@ -45,7 +45,9 @@ def log_message(
     phone_number: str, 
     sender_name: str, 
     message: str,
-    is_bot: bool = False
+    is_bot: bool = False,
+    quoted_message_id: str = None,
+    reaction_emoji: str = None
 ) -> None:
     """
     Log a single message to the conversation file.
@@ -76,7 +78,9 @@ def log_conversation_turn(
     phone_number: str,
     user_name: str,
     user_message: str,
-    bot_response: str
+    bot_response: str,
+    quoted_message_id: str = None,
+    reaction_emoji: str = None
 ) -> None:
     """
     Log a complete conversation turn (user message + bot response).
@@ -88,7 +92,8 @@ def log_conversation_turn(
         bot_response: What the bot responded
     """
     # Log user message
-    log_message(phone_number, user_name, user_message, is_bot=False)
+    log_message(phone_number, user_name, user_message, is_bot=False, 
+                quoted_message_id=quoted_message_id, reaction_emoji=reaction_emoji)
     
     # Log bot response
     log_message(phone_number, BOT_NAME, bot_response, is_bot=True)

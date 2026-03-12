@@ -147,6 +147,8 @@ def log_message(
     tools_called: List[str] = None,
     intent: str = None,
     wa_message_id: str = None,
+    quoted_message_id: str = None,
+    reaction_emoji: str = None,
 ) -> None:
     """
     Log a single message to the database (and file as backup).
@@ -163,8 +165,9 @@ def log_message(
         execute_query(
             """INSERT INTO messages
                (session_id, phone_number, sender, sender_name, message,
-                wa_message_id, agent_used, tools_called, intent)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                wa_message_id, agent_used, tools_called, intent,
+                quoted_message_id, reaction_emoji)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
             (
                 session_id,
                 phone_number,
@@ -175,6 +178,8 @@ def log_message(
                 agent_used,
                 tools_called,  # PostgreSQL TEXT[] accepts Python list
                 intent,
+                quoted_message_id,
+                reaction_emoji
             ),
         )
     except Exception as e:
@@ -191,6 +196,8 @@ def log_conversation_turn(
     tools_called: List[str] = None,
     intent: str = None,
     wa_message_id: str = None,
+    quoted_message_id: str = None,
+    reaction_emoji: str = None,
 ) -> None:
     """
     Log a complete conversation turn (user message + bot response).
@@ -207,9 +214,9 @@ def log_conversation_turn(
         execute_query(
             """INSERT INTO messages
                (session_id, phone_number, sender, sender_name, message,
-                wa_message_id, intent)
-               VALUES (%s, %s, 'user', %s, %s, %s, %s)""",
-            (session_id, phone_number, user_name, user_message, wa_message_id, intent),
+                wa_message_id, intent, quoted_message_id, reaction_emoji)
+               VALUES (%s, %s, 'user', %s, %s, %s, %s, %s, %s)""",
+            (session_id, phone_number, user_name, user_message, wa_message_id, intent, quoted_message_id, reaction_emoji),
         )
         # Log bot response
         execute_query(
