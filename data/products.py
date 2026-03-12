@@ -241,14 +241,16 @@ PRODUCT_SYNONYMS = {
     "mattress", "gadda", "gadde", "foam mattress", "spring mattress",
     "double mattress", "single mattress", "king mattress", "queen mattress",
     "4 inch", "4in", "4\"", "5 inch", "5in", "5\"", "6 inch", "6in", "6\"",
-    "pair mattress", "two mattress", "1 piece mattress", "one piece"
+    "pair mattress", "two mattress", "1 piece mattress", "one piece",
+    "bed mattress", "bed with mattress", "bed + mattress"
   ],
 
   "sofa": [
     "sofa", "couch", "settee", "l couch", "l-shape", "sofa set",
     "3 seater", "3-seater", "two seater", "2 seater", "1 seater",
     "3+1+1", "sofa with table", "sofa with center table",
-    "puffy", "puffies", "pouffe", "ottoman", "center table"
+    "puffy", "puffies", "pouffe", "ottoman", "center table",
+    "l shape sofa", "l-shape sofa", "l shaped sofa", "sectional sofa", "corner sofa"
   ],
 
   "sofa chair": [
@@ -505,7 +507,7 @@ PRODUCT_VARIANTS = {
     "sofa with center table", "sofa with table", "sofa and table combo",
     "5 seater fabric sofa", "fabric sofa 5 seater", "sofa set 5 seater",
     "family sofa", "living room sofa 5", "5 seater settee",
-    "sofa combo with center table"
+    "sofa combo with center table", "large sofa", "big sofa"
   ],
   1020: [
     "4 seater sofa", "4 seater couch", "four seater sofa", "4 seater sofa set",
@@ -522,7 +524,8 @@ PRODUCT_VARIANTS = {
     "7 seater sofa", "7 seater couch", "7 seater sofa set", "7 seater couch set",
     "green sofa set", "fabric green sofa", "sofa with puffies", "sofa with ottoman",
     "sofa set with puffies green", "green 7 seater", "seven seater sofa green",
-    "large sofa set green", "sofa with puffy and table green", "7-seater sofa", "7-seater couch"
+    "large sofa set green", "sofa with puffy and table green", "7-seater sofa", "7-seater couch",
+    "l shape sofa green", "sectional sofa green", "corner sofa green"
   ],
   1042: [
     "3 seater sofa", "3 seater couch", "three seater sofa", "3 seater fabric sofa",
@@ -547,14 +550,16 @@ PRODUCT_VARIANTS = {
     "grey sofa set", "gray sofa set", "fabric grey sofa", "sofa with puffies",
     "sofa with ottoman", "sofa set with puffies grey", "grey 7 seater",
     "seven seater sofa grey", "large sofa set grey", "gray 7 seater",
-    "sofa with puffy and table grey", "7-seater sofa", "7-seater couch"
+    "sofa with puffy and table grey", "7-seater sofa", "7-seater couch",
+    "l shape sofa grey", "sectional sofa grey", "corner sofa grey", "l shape sofa"
   ],
   1049: [
     "7 seater sofa", "7 seater couch", "7 seater sofa set", "7 seater couch set",
     "beige sofa set", "fabric beige sofa", "sofa with puffies",
     "sofa with ottoman", "sofa set with puffies beige", "beige 7 seater",
     "seven seater sofa beige", "large sofa set beige", "cream sofa set",
-    "sofa with puffy and table beige", "neutral sofa set", "7-seater sofa", "7-seater couch"
+    "sofa with puffy and table beige", "neutral sofa set", "7-seater sofa", "7-seater couch",
+    "l shape sofa beige", "sectional sofa beige", "corner sofa beige"
   ],
 
   # ── MATTRESSES ──
@@ -857,22 +862,27 @@ def get_all_categories() -> List[str]:
 def search_products_by_name(query: str) -> List[Dict[str, Any]]:
     """Search products by name (partial match) and PRODUCT_VARIANTS."""
     query = query.lower().strip()
+    query_words = set(query.split())  # Sub-words for combined intent matching
+    
     results = []
     seen_ids = set()
     
     # 1. Match against product names
     for pid, name in id_to_name.items():
-        if query in name.lower():
+        name_lower = name.lower()
+        if query in name_lower or all(w in name_lower for w in query_words if len(w) > 2):
             product = get_product_by_id(pid)
             if product and pid not in seen_ids:
                 results.append(product)
                 seen_ids.add(pid)
     
     # 2. Match against PRODUCT_VARIANTS (e.g. "7 seater sofa" → IDs 1048, 1041, 1049)
+    # Also support searching for combined intents like "bed mattress" matching "mattress" and "bed" tags
     for pid, variants in PRODUCT_VARIANTS.items():
         if pid not in seen_ids:
             for variant in variants:
-                if query in variant.lower() or variant.lower() in query:
+                var_lower = variant.lower()
+                if query in var_lower or var_lower in query or all(w in var_lower for w in query_words if len(w) > 2):
                     product = get_product_by_id(pid)
                     if product:
                         results.append(product)

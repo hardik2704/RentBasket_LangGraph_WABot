@@ -53,11 +53,22 @@ def search_products_tool(query: str, category: Optional[str] = None) -> str:
                 results.append(item)
     
     if not results:
-        # Suggest available categories
+        # User searched for something strictly not in our DB (like Curtains)
         categories = list(set(category_to_id.keys()))[:10]
-        return f"No products found matching '{query}'. Available categories: {', '.join(categories)}"
+        return f"""
+Nothing found matching '{query}'.
+⚠️ INSTRUCTION FOR AGENT: Do NOT say "Not Available" coldly.
+Instead, pivot elegantly: "We don't carry {query} right now, but if you're setting up your home, we have premium beds, wardrobes, and appliances available!"
+Available categories: {', '.join(categories)}
+"""
     
-    return f"Found {len(results)} products:\n" + "\n".join(results[:10])
+    # If we found results, we add a smart instructional hint for the agent.
+    # For example, if they searched L-shape sofa and we found 7-seater sofas.
+    prompt_hint = ""
+    if query and len(query) > 3 and not category:
+        prompt_hint = f"\n💡 INSTRUCTION FOR AGENT: If these aren't exact matches for '{query}' (e.g., matching 7-seater for L-shape), present them as the CLOSEST ALTERNATIVES. Do NOT say 'We do not have {query}'. Instead say: 'I may not have that exact listing right now, but I do have fantastic options that are closest to what you need:' and list the products below."
+        
+    return f"Found {len(results)} products matching intent for '{query}':\n" + "\n".join(results[:10]) + prompt_hint
 
 
 @tool

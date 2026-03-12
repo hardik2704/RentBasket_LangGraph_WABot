@@ -397,7 +397,20 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
             for i, msg in enumerate(messages_to_send):
                 msg = msg.strip()
                 if not msg: continue
-                whatsapp_client.send_text_message(phone, msg, preview_url="http" in msg)
+                
+                if "[SEND_HANDOFF_BUTTONS]" in msg:
+                    clean_msg = msg.replace("[SEND_HANDOFF_BUTTONS]", "").strip()
+                    handoff_buttons = [
+                        {"id": "CALL_ME", "title": "📞 Call me"},
+                        {"id": "WHATSAPP", "title": "💬 Chat here"}
+                    ]
+                    whatsapp_client.send_interactive_buttons(
+                        to_phone=phone,
+                        body_text=clean_msg,
+                        buttons=handoff_buttons
+                    )
+                else:
+                    whatsapp_client.send_text_message(phone, msg, preview_url="http" in msg)
                 if len(messages_to_send) > 1:
                     time.sleep(0.5) # Slight delay between split messages
             
@@ -510,17 +523,16 @@ def handle_pricing_negotiation(phone: str, sender_name: str, text: str, message_
         "sender_name": sender_name
     }
     
-    # Send interactive buttons
+    # Send interactive buttons (WhatsApp title limit is 20 chars)
     buttons = [
-        {"id": "CALL_ME", "title": "📞 Callback in 15 min"},
-        {"id": "WHATSAPP", "title": "💬 Continue here"}
+        {"id": "BUDGET_OPTIONS", "title": "Budget Options"},
+        {"id": "LONGER_TENURE", "title": "Longer Tenures"},
+        {"id": "TALK_TO_SALES", "title": "Talk to Sales"}
     ]
     
-    body_text = """I understand you're looking for the best deal! 😊
+    body_text = """I completely understand — let me help you find the absolute best value for your budget. 👍
 
-I've flagged this for our sales team who can offer special pricing.
-
-**How would you like to proceed?**"""
+How would you like to proceed?"""
     
     whatsapp_client.send_interactive_buttons(
         to_phone=phone,
@@ -559,13 +571,13 @@ def handle_interactive_response(phone: str, sender_name: str, interactive: dict,
         # Get stored context
         context = session_context.get(phone, {})
         
-        if button_id == "CALL_ME":
+        if button_id in ("TALK_TO_TEAM", "CALL_ME", "TALK_TO_SALES"):
             # Handle callback request
-            response = f"""📞 **Callback Confirmed!**
+            response = f"""📞 *Callback Confirmed!*
 
-Our sales team will call you within **15 minutes** to discuss the best pricing options.
+Our sales team will call you within *15 minutes* to discuss your requirements.
 
-**Your callback is queued!**
+*Your callback is queued!*
 • Priority: High
 • Estimated wait: 10-15 mins
 
@@ -574,27 +586,34 @@ If urgent, call directly:
 • Noida: {SALES_PHONE_NOIDA}
 
 Thank you for choosing RentBasket! 😊"""
-            
-            # TODO: Placeholder for sales lead API
-            # create_sales_lead(phone, sender_name, context)
+            whatsapp_client.send_text_message(phone, response)
             print(f"   📋 [Placeholder] Would create sales lead for {phone}")
+            return jsonify({"status": "ok", "action": "callback_queued"}), 200
             
-        elif button_id == "WHATSAPP":
-            # Continue on WhatsApp - placeholder for negotiator agent
-            response = f"""💬 **Great, let's continue here!**
-
-To help our sales team give you the best quote, please share:
-
-1️⃣ **Products needed**: What items are you looking for?
-2️⃣ **Location**: Your delivery pincode?
-3️⃣ **Duration**: How many months?
-4️⃣ **Budget**: Any budget range in mind?
-
-Our team will review and get back with a special offer! 🎁"""
+        elif button_id == "TRY_AGAIN":
+            response = "Sure! Let's try again. What are you looking to rent today? You can just send me a single word like 'Sofa' or 'Fridge'."
+            whatsapp_client.send_text_message(phone, response)
+            return jsonify({"status": "ok", "action": "try_again"}), 200
             
-            # TODO: Placeholder for negotiator agent
-            # route_to_negotiator_agent(phone, context)
-            print(f"   🤝 [Placeholder] Would route to negotiator agent")
+        elif button_id == "BUDGET_OPTIONS":
+            # Route back to agent
+            print(f"   💰 User requested budget options. Routing to agent.")
+            thread = threading.Thread(
+                target=process_webhook_async,
+                args=(phone, "Show me cheaper alternatives in my budget.", sender_name, message_id, "text", None)
+            )
+            thread.start()
+            return jsonify({"status": "ok", "action": "route_to_agent"}), 200
+            
+        elif button_id == "LONGER_TENURE":
+            # Route back to agent
+            print(f"   ⏳ User requested longer tenures. Routing to agent.")
+            thread = threading.Thread(
+                target=process_webhook_async,
+                args=(phone, "What discounts do I get if I rent for 12 months?", sender_name, message_id, "text", None)
+            )
+            thread.start()
+            return jsonify({"status": "ok", "action": "route_to_agent"}), 200
             
         elif button_id == "BROWSE_FURNITURE":
             # List Message for Furniture
@@ -675,18 +694,23 @@ Example message:
 def handle_fallback(phone: str, sender_name: str):
     """Send fallback message with dynamic examples."""
     examples = get_next_fallback_examples()
-    response = f"""I can help you rent furniture or appliances quickly.
+    response = f"""Oops! I'm still learning and didn't quite catch that. 🐢
 
-You can also try:
+You can try asking things like:
 
 {examples}
 
-Or choose one of the options below."""
+Or choose how you'd like to proceed:"""
+    
+    fallback_buttons = [
+        {"id": "TRY_AGAIN", "title": "Try Again"},
+        {"id": "TALK_TO_TEAM", "title": "Talk to Team"}
+    ]
     
     whatsapp_client.send_interactive_buttons(
         to_phone=phone,
         body_text=response,
-        buttons=GREETING_BUTTONS
+        buttons=fallback_buttons
     )
     
     # Log the interaction

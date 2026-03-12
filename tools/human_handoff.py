@@ -53,12 +53,7 @@ def request_human_handoff_tool(reason: str, preferred_contact: str = "whatsapp")
 I'm raising a best-price request with our team. They'll review your requirements and offer the best available rate.
 
 **How would you like to proceed?**
-• 📞 Callback in 15 mins: Reply "CALL ME"
-• 💬 Continue on WhatsApp: Reply "WHATSAPP"
-
-Our sales team contacts:
-• Gurgaon: {SALES_PHONE_GURGAON}
-• Noida: {SALES_PHONE_NOIDA}
+[SEND_HANDOFF_BUTTONS]
 """
     
     # Complaint or issue
@@ -91,12 +86,8 @@ For 5+ items or corporate orders, our senior sales team can offer:
 • Priority delivery
 • Dedicated account manager
 
-**Let's connect you:**
-• 📞 Gurgaon: {SALES_PHONE_GURGAON}
-• 📞 Noida: {SALES_PHONE_NOIDA}
-• 📧 Email: {SUPPORT_EMAIL}
-
-Reply "CALLBACK" and I'll have them call you!
+**How would you like to proceed?**
+[SEND_HANDOFF_BUTTONS]
 """
     
     # General human request
@@ -104,11 +95,8 @@ Reply "CALLBACK" and I'll have them call you!
         return f"""
 📞 **Connecting you to our team!**
 
-Call us directly:
-• Gurgaon: {SALES_PHONE_GURGAON}
-• Noida: {SALES_PHONE_NOIDA}
-
-Or reply "CALLBACK" and we'll call you within 15 minutes!
+**How would you like to proceed?**
+[SEND_HANDOFF_BUTTONS]
 """
     
     if preferred_contact == "email":
@@ -129,15 +117,10 @@ We respond within 24 hours!
     return f"""
 👋 **I'll connect you with our team!**
 
-A human agent will join this chat shortly.
+A human agent will review this chat shortly.
 
-**If you need immediate assistance:**
-• 📞 Gurgaon: {SALES_PHONE_GURGAON}
-• 📞 Noida: {SALES_PHONE_NOIDA}
-• 📧 {SUPPORT_EMAIL}
-• 🌐 {WEBSITE}
-
-Is there anything else I can help with in the meantime?
+**How would you like to proceed?**
+[SEND_HANDOFF_BUTTONS]
 """
 
 
