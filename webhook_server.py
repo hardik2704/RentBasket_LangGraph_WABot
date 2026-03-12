@@ -72,9 +72,9 @@ def is_pricing_negotiation(text: str) -> bool:
 # ========================================
 
 GREETING_BUTTONS = [
-    {"id": "BROWSE_FURNITURE", "title": "🛋️ Browse Furniture"},
-    {"id": "BROWSE_APPLIANCES", "title": "❄️ Browse Appliances"},
-    {"id": "COMPLETE_HOME_SETUP", "title": "🏡 Complete Home Setup"}
+    {"id": "BROWSE_FURNITURE", "title": "Browse Furniture"},
+    {"id": "BROWSE_APPLIANCES", "title": "Browse Appliances"},
+    {"id": "COMPLETE_HOME_SETUP", "title": "Complete Home Setup"}
 ]
 
 # Words that count as a greeting (first message or re-greeting)
@@ -95,8 +95,8 @@ def handle_greeting(phone: str, sender_name: str):
     name = sender_name if sender_name and sender_name.strip() else "there"
 
     greeting_text = (
-        f"Hi {name} 👋\n"
-        f"I'm Ku 🐢 from RentBasket, your personal rental assistant.\n"
+        f"Hi {name} \ud83d\udc4b\n"
+        f"I'm Ku \ud83d\udc22 from RentBasket, your personal rental assistant.\n"
         f"\n"
         f"We offer quality furniture and appliances on rent at affordable prices, "
         f"powered by customer service which is best in the market.\n"
@@ -105,20 +105,37 @@ def handle_greeting(phone: str, sender_name: str):
         f"https://rentbasket.com"
     )
 
-    whatsapp_client.send_interactive_buttons(
-        to_phone=phone,
-        body_text=greeting_text,
-        buttons=GREETING_BUTTONS
-    )
+    try:
+        result = whatsapp_client.send_interactive_buttons(
+            to_phone=phone,
+            body_text=greeting_text,
+            buttons=GREETING_BUTTONS
+        )
+        if "error" in result:
+            print(f"   \u26a0\ufe0f Interactive buttons failed: {result['error']}")
+            print(f"   \u21a9\ufe0f Falling back to plain text...")
+            whatsapp_client.send_text_message(phone, greeting_text, preview_url=True)
+    except Exception as e:
+        print(f"   \u274c Error sending greeting buttons: {e}")
+        import traceback
+        traceback.print_exc()
+        # Fallback to plain text
+        try:
+            whatsapp_client.send_text_message(phone, greeting_text, preview_url=True)
+        except Exception as e2:
+            print(f"   \u274c Even plain text failed: {e2}")
 
     # Log to DB + file
-    session_id = get_or_create_session(phone, sender_name)
-    log_conversation_turn(phone, sender_name, "[Greeting]", greeting_text,
-                          session_id=session_id)
-    log_event(phone, "greeting_sent", {"buttons": [b["id"] for b in GREETING_BUTTONS]},
-              session_id=session_id)
+    try:
+        session_id = get_or_create_session(phone, sender_name)
+        log_conversation_turn(phone, sender_name, "[Greeting]", greeting_text,
+                              session_id=session_id)
+        log_event(phone, "greeting_sent", {"buttons": [b["id"] for b in GREETING_BUTTONS]},
+                  session_id=session_id)
+    except Exception as e:
+        print(f"   \u26a0\ufe0f Logging error (non-fatal): {e}")
 
-    print(f"   👋 Greeting + interactive buttons sent to {phone}")
+    print(f"   \ud83d\udc4b Greeting + interactive buttons sent to {phone}")
     return jsonify({"status": "ok", "action": "greeting"}), 200
 
 
