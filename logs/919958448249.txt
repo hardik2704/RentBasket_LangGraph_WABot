@@ -80,3 +80,8 @@ https://rentbasket.com
 12/03/26, 02:37 pm - New session started
 12/03/26, 02:37 pm - Test User (919958448249): Hello again
 12/03/26, 02:37 pm - Ku: Test response
+
+--------------------------------------------------
+13/03/26, 02:37 am - New session started
+13/03/26, 02:37 am - Hardik Test (919958448249): Test message from diag script
+13/03/26, 02:37 am - Ku: Bot response from diag script

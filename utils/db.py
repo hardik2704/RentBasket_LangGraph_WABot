@@ -15,27 +15,41 @@ _pool = None
 _db_available = None  # None = not checked yet, True/False = result
 
 
+_last_check_time = 0
+RETRY_INTERVAL = 60 # Check again after 60 seconds if it failed
+
 def is_db_available() -> bool:
     """Check if database is configured and reachable."""
-    global _db_available
-    if _db_available is not None:
-        return _db_available
-
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        print("ℹ️  DATABASE_URL not set — using file-based logging (fallback)")
-        _db_available = False
-        return False
-
-    try:
-        _get_pool()
-        _db_available = True
-        print("✅ Database connected successfully")
+    global _db_available, _last_check_time
+    
+    import time
+    now = time.time()
+    
+    # If it's already marked as available, keep it
+    if _db_available is True:
         return True
-    except Exception as e:
-        print(f"⚠️  Database connection failed: {e} — using file-based logging (fallback)")
-        _db_available = False
-        return False
+        
+    # If never checked OR if it failed but 60s have passed, try again
+    if _db_available is None or (now - _last_check_time > RETRY_INTERVAL):
+        _last_check_time = now
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            if _db_available is None: # Only print once
+                print("ℹ️  DATABASE_URL not set — using file-based logging (fallback)")
+            _db_available = False
+            return False
+
+        try:
+            _get_pool()
+            _db_available = True
+            print("✅ Database connected successfully")
+            return True
+        except Exception as e:
+            print(f"⚠️  Database connection failed: {e} — using file-based logging (fallback)")
+            _db_available = False
+            return False
+            
+    return _db_available
 
 
 def _get_pool():

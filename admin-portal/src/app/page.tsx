@@ -19,7 +19,12 @@ export default function Dashboard() {
   const [duration, setDuration] = useState<number>(6);
   const [preview, setPreview] = useState<PricingPreview | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
-  const [globalDiscount, setGlobalDiscount] = useState({ percent: 10, status: 'active' });
+  const [globalDiscount, setGlobalDiscount] = useState({ 
+    percent: 10, 
+    status: 'active',
+    startsAt: '',
+    endsAt: ''
+  });
 
   useEffect(() => {
     fetchInitialData();
@@ -49,7 +54,12 @@ export default function Dashboard() {
     
     if (rules && rules.length > 0) {
       const rule = rules[0] as any;
-      setGlobalDiscount({ percent: rule.discount_percent, status: rule.status });
+      setGlobalDiscount({ 
+        percent: rule.discount_percent, 
+        status: rule.status,
+        startsAt: rule.starts_at ? new Date(rule.starts_at).toISOString().slice(0, 16) : '',
+        endsAt: rule.ends_at ? new Date(rule.ends_at).toISOString().slice(0, 16) : ''
+      });
     }
   }
 
@@ -59,7 +69,7 @@ export default function Dashboard() {
     try {
       const { data, error } = await (supabase.rpc as any)('calculate_effective_price', {
         p_product_id: Number(selectedProductId),
-        p_duration: duration
+        p_duration_months: duration
       });
       if (data) setPreview(data as PricingPreview);
     } catch (e) {
@@ -78,12 +88,14 @@ export default function Dashboard() {
         .eq('scope', 'global')
         .limit(1);
 
-      const payload = {
+      const payload: any = {
         rule_name: 'Global Market Override',
         scope: 'global',
         discount_percent: globalDiscount.percent,
         status: globalDiscount.status,
-        reason: reason || 'Updated via Admin Portal'
+        reason: reason || 'Updated via Admin Portal',
+        starts_at: globalDiscount.startsAt ? new Date(globalDiscount.startsAt).toISOString() : new Date().toISOString(),
+        ends_at: globalDiscount.endsAt ? new Date(globalDiscount.endsAt).toISOString() : null
       };
 
       let error;
@@ -155,9 +167,19 @@ export default function Dashboard() {
               <div className="md:col-span-2 space-y-2">
                 <label className="text-xs font-bold text-gray-600 uppercase tracking-wider">Campaign Schedule (Optional)</label>
                 <div className="flex items-center gap-2">
-                  <input type="datetime-local" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 transition-all" />
+                  <input 
+                    type="datetime-local" 
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium" 
+                    value={globalDiscount.startsAt}
+                    onChange={(e) => setGlobalDiscount({...globalDiscount, startsAt: e.target.value})}
+                  />
                   <span className="text-gray-400 font-black">→</span>
-                  <input type="datetime-local" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 transition-all" />
+                  <input 
+                    type="datetime-local" 
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium" 
+                    value={globalDiscount.endsAt}
+                    onChange={(e) => setGlobalDiscount({...globalDiscount, endsAt: e.target.value})}
+                  />
                 </div>
               </div>
               <div className="md:col-span-3 space-y-2">

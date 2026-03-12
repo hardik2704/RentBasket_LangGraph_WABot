@@ -48,8 +48,12 @@ export default function CategoryTable() {
     }
   }
 
-  async function updateDiscountRule(categoryId: string, percent: number, reason: string) {
+  async function updateDiscountRule(categoryId: string, reason: string) {
     try {
+      const pc = parseInt((document.getElementById('cat-discount-pc') as HTMLInputElement).value);
+      const startsAt = (document.getElementById('cat-starts-at') as HTMLInputElement).value;
+      const endsAt = (document.getElementById('cat-ends-at') as HTMLInputElement).value;
+
       // 1. Check if an existing rule exists for this category
       const { data: existingRules } = await (supabase.from('discount_rules') as any)
         .select('id')
@@ -61,9 +65,11 @@ export default function CategoryTable() {
         rule_name: `Category Discount: ${editingCategory?.name}`,
         scope: 'category',
         target_category_id: categoryId,
-        discount_percent: percent,
+        discount_percent: pc,
         status: 'active',
-        reason: reason || 'Updated via Admin Portal'
+        reason: reason || 'Updated via Admin Portal',
+        starts_at: startsAt ? new Date(startsAt).toISOString() : new Date().toISOString(),
+        ends_at: endsAt ? new Date(endsAt).toISOString() : null
       };
 
       let error;
@@ -177,15 +183,24 @@ export default function CategoryTable() {
                      <Edit2 className="h-4 w-4 text-primary" />
                      <h4 className="text-xs font-black uppercase tracking-widest text-gray-400">Active Rule Configuration</h4>
                   </div>
-                  <div className="p-4 rounded-xl border-2 border-primary/10 bg-primary/5 space-y-4">
-                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Current Discount %</label>
-                        <div className="relative">
-                           <input id="cat-discount-pc" type="number" className="w-full px-4 py-2 border border-gray-200 rounded-lg font-black text-lg focus:ring-2 focus:ring-primary/20 outline-none transition-all" defaultValue="0" />
-                           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-primary font-bold">%</span>
-                        </div>
-                     </div>
-                  </div>
+                   <div className="p-4 rounded-xl border-2 border-primary/10 bg-primary/5 space-y-4">
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Current Discount %</label>
+                         <div className="relative">
+                            <input id="cat-discount-pc" type="number" className="w-full px-4 py-2 border border-gray-200 rounded-lg font-black text-lg focus:ring-2 focus:ring-primary/20 outline-none transition-all" defaultValue="0" />
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-primary font-bold">%</span>
+                         </div>
+                      </div>
+                      
+                      <div className="space-y-2 border-t border-primary/10 pt-4">
+                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Schedule (Optional)</label>
+                         <div className="grid grid-cols-1 gap-2">
+                            <input id="cat-starts-at" type="datetime-local" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium" />
+                            <div className="flex justify-center text-gray-300 font-black">↓</div>
+                            <input id="cat-ends-at" type="datetime-local" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium" />
+                         </div>
+                      </div>
+                   </div>
                </section>
 
                <section className="space-y-4 pt-4 border-t border-gray-100">
@@ -196,13 +211,12 @@ export default function CategoryTable() {
 
             <div className="p-6 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3">
                <button onClick={() => setEditingCategory(null)} className="px-6 py-2 rounded-lg text-sm font-bold text-gray-500 hover:bg-gray-100 transition-all uppercase tracking-wide">Cancel</button>
-               <button 
-                  onClick={() => {
-                     const pc = parseInt((document.getElementById('cat-discount-pc') as HTMLInputElement).value);
-                     const reason = (document.getElementById('cat-reason') as HTMLTextAreaElement).value;
-                     updateDiscountRule(editingCategory.id, pc, reason);
-                  }}
-                  className="px-8 py-2 bg-primary text-white rounded-lg text-sm font-black shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all uppercase tracking-wider">Save Changes</button>
+                <button 
+                   onClick={() => {
+                      const reason = (document.getElementById('cat-reason') as HTMLTextAreaElement).value;
+                      updateDiscountRule(editingCategory.id, reason);
+                   }}
+                   className="px-8 py-2 bg-primary text-white rounded-lg text-sm font-black shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all uppercase tracking-wider">Save Changes</button>
             </div>
           </div>
         </>

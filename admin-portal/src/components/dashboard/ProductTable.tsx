@@ -160,7 +160,16 @@ export default function ProductTable() {
                         </div>
                         <p className="text-[10px] text-gray-400 italic mt-1">Note: Product overrides take absolute priority over global/category rules.</p>
                      </div>
-                  </div>
+
+                      <div className="space-y-2 border-t border-primary/10 pt-4">
+                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Schedule (Optional)</label>
+                         <div className="grid grid-cols-1 gap-2">
+                            <input id="prod-starts-at" type="datetime-local" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium" />
+                            <div className="flex justify-center text-gray-300 font-black">↓</div>
+                            <input id="prod-ends-at" type="datetime-local" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium" />
+                         </div>
+                      </div>
+                   </div>
                </section>
 
                <section className="space-y-4 pt-4 border-t border-gray-100">
@@ -175,6 +184,9 @@ export default function ProductTable() {
                   onClick={async () => {
                      const pc = parseInt((document.getElementById('prod-discount-pc') as HTMLInputElement).value);
                      const reason = (document.getElementById('prod-reason') as HTMLTextAreaElement).value;
+                     const startsAt = (document.getElementById('prod-starts-at') as HTMLInputElement).value;
+                     const endsAt = (document.getElementById('prod-ends-at') as HTMLInputElement).value;
+
                      try {
                         // 1. Check for existing product rule
                         const { data: existingRules } = await (supabase.from('discount_rules') as any)
@@ -189,7 +201,9 @@ export default function ProductTable() {
                           target_product_id: editingProduct.id,
                           discount_percent: pc,
                           status: 'active',
-                          reason: reason
+                          reason: reason,
+                          starts_at: startsAt ? new Date(startsAt).toISOString() : new Date().toISOString(),
+                          ends_at: endsAt ? new Date(endsAt).toISOString() : null
                         };
 
                         let error;
