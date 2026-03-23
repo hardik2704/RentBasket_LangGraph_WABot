@@ -201,40 +201,52 @@ def log_conversation_turn(
 ) -> None:
     """
     Log a complete conversation turn (user message + bot response).
-    Drop-in compatible with logger.log_conversation_turn().
+    Uses a single transaction for atomicity and efficiency.
     """
-    # Always write to file too
+    # Always write to file too (as reliable backup)
     file_logger.log_conversation_turn(phone_number, user_name, user_message, bot_response)
 
     if not is_db_available():
         return
 
+    from utils.db import get_connection, put_connection
+
+    conn = None
     try:
-        # Log user message
-        execute_query(
-            """INSERT INTO messages
-               (session_id, phone_number, sender, sender_name, message,
-                wa_message_id, intent, quoted_message_id, reaction_emoji)
-               VALUES (%s, %s, 'user', %s, %s, %s, %s, %s, %s)""",
-            (session_id, phone_number, user_name, user_message, wa_message_id, intent, quoted_message_id, reaction_emoji),
-        )
-        # Log bot response
-        execute_query(
-            """INSERT INTO messages
-               (session_id, phone_number, sender, sender_name, message,
-                agent_used, tools_called)
-               VALUES (%s, %s, 'bot', %s, %s, %s, %s)""",
-            (
-                session_id,
-                phone_number,
-                BOT_NAME,
-                bot_response,
-                agent_used,
-                tools_called,
-            ),
-        )
+        conn = get_connection()
+        with conn.cursor() as cur:
+            # 1. Log user message
+            cur.execute(
+                """INSERT INTO messages
+                   (session_id, phone_number, sender, sender_name, message,
+                    wa_message_id, intent, quoted_message_id, reaction_emoji)
+                   VALUES (%s, %s, 'user', %s, %s, %s, %s, %s, %s)""",
+                (session_id, phone_number, user_name, user_message, wa_message_id, intent, quoted_message_id, reaction_emoji),
+            )
+            
+            # 2. Log bot response
+            cur.execute(
+                """INSERT INTO messages
+                   (session_id, phone_number, sender, sender_name, message,
+                    agent_used, tools_called)
+                   VALUES (%s, %s, 'bot', %s, %s, %s, %s)""",
+                (
+                    session_id,
+                    phone_number,
+                    BOT_NAME,
+                    bot_response,
+                    agent_used,
+                    tools_called,
+                ),
+            )
+        conn.commit()
     except Exception as e:
+        if conn:
+            conn.rollback()
         print(f"⚠️  DB log_conversation_turn error: {e}")
+    finally:
+        if conn:
+            put_connection(conn)
 
 
 def log_system_message(

@@ -165,6 +165,12 @@ RENTBASKET_KNOWLEDGE_BASE = """
 - Urgent Needs: 1-day delivery for essentials (mattress, RO, bed) if available
 - Catalogue: Available on website
 - Technical Issues: Report immediately; 3–5 day fix; complex issues get a timeline
+
+
+## CUSTOMER REVIEWS & RATINGS
+- Google Rating: 4.9 Stars ⭐⭐⭐⭐⭐
+- Customer Reviews Link: https://rentbasket.short.gy/reviews
+- Feedback: We take pride in our 4.9-star rating on Google. Check out what our customers have to say about our quality and service!
 """
 
 
@@ -179,10 +185,13 @@ FAQS = {
     "delivery_time": "Standard delivery: 2-5 business days. Express delivery subject to availability.",
     "service_areas": "We serve Gurgaon (all sectors except Manesar) and Noida (all sectors).",
     "pg_addresses": "Sorry, we don't serve PG addresses currently.",
+    "reviews": "We are proud of our 4.9 Google Rating! You can read our customer reviews here: https://rentbasket.short.gy/reviews",
 }
 
 
-def get_faq(topic: str) -> str:
+from typing import Union
+
+def get_faq(topic: str) -> Union[str, None]:
     """Get FAQ answer by topic."""
     topic = topic.lower().strip()
     for key, answer in FAQS.items():

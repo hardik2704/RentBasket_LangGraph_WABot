@@ -85,3 +85,38 @@ https://rentbasket.com
 13/03/26, 02:37 am - New session started
 13/03/26, 02:37 am - Hardik Test (919958448249): Test message from diag script
 13/03/26, 02:37 am - Ku: Bot response from diag script
+
+--------------------------------------------------
+14/03/26, 04:53 pm - New session started
+14/03/26, 04:53 pm - Hardik Test (919958448249): Test message from diag script
+14/03/26, 04:53 pm - Ku: Bot response from diag script
+
+--------------------------------------------------
+16/03/26, 12:54 pm - New session started
+16/03/26, 12:54 pm - Hardik Test (919958448249): Test message from diag script
+16/03/26, 12:54 pm - Ku: Bot response from diag script
+
+--------------------------------------------------
+16/03/26, 02:37 pm - New session started
+16/03/26, 02:37 pm - Hardik Test (919958448249): Test message from diag script
+16/03/26, 02:37 pm - Ku: Bot response from diag script
+16/03/26, 02:37 pm - Hardik Test (919958448249): Test message from diag script
+16/03/26, 02:37 pm - Ku: Bot response from diag script
+16/03/26, 02:37 pm - Hardik Test (919958448249): Test message from diag script
+16/03/26, 02:37 pm - Ku: Bot response from diag script
+22/03/26, 03:44 pm - Test User (919958448249): [Greeting]
+22/03/26, 03:44 pm - Ku: Hi Test User 👋
+I'm Ku 🐢 from RentBasket, your personal rental assistant.
+
+We offer quality furniture and appliances on rent at affordable prices, powered by customer service which is best in the market.
+
+Check out our 5-star customer reviews:
+⭐ https://rentbasket.short.gy/reviews
+
+Explore our catalog on the website:
+👉 https://rentbasket.com
+
+--------------------------------------------------
+22/03/26, 03:44 pm - New session started
+22/03/26, 03:44 pm - Test User (919958448249): Hello again
+22/03/26, 03:44 pm - Ku: Test response
