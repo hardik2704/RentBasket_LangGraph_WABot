@@ -412,11 +412,46 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
             else:
                 messages_to_send = [response]
             
+            # --- CUSTOM UX HANDLER FOR NEW SUPPORT STRUCTURE ---
+            import utils.support_menus as sm_menus
+            
             for i, msg in enumerate(messages_to_send):
                 msg = msg.strip()
                 if not msg: continue
                 
-                if "[SEND_HANDOFF_BUTTONS]" in msg:
+                # Handling structured Support Lists
+                if msg.startswith("[SEND_SUPPORT_LIST:"):
+                    menu_key = msg.replace("[SEND_SUPPORT_LIST:", "").replace("]", "").strip()
+                    menu_dict = getattr(sm_menus, menu_key, None)
+                    if menu_dict:
+                        whatsapp_client.send_list_message(
+                            to_phone=phone,
+                            body_text=menu_dict.get("body_text", "Options:"),
+                            button_text=menu_dict.get("button_text", "Select"),
+                            sections=menu_dict.get("sections", []),
+                            header=menu_dict.get("header")
+                        )
+                    continue
+
+                # Handling structured Support Buttons
+                elif msg.startswith("[SEND_SUPPORT_BUTTONS:"):
+                    # Format: [SEND_SUPPORT_BUTTONS:VAR_NAME|Header text|Body text|Footer text]
+                    raw_data = msg.replace("[SEND_SUPPORT_BUTTONS:", "").replace("]", "").split("|")
+                    var_name = raw_data[0].strip()
+                    buttons_list = getattr(sm_menus, var_name, [])
+                    
+                    if buttons_list:
+                        head = raw_data[1].strip() if len(raw_data) > 1 and raw_data[1].strip() else None
+                        body = raw_data[2].strip() if len(raw_data) > 2 and raw_data[2].strip() else "Please choose an option:"
+                        foot = raw_data[3].strip() if len(raw_data) > 3 and raw_data[3].strip() else None
+                        
+                        whatsapp_client.send_interactive_buttons(
+                            to_phone=phone, body_text=body, buttons=buttons_list, header=head, footer=foot
+                        )
+                    continue
+                
+                # Standard handoff handler
+                elif "[SEND_HANDOFF_BUTTONS]" in msg:
                     clean_msg = msg.replace("[SEND_HANDOFF_BUTTONS]", "").strip()
                     handoff_buttons = [
                         {"id": "CALL_ME", "title": "📞 Call me"},
@@ -428,7 +463,9 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
                         buttons=handoff_buttons
                     )
                 else:
+                    # Plain text
                     whatsapp_client.send_text_message(phone, msg, preview_url="http" in msg)
+                    
                 if len(messages_to_send) > 1:
                     time.sleep(0.5) # Slight delay between split messages
             

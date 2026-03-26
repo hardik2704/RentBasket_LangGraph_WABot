@@ -25,11 +25,15 @@ CREATE TABLE IF NOT EXISTS operations_tickets (
     customer_id INT REFERENCES customers(id) ON DELETE CASCADE,
     phone_number TEXT NOT NULL,
     issue_type TEXT NOT NULL,         -- maintenance, billing, relocation, closure
-    sub_intent TEXT,                  -- e.g., "broken_fridge"
-    description TEXT,                 -- Summary of the issue
+    sub_intent TEXT,                  -- e.g., "broken_fridge", "MAINT_APPLIANCE"
+    summary TEXT,                     -- One-liner title for the dashboard
+    description TEXT,                 -- Detailed user-provided description
     priority TEXT DEFAULT 'medium',   -- high, medium, low
     status TEXT DEFAULT 'open',       -- open, in_progress, resolved, closed
     is_urgent BOOLEAN DEFAULT FALSE,
+    source TEXT DEFAULT 'WhatsApp',   -- Where ticket originated
+    escalation_flag BOOLEAN DEFAULT FALSE, -- True if human escalation triggered
+    media_refs JSONB DEFAULT '[]',    -- Any photo/video IDs
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

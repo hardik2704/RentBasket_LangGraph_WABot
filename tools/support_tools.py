@@ -18,9 +18,12 @@ def log_support_ticket_tool(
     phone_number: str,
     issue_type: str,
     description: str,
+    summary: str,
     sub_intent: Optional[str] = None,
     priority: str = "medium",
-    is_urgent: bool = False
+    is_urgent: bool = False,
+    escalation_flag: bool = False,
+    media_refs: Optional[str] = "[]"
 ) -> str:
     """
     Log a new support ticket in the database for a customer issue.
@@ -28,11 +31,14 @@ def log_support_ticket_tool(
     
     Args:
         phone_number: Customer's phone number
-        issue_type: Category of the issue
-        description: Detailed summary of the problem
-        sub_intent: Specific sub-category (optional)
+        issue_type: Category of the issue (e.g., maintenance)
+        description: Detailed verbatim problem
+        summary: A 5-8 word title for the ticket dashboard
+        sub_intent: Specific sub-category (e.g., MAINT_APPLIANCE)
         priority: high, medium, low
         is_urgent: True if it requires immediate attention
+        escalation_flag: True if human escalated
+        media_refs: JSON string of media IDs attached by user
         
     Returns:
         A message with the Ticket ID or error.
@@ -41,38 +47,73 @@ def log_support_ticket_tool(
         return "⚠️ Database unavailable. Please note your issue and I will report it manually."
 
     # First, find the customer_id associated with the phone
-    cust_query = "SELECT id FROM customers WHERE phone_number = %s OR phone_number = %s LIMIT 1;"
-    clean_phone = phone_number.replace("+", "").strip()
-    short_phone = clean_phone[-10:] if len(clean_phone) >= 10 else clean_phone
+    cust_query = "SELECT id FROM customers WHERE phone_number LIKE %s LIMIT 1;"
     
+    import re
+    clean = re.sub(r'\D', '', str(phone_number))
+    normalized_phone = clean[-10:] if len(clean) >= 10 else clean
+
     try:
-        cust_row = execute_query_one(cust_query, (clean_phone, short_phone))
+        cust_row = execute_query_one(cust_query, (f"%{normalized_phone}",))
         customer_id = cust_row[0] if cust_row else None
         
         insert_query = """
-        INSERT INTO operations_tickets (customer_id, phone_number, issue_type, sub_intent, description, priority, is_urgent)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO operations_tickets (customer_id, phone_number, issue_type, sub_intent, summary, description, priority, is_urgent, escalation_flag, media_refs)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING id;
         """
         
         ticket_id_row = execute_query_one(insert_query, (
             customer_id, 
-            clean_phone, 
+            normalized_phone, 
             issue_type, 
-            sub_intent, 
+            sub_intent,
+            summary,
             description, 
             priority, 
-            is_urgent
+            is_urgent,
+            escalation_flag,
+            media_refs
         ))
         
         if ticket_id_row:
             ticket_id = ticket_id_row[0]
-            return f"✅ Ticket #{ticket_id} has been logged successfully. Our operations team is on it! | Priority: {priority}"
+            urgency_icon = "🔥" if is_urgent or priority == "high" else "📋"
+            return f"✅ Ticket #{ticket_id} has been logged successfully. {urgency_icon} | Priority: {priority}"
         return "❌ Failed to log ticket."
         
     except Exception as e:
         print(f"⚠️ Error logging ticket: {e}")
         return f"❌ Error logging ticket: {str(e)}"
+
+# ============================================
+# NEW POLICY TOOL
+# ============================================
+
+from data.support_policies import SUPPORT_POLICIES
+
+@tool
+def retrieve_support_policy_tool(category: str) -> str:
+    """
+    Retrieves the exact hardcoded corporate policy for an operational scope.
+    Use this to strictly quote RentBasket rules instead of hallucinating answers.
+    
+    Args:
+        category: Must be one of ["maintenance", "billing", "refund", "pickup", "relocation"]
+        
+    Returns:
+        Bullet points of the official policy.
+    """
+    category = category.lower()
+    
+    if category not in SUPPORT_POLICIES:
+        return f"⚠️ Policy category '{category}' not found. Please check available categories: {list(SUPPORT_POLICIES.keys())}"
+        
+    policy = SUPPORT_POLICIES[category]
+    desc = policy["description"]
+    points = "\n".join([f"• {p}" for p in policy["points"]])
+    
+    return f"**Official RentBasket {category.capitalize()} Policy:**\n_{desc}_\n\n{points}"
 
 @tool
 def check_ticket_status_tool(ticket_id: int) -> str:
