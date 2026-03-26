@@ -1,0 +1,60 @@
+Conversation with Test User
+==================================================
+26/03/26, 04:27 pm - Test User (919812345678): I need help
+26/03/26, 04:27 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:28 pm - New session started
+26/03/26, 04:28 pm - Test User (919812345678): I need help
+26/03/26, 04:28 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:28 pm - New session started
+26/03/26, 04:28 pm - Test User (919812345678): I need help
+26/03/26, 04:28 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:31 pm - New session started
+26/03/26, 04:31 pm - Test User (919812345678): I need help
+26/03/26, 04:31 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:34 pm - New session started
+26/03/26, 04:34 pm - Test User (919812345678): I need help
+26/03/26, 04:34 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:37 pm - New session started
+26/03/26, 04:37 pm - Test User (919812345678): I need help
+26/03/26, 04:37 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:40 pm - New session started
+26/03/26, 04:40 pm - Test User (919812345678): I need help
+26/03/26, 04:40 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:52 pm - New session started
+26/03/26, 04:52 pm - Test User (919812345678): I need help
+26/03/26, 04:52 pm - Ku: Hi Ananya Gupta 👋  
+I’m Ku 🐢 from RentBasket, your personal rental assistant.
+
+We offer quality furniture and appliances on rent at affordable prices, powered by customer service which is best in the market.
+
+Check out our website for more details:  
+https://rentbasket.com
+
+What do you need help with? 😊
+
+--------------------------------------------------
+26/03/26, 04:56 pm - New session started
+26/03/26, 04:56 pm - Test User (919812345678): I need help
+26/03/26, 04:56 pm - Ku: Hi Ananya Gupta 👋  
+I’m Ku 🐢 from RentBasket, your personal rental assistant.
+
+We offer quality furniture and appliances on rent at affordable prices, powered by customer service which is best in the market.
+
+Check out our website for more details:  
+https://rentbasket.com
+
+How can I assist you today? 😊

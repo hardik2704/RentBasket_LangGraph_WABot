@@ -148,17 +148,21 @@ def run_support_agent(user_message: str, state: ConversationState = None) -> tup
     if stage == "awaiting_issue_desc":
         state["support_context"]["issue_description"] = msg
         
-        # Call LLM strictly to check policy and summarize
-        response_text = call_policy_llm(state)
-        
-        # After giving policy info, ask for photo if it's maintenance/damage
-        if state["support_context"].get("issue_type") == "maintenance":
-            state["collected_info"]["workflow_stage"] = "awaiting_photo_decision"
-            return response_text + "\n\n[SEND_SUPPORT_BUTTONS:MEDIA_REQUEST_BUTTONS|📸 Photo Request|Do you have a photo or video of the issue so our technicians can prepare the right parts?|]", state
-        else:
-            state["collected_info"]["workflow_stage"] = "ready_to_log"
-            ticket_msg, state = process_ticket_logging(state)
-            return response_text + "\n\n" + ticket_msg, state
+        try:
+            # Call LLM strictly to check policy and summarize
+            response_text = call_policy_llm(state)
+            
+            # After giving policy info, ask for photo if it's maintenance/damage
+            if state["support_context"].get("issue_type") == "maintenance":
+                state["collected_info"]["workflow_stage"] = "awaiting_photo_decision"
+                return response_text + "\n\n[SEND_SUPPORT_BUTTONS:MEDIA_REQUEST_BUTTONS|📸 Photo Request|Do you have a photo or video of the issue so our technicians can prepare the right parts?|]", state
+            else:
+                state["collected_info"]["workflow_stage"] = "ready_to_log"
+                ticket_msg, state = process_ticket_logging(state)
+                return response_text + "\n\n" + ticket_msg, state
+        except Exception as e:
+            print(f"⚠️ Support Agent Failure at awaiting_issue_desc: {e}")
+            return process_escalation(state, f"Tool/LLM Failure: {str(e)}")
 
     # If awaiting media but they typed text
     if stage == "awaiting_media":
@@ -221,20 +225,24 @@ def process_ticket_logging(state: ConversationState) -> tuple[str, ConversationS
     desc = state["support_context"].get("issue_description", "No description provided.")
     priority = "high" if state["support_context"].get("priority_hint") == "SEV_UNUSABLE" else "medium"
     
-    ticket_msg = log_support_ticket_tool.invoke({
-        "phone_number": phone,
-        "issue_type": issue_type,
-        "description": desc,
-        "summary": f"{issue_type} - {sub_intent}",
-        "sub_intent": sub_intent,
-        "priority": priority,
-        "is_urgent": priority == "high",
-        "escalation_flag": False,
-        "media_refs": "[]"
-    })
-    
-    state["collected_info"]["workflow_stage"] = "ticket_logged"
-    return ticket_msg, state
+    try:
+        ticket_msg = log_support_ticket_tool.invoke({
+            "phone_number": phone,
+            "issue_type": issue_type,
+            "description": desc,
+            "summary": f"{issue_type} - {sub_intent}",
+            "sub_intent": sub_intent,
+            "priority": priority,
+            "is_urgent": priority == "high",
+            "escalation_flag": False,
+            "media_refs": "[]"
+        })
+        
+        state["collected_info"]["workflow_stage"] = "ticket_logged"
+        return ticket_msg, state
+    except Exception as e:
+        print(f"⚠️ process_ticket_logging Failure: {e}")
+        return process_escalation(state, f"Ticket Logging Failure: {str(e)}")
 
 
 def process_escalation(state: ConversationState, reason: str) -> tuple[str, ConversationState]:

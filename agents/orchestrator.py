@@ -80,11 +80,13 @@ SALES — The user wants to:
 - Check pincode serviceability
 - Ask about terms for new orders
 
-ESCALATION — The user is:
-- Frustrated, using caps, or angry
-- Explicitly asking for a "human", "executive", "agent", or "to speak to a real person"
+ESCALATION — The user is frustrated, or explicitly asking for a human agent.
 
 GENERAL — Greeting or casual talk.
+
+CRITICAL CONTEXT:
+- If the user is an ACTIVE_CUSTOMER and mentions a product name while in a SUPPORT context, classify as SUPPORT.
+- If the user is currently talking to the SUPPORT agent, tend towards SUPPORT unless they are clearly starting a new SALES journey.
 
 Respond with ONLY one word: SUPPORT, RECOMMENDATION, SALES, ESCALATION, or GENERAL.
 Do not explain your reasoning."""
@@ -100,11 +102,22 @@ def classify_intent(
     try:
         status = state["collected_info"].get("customer_status", "unknown")
         
-        # Check for explicit escalation keywords to avoid LLM lag for simple cases
+        # 1. DETERMINISTIC ID ROUTING (Escalation Logic Synchronization)
+        # Intercept structured IDs to bypass LLM lag and potential misclassification
+        upper_msg = user_message.strip().upper()
+        if upper_msg in ("SUP_TALK_TEAM", "ESCALATION"):
+            return "escalation"
+        
+        # If it's a support menu ID, it's definitely support
+        if upper_msg.startswith("SUP_TYPE_") or upper_msg.startswith("MAINT_") or upper_msg.startswith("BILL_") or upper_msg.startswith("REF_"):
+            return "support"
+
+        # 2. KEYWORD ESCALATION
         lower_msg = user_message.lower()
         if any(kw in lower_msg for kw in ["human", "executive", "agent", "person", "call me"]):
             return "escalation"
 
+        # 3. LLM CLASSIFICATION
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
         
         recent_messages = []
@@ -235,8 +248,19 @@ def route_and_run(
     runner = agent_entry["runner"]
     if runner is None and target_agent == "support_intake":
         runner = run_support_intake_stub
-        
-    response, new_state = runner(user_message, state)
+     
+    try:
+        response, new_state = runner(user_message, state)
+    except Exception as e:
+        print(f"  ❌ CRITICAL: Agent runner '{target_agent}' failed: {e}")
+        # Final safety fallback to prevent crash
+        if target_agent == "support":
+             from agents.support_agent import process_escalation
+             response, new_state = process_escalation(state, f"Agent Failure: {str(e)}")
+        else:
+             response = "⚠️ I encountered a temporary technical glitch. I've notified our team to assist you manually right away! [SEND_HANDOFF_BUTTONS]"
+             new_state = state
+             new_state["needs_human"] = True
     
     new_state["active_agent"] = target_agent
     new_state["_routing_meta"] = {"intent": intent, "agent_used": target_agent}

@@ -1,0 +1,147 @@
+Conversation with Test User
+==================================================
+26/03/26, 04:27 pm - Test User (919222222222): What is the cost of a bed?
+26/03/26, 04:27 pm - Ku: We have several options for beds! Here are a few:
+
+- *Double Bed King Non-Storage Basic*
+- *Wooden Single Bed 6x3 Basic*
+- *Upholstered Double Bed King Storage*
+- *Double Bed Queen Non-Storage Basic*
+
+Which one are you interested in? 
+ How long do you need it for?
+
+--------------------------------------------------
+26/03/26, 04:28 pm - New session started
+26/03/26, 04:29 pm - Test User (919222222222): What is the cost of a bed?
+26/03/26, 04:29 pm - Ku: Here are some bed options and their rental prices:
+
+1. *Double Bed King Non-Storage Basic*
+   - ~₹769~ ₹538/month for 6 months
+   - 12+ Months: ~₹699~ ₹489/month
+
+2. *Wooden Single Bed 6x3 Basic*
+   - ~₹560~ ₹392/month for 6 months
+   - 12+ Months: ~₹420~ ₹294/month
+
+3. *Upholstered Double Bed King Storage*
+   - ~₹1679~ ₹1175/month for 6 months
+   - 12+ Months: ~₹1399~ ₹979/month
+
+4. *Double Bed Queen Non-Storage Basic*
+   - ~₹769~ ₹538/month for 6 months
+   - 12+ Months: ~₹699~ ₹489/month
+
+5. *Std Double Bed Kings 6X6 Storage*
+   - ~₹1259~ ₹881/month for 6 months
+   - 12+ Months: ~₹1119~ ₹783/month
+
+6. *Upholstered Double Bed King Non-Storage*
+   - ~₹839~ ₹587/month for 6 months
+   - 12+ Months: ~₹769~ ₹538/month
+
+7. *Upholstered Double Bed Queen Storage*
+   - ~₹1679~ ₹1175/month for 6 months
+   - 12+ Months: ~₹1399~ ₹979/month
+
+8. *Upholstered Double Bed Queen Non Storage*
+   - ~₹839~ ₹587/month for 6 months
+   - 12+ Months: ~₹769~ ₹538/month
+
+
+How long do you need it for?
+
+--------------------------------------------------
+26/03/26, 04:29 pm - New session started
+26/03/26, 04:29 pm - Test User (919222222222): What is the cost of a bed?
+26/03/26, 04:29 pm - Ku: We have several bed options! Here are a few:
+
+- *Double Bed King Non-Storage Basic*
+- *Wooden Single Bed 6x3 Basic*
+- *Upholstered Double Bed King Storage*
+- *Double Bed Queen Non-Storage Basic*
+
+
+ Which one are you interested in? Or do you want to know the price of a specific model? 😊
+
+--------------------------------------------------
+26/03/26, 04:31 pm - New session started
+26/03/26, 04:32 pm - Test User (919222222222): What is the cost of a bed?
+26/03/26, 04:32 pm - Ku: We have several bed options! Here are a few:
+
+- *Double Bed King Non-Storage Basic*
+- *Wooden Single Bed 6x3 Basic*
+- *Upholstered Double Bed King Storage*
+- *Double Bed Queen Non-Storage Basic*
+
+
+ Which one are you interested in? Or do you want to know the price for a specific one? 😊
+
+--------------------------------------------------
+26/03/26, 04:34 pm - New session started
+26/03/26, 04:34 pm - Test User (919222222222): What is the cost of a bed?
+26/03/26, 04:34 pm - Ku: Here are some bed options for you:
+
+1. *Double Bed King Non-Storage Basic* - ID: 17
+2. *Wooden Single Bed 6x3 Basic* - ID: 28
+3. *Upholstered Double Bed King Storage* - ID: 1005
+4. *Double Bed Queen Non-Storage Basic* - ID: 1017
+5. *Std Double Bed Kings 6X6 Storage* - ID: 1023
+6. *Upholstered Double Bed King Non-Storage* - ID: 1024
+7. *Upholstered Double Bed Queen Storage* - ID: 1025
+8. *Upholstered Double Bed Queen Non Storage* - ID: 1026
+
+Which one are you interested in? 
+ How long do you need it for?
+
+--------------------------------------------------
+26/03/26, 04:37 pm - New session started
+26/03/26, 04:37 pm - Test User (919222222222): What is the cost of a bed?
+26/03/26, 04:37 pm - Ku: We have several bed options! Here are a few:
+
+- *Double Bed King Non-Storage Basic* 
+- *Wooden Single Bed 6x3 Basic* 
+- *Upholstered Double Bed King Storage* 
+- *Double Bed Queen Non-Storage Basic* 
+
+
+ Which one are you interested in? Or would you like to know the prices for all? 😊
+
+--------------------------------------------------
+26/03/26, 04:40 pm - New session started
+26/03/26, 04:40 pm - Test User (919222222222): What is the cost of a bed?
+26/03/26, 04:40 pm - Ku: We have several types of beds available! Here are a few options:
+
+- *Double Bed King Non-Storage Basic*
+- *Wooden Single Bed 6x3 Basic*
+- *Upholstered Double Bed King Storage*
+- *Double Bed Queen Non-Storage Basic*
+
+
+ Which one are you interested in? Or would you like to know the prices for a specific model? 😊
+
+--------------------------------------------------
+26/03/26, 04:53 pm - New session started
+26/03/26, 04:53 pm - Test User (919222222222): What is the cost of a bed?
+26/03/26, 04:53 pm - Ku: We have several beds available! Here are a few options:
+
+- *Double Bed King Non-Storage Basic* 
+- *Wooden Single Bed 6x3 Basic* 
+- *Upholstered Double Bed King Storage* 
+- *Double Bed Queen Non-Storage Basic* 
+
+
+ Which one are you interested in? Or do you want to know the price for a specific model? 😊
+
+--------------------------------------------------
+26/03/26, 04:57 pm - New session started
+26/03/26, 04:57 pm - Test User (919222222222): What is the cost of a bed?
+26/03/26, 04:57 pm - Ku: We have several beds available! Here are a few options:
+
+- *Double Bed King Non-Storage Basic*
+- *Wooden Single Bed 6x3 Basic*
+- *Upholstered Double Bed King Storage*
+- *Double Bed Queen Non-Storage Basic*
+
+
+ How long do you need it for?

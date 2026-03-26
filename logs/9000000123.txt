@@ -1,0 +1,199 @@
+Conversation with Test User
+==================================================
+26/03/26, 04:27 pm - Test User (919000000123): Price of fridge
+26/03/26, 04:27 pm - Ku: Here are some fridge options for you:
+
+1. *Fridge 190 Ltr*
+   - Rent for 6 months: ~₹1371~ ₹960/month
+   - Additional Pricing:
+     - 1 Month: ₹4160/month
+     - 3 Months: ~₹1763~ ₹1234/month
+     - 12+ Months: ~₹1273~ ₹891/month
+
+2. *Double Door Fridge*
+   - Rent for 6 months: ~₹1539~ ₹1077/month
+   - Additional Pricing:
+     - 1 Month: ₹2350/month
+     - 3 Months: ~₹1959~ ₹1371/month
+     - 12+ Months: ~₹1469~ ₹1028/month
+
+
+How long do you need it for?
+
+--------------------------------------------------
+26/03/26, 04:28 pm - New session started
+26/03/26, 04:28 pm - Test User (919000000123): Price of fridge
+26/03/26, 04:28 pm - Ku: Here are the fridge options available for rent:
+
+1. *Fridge 190 Ltr*
+   - Rent for 6 months: ~₹1371~ ₹960/month
+   - Additional Pricing:
+     - 1 Month: ₹4160/month
+     - 3 Months: ~₹1763~ ₹1234/month
+     - 12+ Months: ~₹1273~ ₹891/month
+
+2. *Double Door Fridge*
+   - Rent for 6 months: ~₹1539~ ₹1077/month
+   - Additional Pricing:
+     - 1 Month: ₹2350/month
+     - 3 Months: ~₹1959~ ₹1371/month
+     - 12+ Months: ~₹1469~ ₹1028/month
+
+
+How long do you need it for?
+
+--------------------------------------------------
+26/03/26, 04:28 pm - New session started
+26/03/26, 04:29 pm - Test User (919000000123): Price of fridge
+26/03/26, 04:29 pm - Ku: Here are some fridge options for you:
+
+1. *Fridge 190 Ltr*
+   - Rent for 6 months: ~₹1371~ ₹960/month
+   - Additional Pricing:
+     - 1 Month: ₹4160/month
+     - 3 Months: ~₹1763~ ₹1234/month
+     - 12+ Months: ~₹1273~ ₹891/month
+
+2. *Double Door Fridge*
+   - Rent for 6 months: ~₹1539~ ₹1077/month
+   - Additional Pricing:
+     - 1 Month: ₹2350/month
+     - 3 Months: ~₹1959~ ₹1371/month
+     - 12+ Months: ~₹1469~ ₹1028/month
+
+
+How long do you need it for?
+
+--------------------------------------------------
+26/03/26, 04:31 pm - New session started
+26/03/26, 04:31 pm - Test User (919000000123): Price of fridge
+26/03/26, 04:31 pm - Ku: Here are some fridge options for you:
+
+1. *Fridge 190 Ltr*  
+   - Rent for 6 months: ~₹1371~ ₹960/month  
+   - Additional Pricing:  
+     - 1 Month: ₹4160/month  
+     - 3 Months: ~₹1763~ ₹1234/month  
+     - 12+ Months: ~₹1273~ ₹891/month  
+
+2. *Double Door Fridge*  
+   - Rent for 6 months: ~₹1539~ ₹1077/month  
+   - Additional Pricing:  
+     - 1 Month: ₹2350/month  
+     - 3 Months: ~₹1959~ ₹1371/month  
+     - 12+ Months: ~₹1469~ ₹1028/month  
+
+
+How long do you need it for?
+
+--------------------------------------------------
+26/03/26, 04:34 pm - New session started
+26/03/26, 04:34 pm - Test User (919000000123): Price of fridge
+26/03/26, 04:34 pm - Ku: Here are the fridge options available for rent:
+
+1. *Fridge 190 Ltr*
+   - Rent for 6 months: ~₹1371~ ₹960/month
+   - Additional Pricing:
+     - 1 Month: ₹4160/month
+     - 3 Months: ~₹1763~ ₹1234/month
+     - 12+ Months: ~₹1273~ ₹891/month
+
+2. *Double Door Fridge*
+   - Rent for 6 months: ~₹1539~ ₹1077/month
+   - Additional Pricing:
+     - 1 Month: ₹2350/month
+     - 3 Months: ~₹1959~ ₹1371/month
+     - 12+ Months: ~₹1469~ ₹1028/month
+
+
+How long do you need it for? 😊
+
+--------------------------------------------------
+26/03/26, 04:37 pm - New session started
+26/03/26, 04:37 pm - Test User (919000000123): Price of fridge
+26/03/26, 04:37 pm - Ku: Here are the fridge options available for rent:
+
+1. *Fridge 190 Ltr*  
+   - Rent for 6 months: ~₹1371~ ₹960/month  
+   - Additional Pricing:  
+     - 1 Month: ₹4160/month  
+     - 3 Months: ~₹1763~ ₹1234/month  
+     - 12+ Months: ~₹1273~ ₹891/month  
+
+2. *Double Door Fridge*  
+   - Rent for 6 months: ~₹1539~ ₹1077/month  
+   - Additional Pricing:  
+     - 1 Month: ₹2350/month  
+     - 3 Months: ~₹1959~ ₹1371/month  
+     - 12+ Months: ~₹1469~ ₹1028/month  
+
+💡 Longer durations often result in better monthly rates!  
+
+
+ How long do you need it for?
+
+--------------------------------------------------
+26/03/26, 04:40 pm - New session started
+26/03/26, 04:40 pm - Test User (919000000123): Price of fridge
+26/03/26, 04:40 pm - Ku: Here are the fridge options available for rent:
+
+1. *Fridge 190 Ltr*
+   - Rent for 6 months: ~₹1371~ ₹960/month
+   - Additional Pricing:
+     - 1 Month: ₹4160/month
+     - 3 Months: ~₹1763~ ₹1234/month
+     - 12+ Months: ~₹1273~ ₹891/month
+
+2. *Double Door Fridge*
+   - Rent for 6 months: ~₹1539~ ₹1077/month
+   - Additional Pricing:
+     - 1 Month: ₹2350/month
+     - 3 Months: ~₹1959~ ₹1371/month
+     - 12+ Months: ~₹1469~ ₹1028/month
+
+
+How long do you need it for?
+
+--------------------------------------------------
+26/03/26, 04:52 pm - New session started
+26/03/26, 04:53 pm - Test User (919000000123): Price of fridge
+26/03/26, 04:53 pm - Ku: Here are some fantastic fridge options for you:
+
+1. *Fridge 190 Ltr*
+   - Rent for 6 months: ~₹1371~ ₹960/month
+   - Additional Pricing:
+     - 1 Month: ₹4160/month
+     - 3 Months: ~₹1763~ ₹1234/month
+     - 12+ Months: ~₹1273~ ₹891/month
+
+2. *Double Door Fridge*
+   - Rent for 6 months: ~₹1539~ ₹1077/month
+   - Additional Pricing:
+     - 1 Month: ₹2350/month
+     - 3 Months: ~₹1959~ ₹1371/month
+     - 12+ Months: ~₹1469~ ₹1028/month
+
+
+How long do you need it for?
+
+--------------------------------------------------
+26/03/26, 04:56 pm - New session started
+26/03/26, 04:57 pm - Test User (919000000123): Price of fridge
+26/03/26, 04:57 pm - Ku: Here are some fridge options for you:
+
+1. *Fridge 190 Ltr*
+   - Rent for 6 months: ~₹1371~ ₹960/month
+   - Additional Pricing:
+     - 1 Month: ₹4160/month
+     - 3 Months: ~₹1763~ ₹1234/month
+     - 12+ Months: ~₹1273~ ₹891/month
+
+2. *Double Door Fridge*
+   - Rent for 6 months: ~₹1539~ ₹1077/month
+   - Additional Pricing:
+     - 1 Month: ₹2350/month
+     - 3 Months: ~₹1959~ ₹1371/month
+     - 12+ Months: ~₹1469~ ₹1028/month
+
+
+How long do you need it for?

@@ -1,0 +1,579 @@
+Conversation with Test User
+==================================================
+26/03/26, 04:27 pm - Test User (919958448249): Maintenance
+26/03/26, 04:27 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:27 pm - New session started
+26/03/26, 04:27 pm - Test User (919958448249): My fridge is not cooling
+26/03/26, 04:27 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:28 pm - New session started
+26/03/26, 04:28 pm - Test User (919958448249): Maintenance
+26/03/26, 04:28 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:28 pm - New session started
+26/03/26, 04:28 pm - Test User (919958448249): My fridge is not cooling
+26/03/26, 04:28 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:28 pm - New session started
+26/03/26, 04:28 pm - Test User (919958448249): Maintenance
+26/03/26, 04:28 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:29 pm - New session started
+26/03/26, 04:29 pm - Test User (919958448249): My fridge is not cooling
+26/03/26, 04:29 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:29 pm - New session started
+26/03/26, 04:29 pm - Test User (919958448249): Maintenance
+26/03/26, 04:29 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:29 pm - Test User (919958448249): Appliance not working
+26/03/26, 04:29 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:29 pm - New session started
+26/03/26, 04:29 pm - Test User (919958448249): Maintenance
+26/03/26, 04:29 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:29 pm - Test User (919958448249): Fridge
+26/03/26, 04:29 pm - Ku: Great choice! *Fridges* are a popular rental item. 😊 
+
+What's your location (which Pincode)? 
+ and how long do you want to rent it?
+26/03/26, 04:29 pm - Test User (919958448249): Appliance not working
+26/03/26, 04:29 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:29 pm - Test User (919958448249): Completely unusable
+26/03/26, 04:29 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:29 pm - Test User (919958448249): It is leaking gas and making noise.
+26/03/26, 04:29 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:29 pm - Test User (919958448249): Fridge
+26/03/26, 04:29 pm - Ku: Great choice! *Fridges* are essential for any home. 😊 
+
+Would you like to see specific models or pricing? Also, how long do you want to rent it for? 
+ What's your location (which Pincode)?
+26/03/26, 04:29 pm - Test User (919958448249): No photo
+26/03/26, 04:29 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:29 pm - Test User (919958448249): Completely unusable
+26/03/26, 04:29 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:29 pm - Test User (919958448249): It is leaking gas and making noise.
+26/03/26, 04:29 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:29 pm - Test User (919958448249): No photo
+26/03/26, 04:29 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:31 pm - New session started
+26/03/26, 04:31 pm - Test User (919958448249): Maintenance
+26/03/26, 04:31 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:31 pm - New session started
+26/03/26, 04:31 pm - Test User (919958448249): My fridge is not cooling
+26/03/26, 04:31 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:32 pm - New session started
+26/03/26, 04:32 pm - Test User (919958448249): SUP_TYPE_MAINTENANCE
+26/03/26, 04:32 pm - Ku: [SEND_SUPPORT_LIST:MAINTENANCE_MENU]
+26/03/26, 04:32 pm - Test User (919958448249): MAINT_APPLIANCE
+26/03/26, 04:32 pm - Ku: Which item needs maintenance?
+Please type the name of the item:
+
+• Single Door fridge (190L
+• Automatic Washing Machin
+• Other / Not Listed
+26/03/26, 04:32 pm - Test User (919958448249): PROD_FRIDGE_190
+26/03/26, 04:32 pm - Ku: Great choice! *Single Door fridge (190L)* are a popular rental item. 😊 
+
+
+What's your location (which Pincode)? 
+
+and how long you want to rent it/these?
+26/03/26, 04:32 pm - Test User (919958448249): SEV_UNUSABLE
+26/03/26, 04:32 pm - Ku: [SEND_SUPPORT_BUTTONS:MAINTENANCE_SEVERITY_BUTTONS|🔧 How severe is the damage?|Please let us know so we can prioritize the technician visit.|]
+26/03/26, 04:32 pm - Test User (919958448249): The fridge is leaking water.
+26/03/26, 04:32 pm - Ku: ⚠️ I'm currently overwhelmed and struggling to process requests. Please wait while I connect you to my human colleagues. [SEND_HANDOFF_BUTTONS]
+26/03/26, 04:32 pm - Test User (919958448249): SUP_NO_PHOTO
+26/03/26, 04:32 pm - Ku: ✅ Ticket #1 has been logged successfully. 📋 | Priority: medium
+
+--------------------------------------------------
+26/03/26, 04:34 pm - New session started
+26/03/26, 04:34 pm - Test User (919958448249): Maintenance
+26/03/26, 04:34 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:34 pm - New session started
+26/03/26, 04:34 pm - Test User (919958448249): My fridge is not cooling
+26/03/26, 04:34 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:34 pm - New session started
+26/03/26, 04:34 pm - Test User (919958448249): SUP_TYPE_MAINTENANCE
+26/03/26, 04:34 pm - Ku: [SEND_SUPPORT_LIST:MAINTENANCE_MENU]
+26/03/26, 04:34 pm - Test User (919958448249): MAINT_APPLIANCE
+26/03/26, 04:34 pm - Ku: Which item needs maintenance?
+Please type the name of the item:
+
+• Single Door fridge (190L
+• Automatic Washing Machin
+• Other / Not Listed
+26/03/26, 04:34 pm - Test User (919958448249): PROD_FRIDGE_190
+26/03/26, 04:34 pm - Ku: Great choice! *Single Door fridge (190L)* are a popular rental item. 😊 
+
+
+What's your location (which Pincode)? 
+
+and how long you want to rent it/these?
+26/03/26, 04:34 pm - Test User (919958448249): SEV_UNUSABLE
+26/03/26, 04:34 pm - Ku: [SEND_SUPPORT_BUTTONS:MAINTENANCE_SEVERITY_BUTTONS|🔧 How severe is the damage?|Please let us know so we can prioritize the technician visit.|]
+26/03/26, 04:34 pm - Test User (919958448249): The fridge is leaking water.
+26/03/26, 04:34 pm - Ku: ⚠️ I'm currently overwhelmed and struggling to process requests. Please wait while I connect you to my human colleagues. [SEND_HANDOFF_BUTTONS]
+26/03/26, 04:35 pm - Test User (919958448249): SUP_NO_PHOTO
+26/03/26, 04:35 pm - Ku: ✅ Ticket #2 has been logged successfully. 📋 | Priority: medium
+
+--------------------------------------------------
+26/03/26, 04:37 pm - New session started
+26/03/26, 04:37 pm - Test User (919958448249): Maintenance
+26/03/26, 04:37 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:37 pm - New session started
+26/03/26, 04:37 pm - Test User (919958448249): My fridge is not cooling
+26/03/26, 04:37 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:37 pm - New session started
+26/03/26, 04:38 pm - Test User (919958448249): Maintenance
+26/03/26, 04:38 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:38 pm - Test User (919958448249): Appliance not working
+26/03/26, 04:38 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:38 pm - Test User (919958448249): Fridge
+26/03/26, 04:38 pm - Ku: Great choice! *Fridges* are essential for every home. 😊 
+
+Would you like to see our options? If so, do you have a specific type in mind or any budget constraints?
+26/03/26, 04:38 pm - Test User (919958448249): Completely unusable
+26/03/26, 04:38 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:38 pm - Test User (919958448249): It is leaking gas and making noise.
+26/03/26, 04:38 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:38 pm - Test User (919958448249): No photo
+26/03/26, 04:38 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:38 pm - New session started
+26/03/26, 04:38 pm - Test User (919958448249): SUP_TYPE_BILLING
+26/03/26, 04:38 pm - Ku: [SEND_SUPPORT_LIST:BILLING_MENU]
+26/03/26, 04:38 pm - Test User (919958448249): BILL_LATE
+26/03/26, 04:38 pm - Ku: Please type a short description of your query, and I'll pull up the billing policy for you! 💳
+
+--------------------------------------------------
+26/03/26, 04:38 pm - New session started
+26/03/26, 04:38 pm - Test User (919958448249): SUP_TYPE_REFUND
+26/03/26, 04:38 pm - Ku: [SEND_SUPPORT_LIST:REFUND_MENU]
+26/03/26, 04:38 pm - Test User (919958448249): REF_STATUS
+26/03/26, 04:38 pm - Ku: Please provide any relevant details (like your closure date), and I'll verify the refund status parameters! 💸
+
+--------------------------------------------------
+26/03/26, 04:38 pm - New session started
+26/03/26, 04:38 pm - Test User (919958448249): SUP_TYPE_PICKUP
+26/03/26, 04:38 pm - Ku: [SEND_SUPPORT_LIST:PICKUP_MENU]
+26/03/26, 04:38 pm - Test User (919958448249): PICK_REQUEST
+26/03/26, 04:38 pm - Ku: Got it. When would you ideally like the pickup to happen? Please type your request. 🚚
+
+--------------------------------------------------
+26/03/26, 04:38 pm - New session started
+26/03/26, 04:38 pm - Test User (919958448249): SUP_TYPE_RELOCATION
+26/03/26, 04:38 pm - Ku: [SEND_SUPPORT_LIST:RELOCATION_MENU]
+26/03/26, 04:38 pm - Test User (919958448249): MOVE_CHECK
+26/03/26, 04:38 pm - Ku: Where are you moving to? Please type your new Pincode and a brief query. 🏠
+
+--------------------------------------------------
+26/03/26, 04:38 pm - New session started
+26/03/26, 04:38 pm - Test User (919958448249): SUP_TALK_TEAM
+26/03/26, 04:38 pm - Ku: Hi Hardik Sharma 👋  
+I’m Ku 🐢 from RentBasket, your personal rental assistant.
+
+We offer quality furniture and appliances on rent at affordable prices, powered by customer service which is best in the market.
+
+Check out our website for more details:  
+https://rentbasket.com
+
+--------------------------------------------------
+26/03/26, 04:38 pm - New session started
+26/03/26, 04:38 pm - Test User (919958448249): YOUR SERVICE IS PATHETIC!! CONNECT ME TO A HUMAN NOW!!
+26/03/26, 04:38 pm - Ku: 👋 *I'll connect you with our team!*
+
+A human agent will review this chat shortly. 😊
+
+--------------------------------------------------
+26/03/26, 04:38 pm - New session started
+26/03/26, 04:38 pm - Test User (919958448249): SUP_TYPE_MAINTENANCE
+26/03/26, 04:38 pm - Ku: [SEND_SUPPORT_LIST:MAINTENANCE_MENU]
+26/03/26, 04:38 pm - Test User (919958448249): MAINT_APPLIANCE
+26/03/26, 04:38 pm - Ku: Which item needs maintenance?
+Please type the name of the item:
+
+• Single Door fridge (190L
+• Automatic Washing Machin
+• Other / Not Listed
+26/03/26, 04:38 pm - Test User (919958448249): Wait, what is your name?
+26/03/26, 04:38 pm - Ku: [SEND_SUPPORT_BUTTONS:MAINTENANCE_SEVERITY_BUTTONS|🔧 How severe is the damage?|Please let us know so we can prioritize the technician visit.|]
+26/03/26, 04:38 pm - Test User (919958448249): Fridge
+26/03/26, 04:38 pm - Ku: Great choice! *Fridges* are essential for every home. 😊 
+
+Would you like to see some options? If so, what's your location (which Pincode)? And how long do you want to rent it?
+
+--------------------------------------------------
+26/03/26, 04:38 pm - New session started
+26/03/26, 04:38 pm - Test User (919958448249): SUP_TYPE_MAINTENANCE
+26/03/26, 04:38 pm - Ku: [SEND_SUPPORT_LIST:MAINTENANCE_MENU]
+26/03/26, 04:39 pm - Test User (919958448249): INVALID_BUTTON_ID_999
+26/03/26, 04:39 pm - Ku: Hi Hardik Sharma 👋  
+I’m Ku 🐢 from RentBasket, your personal rental assistant.
+
+We offer quality furniture and appliances on rent at affordable prices, powered by customer service which is best in the market.
+
+Check out our website for more details:  
+https://rentbasket.com
+
+--------------------------------------------------
+26/03/26, 04:40 pm - New session started
+26/03/26, 04:40 pm - Test User (919958448249): Maintenance
+26/03/26, 04:40 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:40 pm - New session started
+26/03/26, 04:40 pm - Test User (919958448249): My fridge is not cooling
+26/03/26, 04:40 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:40 pm - New session started
+26/03/26, 04:41 pm - Test User (919958448249): Maintenance
+26/03/26, 04:41 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:41 pm - Test User (919958448249): Appliance not working
+26/03/26, 04:41 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:41 pm - Test User (919958448249): Fridge
+26/03/26, 04:41 pm - Ku: Great choice! *Fridges* are essential for any home. 😊 
+
+Would you like to see our options for fridges? If so, do you have a specific budget or size in mind?
+26/03/26, 04:41 pm - Test User (919958448249): Completely unusable
+26/03/26, 04:41 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:41 pm - Test User (919958448249): It is leaking gas and making noise.
+26/03/26, 04:41 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:41 pm - Test User (919958448249): No photo
+26/03/26, 04:41 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:41 pm - New session started
+26/03/26, 04:41 pm - Test User (919958448249): SUP_TYPE_BILLING
+26/03/26, 04:41 pm - Ku: [SEND_SUPPORT_LIST:BILLING_MENU]
+26/03/26, 04:41 pm - Test User (919958448249): BILL_LATE
+26/03/26, 04:41 pm - Ku: Please type a short description of your query, and I'll pull up the billing policy for you! 💳
+
+--------------------------------------------------
+26/03/26, 04:41 pm - New session started
+26/03/26, 04:41 pm - Test User (919958448249): SUP_TYPE_REFUND
+26/03/26, 04:41 pm - Ku: [SEND_SUPPORT_LIST:REFUND_MENU]
+26/03/26, 04:41 pm - Test User (919958448249): REF_STATUS
+26/03/26, 04:41 pm - Ku: Please provide any relevant details (like your closure date), and I'll verify the refund status parameters! 💸
+
+--------------------------------------------------
+26/03/26, 04:41 pm - New session started
+26/03/26, 04:41 pm - Test User (919958448249): SUP_TYPE_PICKUP
+26/03/26, 04:41 pm - Ku: [SEND_SUPPORT_LIST:PICKUP_MENU]
+26/03/26, 04:41 pm - Test User (919958448249): PICK_REQUEST
+26/03/26, 04:41 pm - Ku: Got it. When would you ideally like the pickup to happen? Please type your request. 🚚
+
+--------------------------------------------------
+26/03/26, 04:41 pm - New session started
+26/03/26, 04:41 pm - Test User (919958448249): SUP_TYPE_RELOCATION
+26/03/26, 04:41 pm - Ku: [SEND_SUPPORT_LIST:RELOCATION_MENU]
+26/03/26, 04:41 pm - Test User (919958448249): MOVE_CHECK
+26/03/26, 04:41 pm - Ku: Where are you moving to? Please type your new Pincode and a brief query. 🏠
+
+--------------------------------------------------
+26/03/26, 04:41 pm - New session started
+26/03/26, 04:41 pm - Test User (919958448249): SUP_TALK_TEAM
+26/03/26, 04:41 pm - Ku: Hi Hardik Sharma 👋  
+I’m Ku 🐢 from RentBasket, your personal rental assistant.
+
+We offer quality furniture and appliances on rent at affordable prices, powered by customer service which is best in the market.
+
+Check out our website for more details:  
+https://rentbasket.com
+
+--------------------------------------------------
+26/03/26, 04:41 pm - New session started
+26/03/26, 04:41 pm - Test User (919958448249): YOUR SERVICE IS PATHETIC!! CONNECT ME TO A HUMAN NOW!!
+26/03/26, 04:41 pm - Ku: 🙏 *I apologize for the inconvenience!*
+
+I'm escalating this to our support team for immediate attention.
+
+*Please provide:*
+- Your order ID (if you have one)
+- Brief description of the issue
+- Photos (if applicable)
+
+*Priority Support Contacts:*
+- 📞 Call: +91 9958187021
+- 📧 Email: support@rentbasket.com
+- 🌐 App: Report via RentBasket app
+
+Our team will reach out within 24 hours.
+
+--------------------------------------------------
+26/03/26, 04:41 pm - New session started
+26/03/26, 04:41 pm - Test User (919958448249): SUP_TYPE_MAINTENANCE
+26/03/26, 04:41 pm - Ku: [SEND_SUPPORT_LIST:MAINTENANCE_MENU]
+26/03/26, 04:41 pm - Test User (919958448249): MAINT_APPLIANCE
+26/03/26, 04:41 pm - Ku: Which item needs maintenance?
+Please type the name of the item:
+
+• Single Door fridge (190L
+• Automatic Washing Machin
+• Other / Not Listed
+26/03/26, 04:41 pm - Test User (919958448249): Wait, what is your name?
+26/03/26, 04:41 pm - Ku: [SEND_SUPPORT_BUTTONS:MAINTENANCE_SEVERITY_BUTTONS|🔧 How severe is the damage?|Please let us know so we can prioritize the technician visit.|]
+26/03/26, 04:42 pm - Test User (919958448249): Fridge
+26/03/26, 04:42 pm - Ku: Great choice! *Fridges* are essential for every home. 😊 
+
+Would you like to see our options for fridges? If yes, do you have a specific budget or type in mind?
+
+--------------------------------------------------
+26/03/26, 04:42 pm - New session started
+26/03/26, 04:42 pm - Test User (919958448249): SUP_TYPE_MAINTENANCE
+26/03/26, 04:42 pm - Ku: [SEND_SUPPORT_LIST:MAINTENANCE_MENU]
+26/03/26, 04:42 pm - Test User (919958448249): INVALID_BUTTON_ID_999
+26/03/26, 04:42 pm - Ku: Hi Hardik Sharma 👋  
+I’m Ku 🐢 from RentBasket, your personal rental assistant.
+
+We offer quality furniture and appliances on rent at affordable prices, powered by customer service which is best in the market.
+
+Check out our website for more details:  
+https://rentbasket.com
+
+--------------------------------------------------
+26/03/26, 04:52 pm - New session started
+26/03/26, 04:52 pm - Test User (919958448249): Maintenance
+26/03/26, 04:52 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:53 pm - New session started
+26/03/26, 04:53 pm - Test User (919958448249): My fridge is not cooling
+26/03/26, 04:53 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:53 pm - New session started
+26/03/26, 04:53 pm - Test User (919958448249): Maintenance
+26/03/26, 04:53 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:53 pm - Test User (919958448249): Appliance not working
+26/03/26, 04:53 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:53 pm - Test User (919958448249): Fridge
+26/03/26, 04:53 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:53 pm - Test User (919958448249): Completely unusable
+26/03/26, 04:53 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:53 pm - Test User (919958448249): It is leaking gas and making noise.
+26/03/26, 04:53 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:53 pm - Test User (919958448249): No photo
+26/03/26, 04:53 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:53 pm - New session started
+26/03/26, 04:53 pm - Test User (919958448249): SUP_TYPE_BILLING
+26/03/26, 04:53 pm - Ku: [SEND_SUPPORT_LIST:BILLING_MENU]
+26/03/26, 04:53 pm - Test User (919958448249): BILL_LATE
+26/03/26, 04:53 pm - Ku: Please type a short description of your query, and I'll pull up the billing policy for you! 💳
+
+--------------------------------------------------
+26/03/26, 04:53 pm - New session started
+26/03/26, 04:53 pm - Test User (919958448249): SUP_TYPE_REFUND
+26/03/26, 04:53 pm - Ku: [SEND_SUPPORT_LIST:REFUND_MENU]
+26/03/26, 04:53 pm - Test User (919958448249): REF_STATUS
+26/03/26, 04:53 pm - Ku: Please provide any relevant details (like your closure date), and I'll verify the refund status parameters! 💸
+
+--------------------------------------------------
+26/03/26, 04:53 pm - New session started
+26/03/26, 04:53 pm - Test User (919958448249): SUP_TYPE_PICKUP
+26/03/26, 04:53 pm - Ku: [SEND_SUPPORT_LIST:PICKUP_MENU]
+26/03/26, 04:53 pm - Test User (919958448249): PICK_REQUEST
+26/03/26, 04:53 pm - Ku: Got it. When would you ideally like the pickup to happen? Please type your request. 🚚
+
+--------------------------------------------------
+26/03/26, 04:53 pm - New session started
+26/03/26, 04:53 pm - Test User (919958448249): SUP_TYPE_RELOCATION
+26/03/26, 04:53 pm - Ku: [SEND_SUPPORT_LIST:RELOCATION_MENU]
+26/03/26, 04:53 pm - Test User (919958448249): MOVE_CHECK
+26/03/26, 04:53 pm - Ku: Where are you moving to? Please type your new Pincode and a brief query. 🏠
+
+--------------------------------------------------
+26/03/26, 04:53 pm - New session started
+26/03/26, 04:54 pm - Test User (919958448249): SUP_TALK_TEAM
+26/03/26, 04:54 pm - Ku: Hi Hardik Sharma 👋  
+I’m Ku 🐢 from RentBasket, your personal rental assistant.
+
+We offer quality furniture and appliances on rent at affordable prices, powered by customer service which is best in the market.
+
+Check out our website for more details:  
+https://rentbasket.com
+
+--------------------------------------------------
+26/03/26, 04:54 pm - New session started
+26/03/26, 04:54 pm - Test User (919958448249): YOUR SERVICE IS PATHETIC!! CONNECT ME TO A HUMAN NOW!!
+26/03/26, 04:54 pm - Ku: 🙏 *I apologize for the inconvenience!*
+
+I'm escalating this to our support team for immediate attention.
+
+*Please provide:*
+- Your order ID (if you have one)
+- Brief description of the issue
+- Photos (if applicable)
+
+*Priority Support Contacts:*
+- 📞 Call: +91 9958187021
+- 📧 Email: support@rentbasket.com
+- 🌐 App: Report via RentBasket app
+
+Our team will reach out within 24 hours.
+
+--------------------------------------------------
+26/03/26, 04:54 pm - New session started
+26/03/26, 04:54 pm - Test User (919958448249): SUP_TYPE_MAINTENANCE
+26/03/26, 04:54 pm - Ku: [SEND_SUPPORT_LIST:MAINTENANCE_MENU]
+26/03/26, 04:54 pm - Test User (919958448249): MAINT_APPLIANCE
+26/03/26, 04:54 pm - Ku: Which item needs maintenance?
+Please type the name of the item:
+
+• Single Door fridge (190L
+• Automatic Washing Machin
+• Other / Not Listed
+26/03/26, 04:54 pm - Test User (919958448249): Wait, what is your name?
+26/03/26, 04:54 pm - Ku: [SEND_SUPPORT_BUTTONS:MAINTENANCE_SEVERITY_BUTTONS|🔧 How severe is the damage?|Please let us know so we can prioritize the technician visit.|]
+26/03/26, 04:54 pm - Test User (919958448249): Fridge
+26/03/26, 04:54 pm - Ku: ⚠️ I'm currently overwhelmed and struggling to process requests. Please wait while I connect you to my human colleagues. [SEND_HANDOFF_BUTTONS]
+
+--------------------------------------------------
+26/03/26, 04:54 pm - New session started
+26/03/26, 04:54 pm - Test User (919958448249): SUP_TYPE_MAINTENANCE
+26/03/26, 04:54 pm - Ku: [SEND_SUPPORT_LIST:MAINTENANCE_MENU]
+26/03/26, 04:54 pm - Test User (919958448249): INVALID_BUTTON_ID_999
+26/03/26, 04:54 pm - Ku: Hi Hardik Sharma 👋  
+I’m Ku 🐢 from RentBasket, your personal rental assistant.
+
+We offer quality furniture and appliances on rent at affordable prices, powered by customer service which is best in the market.
+
+Check out our website for more details:  
+https://rentbasket.com
+
+--------------------------------------------------
+26/03/26, 04:56 pm - New session started
+26/03/26, 04:56 pm - Test User (919958448249): Maintenance
+26/03/26, 04:56 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:57 pm - New session started
+26/03/26, 04:57 pm - Test User (919958448249): My fridge is not cooling
+26/03/26, 04:57 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:57 pm - New session started
+26/03/26, 04:57 pm - Test User (919958448249): Maintenance
+26/03/26, 04:57 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:57 pm - Test User (919958448249): Appliance not working
+26/03/26, 04:57 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:57 pm - Test User (919958448249): Fridge
+26/03/26, 04:57 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:57 pm - Test User (919958448249): Completely unusable
+26/03/26, 04:57 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:57 pm - Test User (919958448249): It is leaking gas and making noise.
+26/03/26, 04:57 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+26/03/26, 04:57 pm - Test User (919958448249): No photo
+26/03/26, 04:57 pm - Ku: [SEND_SUPPORT_LIST:MAIN_SUPPORT_MENU]
+
+--------------------------------------------------
+26/03/26, 04:57 pm - New session started
+26/03/26, 04:57 pm - Test User (919958448249): SUP_TYPE_BILLING
+26/03/26, 04:57 pm - Ku: [SEND_SUPPORT_LIST:BILLING_MENU]
+26/03/26, 04:57 pm - Test User (919958448249): BILL_LATE
+26/03/26, 04:57 pm - Ku: Please type a short description of your query, and I'll pull up the billing policy for you! 💳
+
+--------------------------------------------------
+26/03/26, 04:57 pm - New session started
+26/03/26, 04:57 pm - Test User (919958448249): SUP_TYPE_REFUND
+26/03/26, 04:57 pm - Ku: [SEND_SUPPORT_LIST:REFUND_MENU]
+26/03/26, 04:57 pm - Test User (919958448249): REF_STATUS
+26/03/26, 04:57 pm - Ku: Please provide any relevant details (like your closure date), and I'll verify the refund status parameters! 💸
+
+--------------------------------------------------
+26/03/26, 04:57 pm - New session started
+26/03/26, 04:57 pm - Test User (919958448249): SUP_TYPE_PICKUP
+26/03/26, 04:57 pm - Ku: [SEND_SUPPORT_LIST:PICKUP_MENU]
+26/03/26, 04:57 pm - Test User (919958448249): PICK_REQUEST
+26/03/26, 04:57 pm - Ku: Got it. When would you ideally like the pickup to happen? Please type your request. 🚚
+
+--------------------------------------------------
+26/03/26, 04:57 pm - New session started
+26/03/26, 04:57 pm - Test User (919958448249): SUP_TYPE_RELOCATION
+26/03/26, 04:57 pm - Ku: [SEND_SUPPORT_LIST:RELOCATION_MENU]
+26/03/26, 04:57 pm - Test User (919958448249): MOVE_CHECK
+26/03/26, 04:57 pm - Ku: Where are you moving to? Please type your new Pincode and a brief query. 🏠
+
+--------------------------------------------------
+26/03/26, 04:57 pm - New session started
+26/03/26, 04:57 pm - Test User (919958448249): SUP_TALK_TEAM
+26/03/26, 04:57 pm - Ku: Hi Hardik Sharma 👋  
+I’m Ku 🐢 from RentBasket, your personal rental assistant.
+
+We offer quality furniture and appliances on rent at affordable prices, powered by customer service which is best in the market.
+
+Check out our website for more details:  
+https://rentbasket.com
+
+--------------------------------------------------
+26/03/26, 04:57 pm - New session started
+26/03/26, 04:58 pm - Test User (919958448249): YOUR SERVICE IS PATHETIC!! CONNECT ME TO A HUMAN NOW!!
+26/03/26, 04:58 pm - Ku: 🙏 *I apologize for the inconvenience!*
+
+I'm escalating this to our support team for immediate attention.
+
+*Please provide:*
+- Your order ID (if you have one)
+- Brief description of the issue
+- Photos (if applicable)
+
+*Priority Support Contacts:*
+- 📞 Call: +91 9958187021
+- 📧 Email: support@rentbasket.com
+- 🌐 App: Report via RentBasket app
+
+Our team will reach out within 24 hours.
+
+--------------------------------------------------
+26/03/26, 04:58 pm - New session started
+26/03/26, 04:58 pm - Test User (919958448249): SUP_TYPE_MAINTENANCE
+26/03/26, 04:58 pm - Ku: [SEND_SUPPORT_LIST:MAINTENANCE_MENU]
+26/03/26, 04:58 pm - Test User (919958448249): MAINT_APPLIANCE
+26/03/26, 04:58 pm - Ku: Which item needs maintenance?
+Please type the name of the item:
+
+• Single Door fridge (190L
+• Automatic Washing Machin
+• Other / Not Listed
+26/03/26, 04:58 pm - Test User (919958448249): Wait, what is your name?
+26/03/26, 04:58 pm - Ku: [SEND_SUPPORT_BUTTONS:MAINTENANCE_SEVERITY_BUTTONS|🔧 How severe is the damage?|Please let us know so we can prioritize the technician visit.|]
+26/03/26, 04:58 pm - Test User (919958448249): Fridge
+26/03/26, 04:58 pm - Ku: ⚠️ I'm currently overwhelmed and struggling to process requests. Please wait while I connect you to my human colleagues. [SEND_HANDOFF_BUTTONS]
+
+--------------------------------------------------
+26/03/26, 04:58 pm - New session started
+26/03/26, 04:58 pm - Test User (919958448249): SUP_TYPE_MAINTENANCE
+26/03/26, 04:58 pm - Ku: [SEND_SUPPORT_LIST:MAINTENANCE_MENU]
+26/03/26, 04:58 pm - Test User (919958448249): INVALID_BUTTON_ID_999
+26/03/26, 04:58 pm - Ku: Hi Hardik Sharma 👋  
+I’m Ku 🐢 from RentBasket, your personal rental assistant.
+
+We offer quality furniture and appliances on rent at affordable prices, powered by customer service which is best in the market.
+
+Check out our website for more details:  
+https://rentbasket.com
