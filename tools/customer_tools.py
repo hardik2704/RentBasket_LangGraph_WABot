@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.db import execute_query_one, is_db_available
+from utils.phone_utils import normalize_phone
 
 def get_customer_profile(phone: str) -> Optional[Dict[str, Any]]:
     """
@@ -20,30 +21,31 @@ def get_customer_profile(phone: str) -> Optional[Dict[str, Any]]:
     if not is_db_available():
         return None
         
+    normalized = normalize_phone(phone)
+    if not normalized:
+        return None
+
+    # Match last 10 digits
     query = """
-    SELECT name, email, phone_number, location_address, pincode, rented_items, member_since, is_active
+    SELECT id, name, email, phone_number, location_address, pincode, rented_items, member_since, is_active
     FROM customers
-    WHERE phone_number = %s OR phone_number = %s
+    WHERE phone_number LIKE %s
     LIMIT 1;
     """
     
-    # Handle both raw phone and potentially prefixed phone from WhatsApp
-    clean_phone = phone.replace("+", "").strip()
-    # If it's a 12-digit number starting with 91, also try the 10-digit version
-    short_phone = clean_phone[-10:] if len(clean_phone) >= 10 else clean_phone
-    
     try:
-        row = execute_query_one(query, (clean_phone, short_phone))
+        row = execute_query_one(query, (f"%{normalized}",))
         if row:
             return {
-                "name": row[0],
-                "email": row[1],
-                "phone": row[2],
-                "location": row[3],
-                "pincode": row[4],
-                "rented_items": row[5], # This is JSONB, psycopg2 usually parses to list/dict
-                "member_since": row[6].isoformat() if hasattr(row[6], "isoformat") else str(row[6]),
-                "is_active": row[7]
+                "id": row[0],
+                "name": row[1],
+                "email": row[2],
+                "phone": row[3],
+                "location": row[4],
+                "pincode": row[5],
+                "rented_items": row[6],
+                "member_since": row[7].isoformat() if hasattr(row[7], "isoformat") else str(row[7]),
+                "is_active": row[8]
             }
         return None
     except Exception as e:
@@ -53,17 +55,25 @@ def get_customer_profile(phone: str) -> Optional[Dict[str, Any]]:
 def verify_customer_status(phone: str) -> Dict[str, Any]:
     """
     High-level verification check for the orchestrator.
-    Returns verification flags and profile data.
+    Categorizes user as: active_customer, past_customer, lead, or unknown.
     """
     profile = get_customer_profile(phone)
+    
     if profile:
+        is_active = profile.get("is_active", False)
+        status = "active_customer" if is_active else "past_customer"
         return {
             "is_verified": True,
+            "status": status,
             "profile": profile,
-            "active_rentals": profile.get("rented_items", [])
+            "active_rentals": profile.get("rented_items", []) if is_active else []
         }
+    
+    # In a real CRM, we'd check a 'leads' table here too.
+    # For now, if found in no table, they are unknown or lead.
     return {
         "is_verified": False,
+        "status": "unknown", # Orchestrator can upgrade this to 'lead' after first interaction
         "profile": None,
         "active_rentals": []
     }

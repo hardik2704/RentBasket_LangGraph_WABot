@@ -4,10 +4,10 @@
 
 import os
 import sys
+from typing import Dict, Any, Callable, Tuple
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from typing import Dict, Any, Callable, Tuple
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -16,6 +16,7 @@ from agents.sales_agent import run_agent
 from agents.recommendation_agent import run_recommendation_agent
 from agents.support_agent import run_support_agent
 from tools.customer_tools import verify_customer_status
+from utils.phone_utils import normalize_phone
 
 # ========================================
 # AGENT REGISTRY (plug-and-play)
@@ -25,21 +26,33 @@ AGENT_REGISTRY: Dict[str, Dict[str, Any]] = {
     "sales": {
         "enabled": True,
         "runner": run_agent,
-        "description": "Handles pricing, quotes, policies, greetings, and general queries",
+        "description": "Handles pricing, quotes, policies, greetings, and discovery for leads",
     },
     "recommendation": {
         "enabled": True,
         "runner": run_recommendation_agent,
-        "description": "Helps customers discover products, browse catalogue, compare, and filter by budget",
+        "description": "Helps discover products, browse catalogue, and compare by budget",
     },
     "support": {
         "enabled": True,
         "runner": run_support_agent,
         "description": "Handles maintenance, billing, relocation, and operations for existing customers",
     },
+    "support_intake": {
+        "enabled": True,
+        "runner": None, # Functional stub below
+        "description": "Handles identity verification for unknown users with support-like queries",
+    }
 }
 
 DEFAULT_AGENT = "sales"
+
+def run_support_intake_stub(message, state):
+    """Fallback for unknown users asking for support."""
+    response = "🛠️ I see you're asking about maintenance or an existing order, but I couldn't find your account with this number.\n\nCould you please share your *Registered Email ID* or *Customer ID*? Once verified, I can help you with your account! 😊"
+    return response, state
+
+AGENT_REGISTRY["support_intake"]["runner"] = run_support_intake_stub
 
 
 # ========================================
@@ -50,27 +63,30 @@ CLASSIFIER_PROMPT = """You are a message router for a WhatsApp rental furniture 
 
 Your job is to classify the user's message into one of these intents:
 
-SUPPORT — The user is an EXISTING CUSTOMER and wants help with:
-- Item maintenance or repairs (broken appliance, sofa damage)
-- Billing, payments, invoices, or deposit refunds
-- Relocating their current furniture to a new home
-- Closing their account or returning all items
-- Reporting an issue with a recent delivery or installation
+SUPPORT — The user needs help with:
+- Item maintenance or repairs (broken fridge, loose sofa leg)
+- Billing, invoices, or deposit refunds
+- Moving/Relocating furniture
+- Closing their account or returning items
+- Tracking an existing pickup or delivery
 
 RECOMMENDATION — The user wants to:
-- Browse or explore the product catalogue
-- Get suggestions for furnishing a room or home
-- Compare products or find items within a budget
+- Browse the catalogue
+- Get suggestions for furnishing a home
+- Compare products
 
 SALES — The user wants to:
-- Get a specific price/quote for a new product
-- Check delivery serviceability (pincode)
-- Ask about general policies for new orders
-- Place a new order or finalize a rental
+- Get a specific price/quote for a new rental
+- Check pincode serviceability
+- Ask about terms for new orders
 
-GENERAL — Greeting or casual conversation.
+ESCALATION — The user is:
+- Frustrated, using caps, or angry
+- Explicitly asking for a "human", "executive", "agent", or "to speak to a real person"
 
-Respond with ONLY one word: SUPPORT, RECOMMENDATION, SALES, or GENERAL.
+GENERAL — Greeting or casual talk.
+
+Respond with ONLY one word: SUPPORT, RECOMMENDATION, SALES, ESCALATION, or GENERAL.
 Do not explain your reasoning."""
 
 
@@ -79,12 +95,16 @@ def classify_intent(
     state: ConversationState
 ) -> str:
     """
-    Classify the user's message intent using a lightweight LLM call.
+    Classify the user's message intent using LLM and state context.
     """
     try:
-        # If the user is verified, we prioritize SUPPORT intent
-        is_verified = state["collected_info"].get("is_verified_customer", False)
+        status = state["collected_info"].get("customer_status", "unknown")
         
+        # Check for explicit escalation keywords to avoid LLM lag for simple cases
+        lower_msg = user_message.lower()
+        if any(kw in lower_msg for kw in ["human", "executive", "agent", "person", "call me"]):
+            return "escalation"
+
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
         
         recent_messages = []
@@ -99,7 +119,7 @@ def classify_intent(
         if recent_messages:
             context = f"\n\nRecent conversation:\n" + "\n".join(recent_messages)
         
-        verification_hint = "\nNote: This user is already a RentBasket customer." if is_verified else ""
+        verification_hint = f"\nUser Status: {status.upper()}"
 
         response = llm.invoke([
             SystemMessage(content=CLASSIFIER_PROMPT + verification_hint),
@@ -114,6 +134,8 @@ def classify_intent(
             return "recommendation"
         elif intent == "SALES":
             return "sales"
+        elif intent == "ESCALATION":
+            return "escalation"
         else:
             return "general"
             
@@ -131,75 +153,92 @@ def route_and_run(
     state: ConversationState = None
 ) -> Tuple[str, ConversationState]:
     """
-    Route a user message to the appropriate agent and run it.
+    Enhanced Orchestrator with Priority/Intake routing.
     """
     if state is None:
         state = create_initial_state()
     
-    # 1. VERIFICATION LAYER
-    # Check if we already have the phone or extracted it
-    phone = state["collected_info"].get("phone")
-    if phone and not state["collected_info"].get("is_verified_customer"):
-        print(f"  🔍 Verifying customer status for: {phone}")
-        verification = verify_customer_status(phone)
-        if verification["is_verified"]:
-            state["collected_info"]["is_verified_customer"] = True
-            state["collected_info"]["customer_profile"] = verification["profile"]
-            state["collected_info"]["active_rentals"] = verification["active_rentals"]
-            state["collected_info"]["customer_name"] = verification["profile"]["name"]
-            print(f"  ✅ Verified Customer: {verification['profile']['name']}")
-        else:
-            print("  👤 New Lead (Not a verified customer)")
+    # 1. VERIFICATION & NORMALIZATION
+    raw_phone = state["collected_info"].get("phone")
+    if raw_phone:
+        normalized = normalize_phone(raw_phone)
+        status = state["collected_info"].get("customer_status", "unknown")
+        
+        # Fresh lookup if unknown or if we need data
+        if status == "unknown" or not state["collected_info"].get("is_verified_customer"):
+            print(f"  🔍 Verifying normalized phone: {normalized}")
+            verification = verify_customer_status(normalized)
+            
+            # Map result to state
+            state["collected_info"]["customer_status"] = verification["status"]
+            state["collected_info"]["is_verified_customer"] = verification["is_verified"]
+            
+            if verification["is_verified"]:
+                state["collected_info"]["customer_profile"] = verification["profile"]
+                state["collected_info"]["active_rentals"] = verification["active_rentals"]
+                state["collected_info"]["customer_name"] = verification["profile"]["name"]
+                print(f"  ✅ {verification['status'].upper()}: {verification['profile']['name']}")
+            else:
+                # If interaction started, we downgrade unknown to 'lead' for sales consistency
+                if state["collected_info"]["customer_status"] == "unknown":
+                    state["collected_info"]["customer_status"] = "lead"
+                print(f"  👤 Status set to: {state['collected_info']['customer_status']}")
 
-    # 2. Get the current active agent
-    current_agent = state.get("active_agent", DEFAULT_AGENT)
-    
-    # 3. Classify intent
+    # 2. INTENT CLASSIFICATION
     intent = classify_intent(user_message, state)
-    print(f"  🧭 Intent: {intent} (current agent: {current_agent})")
+    current_agent = state.get("active_agent", DEFAULT_AGENT)
+    status = state["collected_info"].get("customer_status", "unknown")
     
-    # 4. Determine target agent
-    if intent == "support":
-        target_agent = "support"
+    print(f"  🧭 Context -> Intent: {intent} | Status: {status} | Current: {current_agent}")
+    
+    # 3. ROUTING PRINCIPLES
+    target_agent = current_agent # Default to sticky
+    
+    # Principle A: Frustration/Escalation -> Human
+    if intent == "escalation":
+        target_agent = "sales" # Send to sales for handoff logic
+        state["escalation_requested"] = True
+        state["needs_human"] = True
+        print("  🚨 ESCALATION detected!")
+
+    # Principle B: Customer + Support Query -> Support Agent
+    elif intent == "support":
+        if status in ("active_customer", "past_customer"):
+            target_agent = "support"
+        else:
+            # Unknown/Lead asking for support -> Intake Mode
+            target_agent = "support_intake"
+            print("  🛠️ Routing to Support Intake (No account found)")
+
+    # Principle C: Recommendation Query -> Recommendation Agent
     elif intent == "recommendation":
         target_agent = "recommendation"
+
+    # Principle D: Pricing/Sales -> Sales Agent
     elif intent == "sales":
         target_agent = "sales"
-    else:
-        # "general" — sticky: keep the current agent
-        target_agent = current_agent
-    
-    # Check if target agent is enabled; fallback if not
-    agent_entry = AGENT_REGISTRY.get(target_agent)
-    if not agent_entry or not agent_entry.get("enabled"):
-        print(f"  ⚠️ Agent '{target_agent}' is disabled, routing to '{DEFAULT_AGENT}'")
-        target_agent = DEFAULT_AGENT
-    
-    # Log routing decision
-    if target_agent != current_agent:
-        print(f"  🔀 Switching agent: {current_agent} → {target_agent}")
-    else:
-        print(f"  ➡️ Staying with agent: {target_agent}")
-    
-    # 5. Handle agent switch logic (Greeting etc.)
-    if target_agent == "support" and current_agent != "support":
-        # Pre-pended notification of switch if needed
-        # (Could be handled inside the runner too)
-        pass
 
+    # 4. OVERRIDE Logic
+    # If issue type changed significantly, we force a switch even if sticky
+    if intent in ("support", "sales", "recommendation") and target_agent != current_agent:
+        print(f"  🔀 Intent change: Switching to {target_agent}")
+
+    # 5. EXECUTION
     state["active_agent"] = target_agent
     
-    # 6. Run the agent
-    runner = _get_agent_runner(target_agent)
+    # Get runner from registry
+    agent_entry = AGENT_REGISTRY.get(target_agent)
+    if not agent_entry or not agent_entry.get("enabled"):
+        target_agent = DEFAULT_AGENT
+        agent_entry = AGENT_REGISTRY[target_agent]
+        
+    runner = agent_entry["runner"]
+    if runner is None and target_agent == "support_intake":
+        runner = run_support_intake_stub
+        
     response, new_state = runner(user_message, state)
     
-    # Ensure active_agent persists in new state
     new_state["active_agent"] = target_agent
-    
-    # Attach routing metadata for the caller (webhook_server)
-    new_state["_routing_meta"] = {
-        "intent": intent,
-        "agent_used": target_agent,
-    }
+    new_state["_routing_meta"] = {"intent": intent, "agent_used": target_agent}
     
     return response, new_state

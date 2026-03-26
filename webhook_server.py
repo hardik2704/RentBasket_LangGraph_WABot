@@ -27,6 +27,8 @@ from config import BOT_NAME, SALES_PHONE_GURGAON, SALES_PHONE_NOIDA
 from agents.orchestrator import route_and_run
 from agents.state import create_initial_state
 from whatsapp.client import WhatsAppClient
+from utils.phone_utils import normalize_phone
+from utils.session_cache import SessionCache, update_user_facts
 from utils.logger import log_conversation_turn as file_log_turn, start_new_session as file_start_session
 from utils.db_logger import (
     log_conversation_turn,
@@ -328,6 +330,9 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
     with user_lock:
         print(f"   🔒 Processing message {message_id} for {phone} (Lock acquired)")
         try:
+            # 10-Digit Normalization for RentBasket
+            normalized_phone = normalize_phone(phone)
+            
             # Check for pricing negotiation intent
             if is_pricing_negotiation(text):
                 print(f"   💰 Pricing negotiation detected!")
@@ -339,7 +344,7 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
                 if phone not in conversations:
                     conversations[phone] = create_initial_state()
                     start_new_session(phone, sender_name)
-                    print(f"   📝 New conversation started for {phone}")
+                    print(f"   📝 New conversation started for {phone} (Normalized: {normalized_phone})")
                 state = conversations[phone]
             
             # Get or create DB session
@@ -348,15 +353,28 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
             # Ensure customer name and phone are in state
             if sender_name and not state["collected_info"].get("customer_name"):
                 state["collected_info"]["customer_name"] = sender_name
-            if not state["collected_info"].get("phone"):
-                state["collected_info"]["phone"] = phone
+            
+            # Always use normalized phone for state consistency
+            state["collected_info"]["phone"] = normalized_phone
+            
+            # Capture Session Cache Facts
+            is_frustrated = any(kw in text.lower() for kw in ["angry", "bad", "worst", "slow", "pathetic", "help", "not working"])
+            has_media = message_type in ("image", "video", "document")
+            
+            update_user_facts(
+                normalized_phone, 
+                customer_name=sender_name,
+                frustration_flag=is_frustrated,
+                media_presence=has_media,
+                last_msg_timestamp=time.time()
+            )
             
             # Simple pincode extraction from incoming message
             import re
             pincode_match = re.search(r'\b\d{6}\b', text)
             if pincode_match:
                 state["collected_info"]["pincode"] = pincode_match.group()
-                print(f"   📍 Pincode {state['collected_info']['pincode']} extracted from message")
+                print(f"   📍 Pincode {state['collected_info']['pincode']} extracted")
 
             # Process message with the agent
             print(f"   🤖 Processing with {BOT_NAME}...")
