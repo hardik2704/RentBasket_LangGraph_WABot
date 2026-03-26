@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 One-time database setup script for RentBasket WhatsApp Bot.
-Creates the sessions, messages, and analytics_events tables.
+Creates all necessary tables for sessions, messages, analytics, customers, and tickets.
 
 Usage:
     DATABASE_URL=postgresql://... python scripts/setup_db.py
@@ -74,6 +74,49 @@ CREATE TABLE IF NOT EXISTS analytics_events (
 
 CREATE INDEX IF NOT EXISTS idx_events_type ON analytics_events(event_type);
 CREATE INDEX IF NOT EXISTS idx_events_time ON analytics_events(timestamp DESC);
+
+-- =============================================
+-- TABLE 4: customers
+-- =============================================
+CREATE TABLE IF NOT EXISTS customers (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT,
+    phone_number TEXT UNIQUE NOT NULL,
+    location_address TEXT,
+    pincode TEXT,
+    rented_items JSONB DEFAULT '[]',
+    member_since TIMESTAMPTZ DEFAULT NOW(),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone_number);
+
+-- =============================================
+-- TABLE 5: operations_tickets
+-- =============================================
+CREATE TABLE IF NOT EXISTS operations_tickets (
+    id SERIAL PRIMARY KEY,
+    customer_id INT REFERENCES customers(id) ON DELETE CASCADE,
+    phone_number TEXT NOT NULL,
+    issue_type TEXT NOT NULL,
+    sub_intent TEXT,
+    summary TEXT,
+    description TEXT,
+    priority TEXT DEFAULT 'medium',
+    status TEXT DEFAULT 'open',
+    is_urgent BOOLEAN DEFAULT FALSE,
+    source TEXT DEFAULT 'WhatsApp',
+    escalation_flag BOOLEAN DEFAULT FALSE,
+    media_refs JSONB DEFAULT '[]',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tickets_phone ON operations_tickets(phone_number);
+CREATE INDEX IF NOT EXISTS idx_tickets_status ON operations_tickets(status);
 """
 
 
@@ -81,8 +124,6 @@ def main():
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
         print("❌ DATABASE_URL environment variable is not set.")
-        print("   Set it in your .env file or export it:")
-        print("   export DATABASE_URL=postgresql://user:pass@host:port/dbname")
         sys.exit(1)
 
     try:
@@ -105,11 +146,11 @@ def main():
         cur.execute("""
             SELECT table_name FROM information_schema.tables
             WHERE table_schema = 'public'
-              AND table_name IN ('sessions', 'messages', 'analytics_events')
+              AND table_name IN ('sessions', 'messages', 'analytics_events', 'customers', 'operations_tickets')
             ORDER BY table_name;
         """)
         tables = [row[0] for row in cur.fetchall()]
-        print(f"✅ Tables created: {', '.join(tables)}")
+        print(f"✅ Tables verified: {', '.join(tables)}")
 
         cur.close()
         conn.close()

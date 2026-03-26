@@ -290,8 +290,9 @@ def log_event(
         - quote_created
         - pincode_check
         - product_search
-        - referral_link_sent
         - button_pressed
+        - support_ticket_created
+        - support_escalation
     """
     if not is_db_available():
         return

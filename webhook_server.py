@@ -398,6 +398,14 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
                 needs_human=new_state.get("needs_human"),
             )
             
+            # --- CUSTOM UX HANDLER FOR ANALYTICS ---
+            workflow_stage = new_state.get("collected_info", {}).get("workflow_stage")
+            if workflow_stage == "ticket_logged":
+                log_event(phone, "support_ticket_created", {"issue": new_state.get("support_context", {}).get("issue_type")}, session_id=session_id)
+            elif workflow_stage == "escalated":
+                log_event(phone, "support_escalation", {"context": new_state.get("support_context", {})}, session_id=session_id)
+
+            
             # Apply formatting
             response = format_bot_response(response)
             

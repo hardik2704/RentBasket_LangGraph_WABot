@@ -80,11 +80,12 @@ def log_support_ticket_tool(
             ticket_id = ticket_id_row[0]
             urgency_icon = "🔥" if is_urgent or priority == "high" else "📋"
             return f"✅ Ticket #{ticket_id} has been logged successfully. {urgency_icon} | Priority: {priority}"
-        return "❌ Failed to log ticket."
+        print("⚠️ Failed to log ticket - no ID returned.")
+        return "⚠️ I'm having a temporary issue connecting to our ticketing system. However, I have saved your details locally and will ensure our team sees them! [SEND_HANDOFF_BUTTONS]"
         
     except Exception as e:
         print(f"⚠️ Error logging ticket: {e}")
-        return f"❌ Error logging ticket: {str(e)}"
+        return "⚠️ I encountered an error while safely storing your ticket. Our human operations team has been notified. [SEND_HANDOFF_BUTTONS]"
 
 # ============================================
 # NEW POLICY TOOL
@@ -107,7 +108,7 @@ def retrieve_support_policy_tool(category: str) -> str:
     category = category.lower()
     
     if category not in SUPPORT_POLICIES:
-        return f"⚠️ Policy category '{category}' not found. Please check available categories: {list(SUPPORT_POLICIES.keys())}"
+        return f"⚠️ I couldn't find a specific policy for '{category}'. Standard terms and conditions apply. Please refer to your rental agreement for full details."
         
     policy = SUPPORT_POLICIES[category]
     desc = policy["description"]

@@ -61,6 +61,29 @@ def seed_mock_data():
                 {"id": "SOFA_3STR_GRY", "name": "3-Seater Fabric Sofa (Grey)", "start_date": "2024-03-10"}
             ]),
             "is_active": True
+        },
+        # 4. Active Customer (Multiple Appliances / Ambiguous Maintenance)
+        {
+            "name": "Arjun Patel",
+            "email": "arjun@example.com",
+            "phone_number": "7766554433",
+            "location_address": "C-12, Phase 1, DLF, Gurgaon",
+            "pincode": "122002",
+            "rented_items": json.dumps([
+                {"id": "AC_WIN_15", "name": "Window AC (1.5 Ton)", "start_date": "2023-05-10"},
+                {"id": "FRIDGE_DBL_250", "name": "Double Door Fridge (250L)", "start_date": "2023-05-10"}
+            ]),
+            "is_active": True
+        },
+        # 5. Lead / Angry Unknown Customer (Will be treated as unknown, but forces escalation)
+        {
+            "name": "Rahul Verma",
+            "email": "rahul.v@example.com",
+            "phone_number": "9100000000",
+            "location_address": "Unknown",
+            "pincode": "000000",
+            "rented_items": json.dumps([]),
+            "is_active": False
         }
     ]
 
@@ -84,9 +107,10 @@ def seed_mock_data():
             print(f"❌ Error seeding {cust['name']}: {e}")
 
     print("\n✨ Seeding complete. Use these numbers for testing:")
-    print("9958448249 -> ACTIVE_CUSTOMER")
-    print("9812345678 -> PAST_CUSTOMER")
-    print("9100000000 -> UNKNOWN/LEAD")
+    print("9958448249 -> ACTIVE_CUSTOMER (Hardik)")
+    print("7766554433 -> ACTIVE_CUSTOMER (Arjun - Multiple Appliances)")
+    print("9812345678 -> PAST_CUSTOMER (Ananya)")
+    print("9100000000 -> UNKNOWN/LEAD / Angry Customer (Rahul)")
 
 if __name__ == "__main__":
     seed_mock_data()

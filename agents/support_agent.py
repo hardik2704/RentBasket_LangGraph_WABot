@@ -172,40 +172,45 @@ def run_support_agent(user_message: str, state: ConversationState = None) -> tup
 
 def call_policy_llm(state: ConversationState) -> str:
     """Invokes the LLM strictly to look up policies and formulate a polite response."""
-    llm = ChatOpenAI(model=LLM_MODEL, temperature=0.1) # Low temp for strict policy adherence
-    llm_with_tools = llm.bind_tools([retrieve_support_policy_tool])
-    
-    issue_type = state["support_context"].get("issue_type", "general")
-    desc = state["support_context"].get("issue_description", "")
-    
-    prompt = f"""You are {BOT_NAME}, RentBasket's Operations Assistant.
-    
-    The customer has described an issue regarding: {issue_type.upper()}.
-    Description: "{desc}"
-    
-    YOUR GOAL: Provide a helpful, policy-backed response.
-    
-    RULES:
-    1. ALWAYS use the `retrieve_support_policy_tool` to look up the rule for {issue_type}.
-    2. Do NOT invent policies. If the tool says 7 days, you say 7 days.
-    3. Do NOT waive fees or promise instant refunds.
-    4. Keep the message under 3 sentences. Be polite and use emojis.
-    5. Don't mention that you are opening a ticket, the system will append that automatically.
-    """
-    
-    messages = [SystemMessage(content=prompt), HumanMessage(content="Please review my issue.")]
-    result = llm_with_tools.invoke(messages)
-    
-    if result.tool_calls:
-        # Execute tool
-        tool_call = result.tool_calls[0]
-        tool_res = retrieve_support_policy_tool.invoke(tool_call["args"])
-        messages.append(AIMessage(content="", tool_calls=result.tool_calls))
-        messages.append(HumanMessage(content=f"Tool Output:\n{tool_res}\n\nNow provide the final short response to the user."))
-        final_result = llm.invoke(messages)
-        return final_result.content
+    try:
+        llm = ChatOpenAI(model=LLM_MODEL, temperature=0.1) # Low temp for strict policy adherence
+        llm_with_tools = llm.bind_tools([retrieve_support_policy_tool])
         
-    return result.content
+        issue_type = state["support_context"].get("issue_type", "general")
+        desc = state["support_context"].get("issue_description", "")
+        
+        prompt = f"""You are {BOT_NAME}, RentBasket's Operations Assistant.
+        
+        The customer has described an issue regarding: {issue_type.upper()}.
+        Description: "{desc}"
+        
+        YOUR GOAL: Provide a helpful, policy-backed response.
+        
+        RULES:
+        1. ALWAYS use the `retrieve_support_policy_tool` to look up the rule for {issue_type}.
+        2. Do NOT invent policies. If the tool says 7 days, you say 7 days.
+        3. Do NOT waive fees or promise instant refunds.
+        4. Keep the message under 3 sentences. Be polite and use emojis.
+        5. Don't mention that you are opening a ticket, the system will append that automatically.
+        """
+        
+        messages = [SystemMessage(content=prompt), HumanMessage(content="Please review my issue.")]
+        result = llm_with_tools.invoke(messages)
+        
+        if result.tool_calls:
+            # Execute tool
+            tool_call = result.tool_calls[0]
+            tool_res = retrieve_support_policy_tool.invoke(tool_call["args"])
+            messages.append(AIMessage(content="", tool_calls=result.tool_calls))
+            messages.append(HumanMessage(content=f"Tool Output:\n{tool_res}\n\nNow provide the final short response to the user."))
+            final_result = llm.invoke(messages)
+            return final_result.content
+            
+        return result.content
+        
+    except Exception as e:
+        print(f"⚠️ Support Agent LLM Failure: {e}")
+        return "⚠️ I'm currently overwhelmed and struggling to process requests. Please wait while I connect you to my human colleagues. [SEND_HANDOFF_BUTTONS]"
 
 
 def process_ticket_logging(state: ConversationState) -> tuple[str, ConversationState]:
