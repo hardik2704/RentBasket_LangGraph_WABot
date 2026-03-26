@@ -112,35 +112,37 @@ ngrok http 8000
 
 ## 📁 Project Structure
 
-```
+```text
 RentBasket_LangGraph_WABot/
-├── main.py              # Demo mode entry point
-├── webhook_server.py    # WhatsApp webhook server
-├── config.py            # Configuration settings
-├── .env                 # Environment variables
-├── agents/              # LangGraph agent logic
-│   ├── orchestrator.py  # Intent router + agent dispatcher
-│   ├── sales_agent.py   # Main sales agent
-│   ├── recommendation_agent.py  # Product discovery agent
-│   └── state.py         # Conversation state
-├── rag/                 # RAG knowledge retrieval
-│   └── vectorstore.py   # ChromaDB vector store
-├── tools/               # Agent tools
-│   ├── product_tools.py # Product search, pricing
-│   ├── catalogue_tools.py # Catalogue browsing, filtering
-│   ├── location_tools.py  # Serviceability checks
-│   └── human_handoff.py   # Sales team escalation
-├── whatsapp/            # WhatsApp API client
-│   └── client.py        # Send messages, buttons
-├── utils/               # Utilities
-│   ├── logger.py        # File-based conversation logger
-│   ├── db.py            # PostgreSQL connection manager
-│   └── db_logger.py     # DB-backed logger + analytics
-├── scripts/             # Utility scripts
-│   ├── setup_db.py      # One-time DB schema setup
-│   └── sync_logs.py     # Sync logs from Render
-├── data/                # Knowledge base & product data
-└── logs/                # Conversation logs (file backup)
+├── 🤖 main.py               # Main entry point for local interactive demo & testing
+├── 📡 webhook_server.py     # Production Flask server for WhatsApp Business API integration
+├── ⚙️ config.py             # Global configurations, credentials, and business rules
+├── 🧠 agents/               # Core AI logic using LangGraph
+│   ├── orchestrator.py      # Intent classification & dynamic agent routing
+│   ├── sales_agent.py       # Handles pricing, quotes, and sales-focused queries
+│   ├── recommendation_agent.py # Product discovery and browsing assistant
+│   └── state.py             # Conversation memory and shared state schema
+├── 🛠️ tools/                # Specialized functions used by agents
+│   ├── product_tools.py     # Real-time pricing and availability retrieval
+│   ├── catalogue_tools.py   # Product category and specification lookups
+│   ├── location_tools.py    # Serviceability validation (Pincode checks)
+│   └── human_handoff.py     # Logic for escalating to human sales agents
+├── 🚚 logistics/            # Location-based engines
+│   ├── distance_engine.py   # Calculates distances for delivery zones
+│   └── pricing.py           # Handles location-dependent rental pricing
+├── 💬 whatsapp/             # WhatsApp Cloud API wrappers
+│   ├── client.py            # Handles sending text, buttons, and list messages
+│   └── indicators.py        # Typing & read receipt simulations
+├── 📝 utils/                # Shared helpers
+│   ├── db_logger.py         # Advanced logging to PostgreSQL/Supabase
+│   └── logger.py            # Local file-based logging for debugging
+├── 📜 scripts/              # Dev & ops automation
+│   ├── final_sync.py        # Final production log synchronization
+│   └── setup_db.py          # Database schema initialization
+├── 📦 data/                 # Static assets and knowledge base
+│   ├── products.py          # Product catalog definitions
+│   └── knowledge_base.py    # RAG source data for policies
+└── 📂 logs/                 # Local archive of WhatsApp conversation transcripts
 ```
 
 ---
@@ -212,6 +214,7 @@ Conversation logs are stored in **PostgreSQL (Supabase)** for persistence and an
 | `sessions` | Session lifecycle, pincode, items, duration, agent, stage |
 | `messages` | Every user↔bot message with intent, agent, tools used |
 | `analytics_events` | Pricing negotiations, handoffs, button presses |
+| `customers` | Core customer profiles (name, email, phone, location, rented items history) |
 
 ### 🔄 Syncing File Logs from Render
 File-based logs (`.txt`) continue to work as a backup. Sync them locally:
