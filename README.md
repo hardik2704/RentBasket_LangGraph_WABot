@@ -244,4 +244,4 @@ File-based logs (`.txt`) continue to work as a backup. Sync them locally:
 
 ## 📝 License
 
-Private - RentBasket © 2024
+Private - RentBasket © 2026

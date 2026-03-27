@@ -12,7 +12,8 @@ from datetime import datetime, timezone
 # Ensure parent directory is in path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.db import execute_query, is_db_available
+from utils.firebase_client import upsert_customer, get_db
+from utils.phone_utils import normalize_phone
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -66,64 +67,36 @@ CUSTOMERS_DATA = [
 ]
 
 def seed_customers():
-    """Create the table and insert dummy data."""
-    if not is_db_available():
-        print("❌ Database not available. Check your DATABASE_URL in .env")
+    """Insert dummy data into Firestore."""
+    db = get_db()
+    if not db:
+        print("❌ Firebase not available. Check your FIREBASE_CONFIG in .env")
         return
 
-    print("🚀 Initializing Customers table...")
-    
-    # 1. Create Table (if not exists)
-    schema_query = """
-    CREATE TABLE IF NOT EXISTS customers (
-        id SERIAL PRIMARY KEY,
-        name TEXT NOT NULL,
-        email TEXT,
-        phone_number TEXT UNIQUE NOT NULL,
-        location_address TEXT,
-        pincode TEXT,
-        rented_items JSONB DEFAULT '[]',
-        member_since TIMESTAMPTZ DEFAULT NOW(),
-        is_active BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
-    CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone_number);
-    """
+    print("🚀 Seeding Customers into Firestore...")
     
     try:
-        execute_query(schema_query)
-        print("✅ Table 'customers' is ready.")
-        
         # 2. Insert Data
         print(f"📦 Seeding {len(CUSTOMERS_DATA)} records...")
         
-        insert_query = """
-        INSERT INTO customers (name, email, phone_number, location_address, pincode, rented_items, member_since)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (phone_number) 
-        DO UPDATE SET 
-            name = EXCLUDED.name,
-            email = EXCLUDED.email,
-            location_address = EXCLUDED.location_address,
-            pincode = EXCLUDED.pincode,
-            rented_items = EXCLUDED.rented_items,
-            member_since = EXCLUDED.member_since,
-            updated_at = NOW();
-        """
-        
         for cust in CUSTOMERS_DATA:
-            params = (
-                cust["name"],
-                cust["email"],
-                cust["phone_number"],
-                cust["location_address"],
-                cust["pincode"],
-                json.dumps(cust["rented_items"]),
-                cust["member_since"]
-            )
-            execute_query(insert_query, params)
-            print(f"   ✔ Seeded/Updated: {cust['name']} ({cust['phone_number']})")
+            # Normalize phone to use as Doc ID
+            phone = cust["phone_number"]
+            normalized = normalize_phone(phone)
+            
+            # Prepare data (ISO format strings for dates are fine for Firestore)
+            upsert_customer(normalized, {
+                "name": cust["name"],
+                "email": cust["email"],
+                "phone_number": normalized,
+                "location_address": cust["location_address"],
+                "pincode": cust["pincode"],
+                "rented_items": cust["rented_items"],
+                "member_since": cust["member_since"],
+                "is_active": True,
+                "updated_at": datetime.utcnow()
+            })
+            print(f"   ✔ Seeded/Updated: {cust['name']} ({normalized})")
             
         print("\n🎉 Seeding complete!")
         

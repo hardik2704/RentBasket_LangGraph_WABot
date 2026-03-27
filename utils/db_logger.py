@@ -13,7 +13,7 @@ from typing import Optional, List, Dict, Any
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import BOT_NAME
-from utils.db import is_db_available, execute_query, execute_query_one
+from utils.firebase_client import get_db, log_session_msg, log_event as firebase_log_event
 
 # Import file-based logger as fallback
 from utils import logger as file_logger
@@ -23,27 +23,34 @@ from utils import logger as file_logger
 # SESSION MANAGEMENT
 # ========================================
 
-def start_new_session(phone_number: str, user_name: str = None) -> Optional[int]:
+def start_new_session(phone_number: str, user_name: str = None) -> Optional[str]:
     """
-    Start a new conversation session.
-    Returns the session_id if DB is available.
+    Start a new conversation session in Firestore.
+    Returns the session_id (string) if Firebase is available.
     """
     # Always do file-based logging too (as backup)
     file_logger.start_new_session(phone_number, user_name)
 
-    if not is_db_available():
+    db = get_db()
+    if not db:
         return None
 
     try:
-        row = execute_query_one(
-            """INSERT INTO sessions (phone_number, user_name)
-               VALUES (%s, %s)
-               RETURNING id""",
-            (phone_number, user_name),
-        )
-        return row[0] if row else None
+        # Create a new document with an auto-generated ID
+        session_ref = db.collection("sessions").document()
+        session_ref.set({
+            "phone_number": phone_number,
+            "user_name": user_name,
+            "created_at": datetime.utcnow(),
+            "last_active_at": datetime.utcnow(),
+            "total_messages": 0,
+            "conversation_stage": "greeting",
+            "active_agent": "orchestrator",
+            "is_active": True
+        })
+        return session_ref.id
     except Exception as e:
-        print(f"⚠️  DB start_new_session error: {e}")
+        print(f"⚠️  Firebase start_new_session error: {e}")
         return None
 
 
@@ -73,64 +80,52 @@ def get_or_create_session(phone_number: str, user_name: str = None) -> Optional[
 
 
 def update_session(
-    session_id: int,
+    session_id: str,
     conversation_stage: str = None,
     active_agent: str = None,
     collected_info: dict = None,
     needs_human: bool = None,
     handoff_reason: str = None,
 ) -> None:
-    """Update session metadata from ConversationState."""
-    if not is_db_available() or session_id is None:
+    """Update session metadata in Firestore."""
+    db = get_db()
+    if not db or session_id is None:
         return
 
     try:
-        updates = ["last_active_at = NOW()"]
-        params = []
+        updates = {
+            "last_active_at": datetime.utcnow(),
+            "total_messages": firestore.Increment(1)
+        }
 
         if conversation_stage is not None:
-            updates.append("conversation_stage = %s")
-            params.append(conversation_stage)
+            updates["conversation_stage"] = conversation_stage
 
         if active_agent is not None:
-            updates.append("active_agent = %s")
-            params.append(active_agent)
+            updates["active_agent"] = active_agent
 
         if needs_human is not None:
-            updates.append("needs_human = %s")
-            params.append(needs_human)
+            updates["needs_human"] = needs_human
 
         if handoff_reason is not None:
-            updates.append("handoff_reason = %s")
-            params.append(handoff_reason)
+            updates["handoff_reason"] = handoff_reason
 
         if collected_info:
-            if collected_info.get("pincode"):
-                updates.append("pincode = %s")
-                params.append(collected_info["pincode"])
-            if collected_info.get("city"):
-                updates.append("city = %s")
-                params.append(collected_info["city"])
-            if collected_info.get("duration_months"):
-                updates.append("duration_months = %s")
-                params.append(collected_info["duration_months"])
-            if collected_info.get("items"):
-                updates.append("items = %s")
-                params.append(json.dumps(collected_info["items"]))
-            if collected_info.get("is_bulk_order"):
-                updates.append("is_bulk_order = %s")
-                params.append(collected_info["is_bulk_order"])
+            # Flatten or nest collected info
+            info_updates = {}
+            for key in ["pincode", "city", "duration_months", "is_bulk_order"]:
+                if key in collected_info:
+                    info_updates[key] = collected_info[key]
+            
+            if "items" in collected_info:
+                info_updates["items"] = collected_info["items"]
+            
+            if info_updates:
+                updates["collected_info"] = info_updates
 
-        # Increment message count
-        updates.append("total_messages = total_messages + 1")
-
-        params.append(session_id)
-        execute_query(
-            f"UPDATE sessions SET {', '.join(updates)} WHERE id = %s",
-            tuple(params),
-        )
+        db.collection("sessions").document(session_id).update(updates)
     except Exception as e:
-        print(f"⚠️  DB update_session error: {e}")
+        print(f"⚠️  Firebase update_session error: {e}")
 
 
 # ========================================
@@ -142,7 +137,7 @@ def log_message(
     sender_name: str,
     message: str,
     is_bot: bool = False,
-    session_id: int = None,
+    session_id: str = None,
     agent_used: str = None,
     tools_called: List[str] = None,
     intent: str = None,
@@ -151,39 +146,31 @@ def log_message(
     reaction_emoji: str = None,
 ) -> None:
     """
-    Log a single message to the database (and file as backup).
-    Drop-in compatible with logger.log_message().
+    Log a single message to Firestore (and file as backup).
     """
-    # Always write to file too
+    # Always write to file too (as backup)
     file_logger.log_message(phone_number, sender_name, message, is_bot)
 
-    if not is_db_available():
+    db = get_db()
+    if not db or session_id is None:
         return
 
     try:
         sender = "bot" if is_bot else "user"
-        execute_query(
-            """INSERT INTO messages
-               (session_id, phone_number, sender, sender_name, message,
-                wa_message_id, agent_used, tools_called, intent,
-                quoted_message_id, reaction_emoji)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-            (
-                session_id,
-                phone_number,
-                sender,
-                sender_name if not is_bot else BOT_NAME,
-                message,
-                wa_message_id,
-                agent_used,
-                tools_called,  # PostgreSQL TEXT[] accepts Python list
-                intent,
-                quoted_message_id,
-                reaction_emoji
-            ),
-        )
+        log_session_msg(session_id, {
+            "phone": phone_number,
+            "sender": sender,
+            "sender_name": sender_name if not is_bot else BOT_NAME,
+            "message": message,
+            "wa_message_id": wa_message_id,
+            "agent_used": agent_used,
+            "tools_called": tools_called,
+            "intent": intent,
+            "quoted_message_id": quoted_message_id,
+            "reaction_emoji": reaction_emoji
+        })
     except Exception as e:
-        print(f"⚠️  DB log_message error: {e}")
+        print(f"⚠️  Firebase log_message error: {e}")
 
 
 def log_conversation_turn(
@@ -191,7 +178,7 @@ def log_conversation_turn(
     user_name: str,
     user_message: str,
     bot_response: str,
-    session_id: int = None,
+    session_id: str = None,
     agent_used: str = None,
     tools_called: List[str] = None,
     intent: str = None,
@@ -200,76 +187,63 @@ def log_conversation_turn(
     reaction_emoji: str = None,
 ) -> None:
     """
-    Log a complete conversation turn (user message + bot response).
-    Uses a single transaction for atomicity and efficiency.
+    Log a complete conversation turn (user message + bot response) to Firestore.
     """
     # Always write to file too (as reliable backup)
     file_logger.log_conversation_turn(phone_number, user_name, user_message, bot_response,
                                      agent_used=agent_used)
 
-    if not is_db_available():
+    db = get_db()
+    if not db or session_id is None:
         return
 
-    from utils.db import get_connection, put_connection
-
-    conn = None
     try:
-        conn = get_connection()
-        with conn.cursor() as cur:
-            # 1. Log user message
-            cur.execute(
-                """INSERT INTO messages
-                   (session_id, phone_number, sender, sender_name, message,
-                    wa_message_id, intent, quoted_message_id, reaction_emoji)
-                   VALUES (%s, %s, 'user', %s, %s, %s, %s, %s, %s)""",
-                (session_id, phone_number, user_name, user_message, wa_message_id, intent, quoted_message_id, reaction_emoji),
-            )
-            
-            # 2. Log bot response
-            cur.execute(
-                """INSERT INTO messages
-                   (session_id, phone_number, sender, sender_name, message,
-                    agent_used, tools_called)
-                   VALUES (%s, %s, 'bot', %s, %s, %s, %s)""",
-                (
-                    session_id,
-                    phone_number,
-                    BOT_NAME,
-                    bot_response,
-                    agent_used,
-                    tools_called,
-                ),
-            )
-        conn.commit()
+        # 1. Log user message
+        log_session_msg(session_id, {
+            "phone": phone_number,
+            "sender": "user",
+            "sender_name": user_name,
+            "message": user_message,
+            "wa_message_id": wa_message_id,
+            "intent": intent,
+            "quoted_message_id": quoted_message_id,
+            "reaction_emoji": reaction_emoji
+        })
+        
+        # 2. Log bot response
+        log_session_msg(session_id, {
+            "phone": phone_number,
+            "sender": "bot",
+            "sender_name": BOT_NAME,
+            "message": bot_response,
+            "agent_used": agent_used,
+            "tools_called": tools_called
+        })
     except Exception as e:
-        if conn:
-            conn.rollback()
-        print(f"⚠️  DB log_conversation_turn error: {e}")
-    finally:
-        if conn:
-            put_connection(conn)
+        print(f"⚠️  Firebase log_conversation_turn error: {e}")
 
 
 def log_system_message(
     phone_number: str,
     message: str,
-    session_id: int = None,
+    session_id: str = None,
 ) -> None:
-    """Log a system message (e.g., session start)."""
+    """Log a system message (e.g., session start) to Firestore."""
     file_logger.log_system_message(phone_number, message)
 
-    if not is_db_available():
+    db = get_db()
+    if not db or session_id is None:
         return
 
     try:
-        execute_query(
-            """INSERT INTO messages
-               (session_id, phone_number, sender, sender_name, message)
-               VALUES (%s, %s, 'system', 'system', %s)""",
-            (session_id, phone_number, message),
-        )
+        log_session_msg(session_id, {
+            "phone": phone_number,
+            "sender": "system",
+            "sender_name": "system",
+            "message": message
+        })
     except Exception as e:
-        print(f"⚠️  DB log_system_message error: {e}")
+        print(f"⚠️  Firebase log_system_message error: {e}")
 
 
 # ========================================
@@ -280,33 +254,19 @@ def log_event(
     phone_number: str,
     event_type: str,
     event_data: dict = None,
-    session_id: int = None,
+    session_id: str = None,
 ) -> None:
     """
-    Log a business event for analytics.
-
-    Event types:
-        - pricing_negotiation
-        - human_handoff
-        - quote_created
-        - pincode_check
-        - product_search
-        - button_pressed
-        - support_ticket_created
-        - support_escalation
+    Log a business event for analytics to Firestore.
     """
-    if not is_db_available():
+    db = get_db()
+    if not db:
         return
 
     try:
-        execute_query(
-            """INSERT INTO analytics_events
-               (phone_number, session_id, event_type, event_data)
-               VALUES (%s, %s, %s, %s)""",
-            (phone_number, session_id, event_type, json.dumps(event_data or {})),
-        )
+        firebase_log_event(phone_number, event_type, event_data, session_id)
     except Exception as e:
-        print(f"⚠️  DB log_event error: {e}")
+        print(f"⚠️  Firebase log_event error: {e}")
 
 
 # ========================================
@@ -315,29 +275,40 @@ def log_event(
 
 def get_conversation_history(phone_number: str) -> Optional[str]:
     """
-    Get formatted conversation history for a phone number.
-    Falls back to file if DB not available.
+    Get formatted conversation history from Firestore.
     """
-    if not is_db_available():
+    db = get_db()
+    if not db:
         return file_logger.get_conversation_history(phone_number)
 
     try:
-        rows = execute_query(
-            """SELECT sender_name, message, timestamp
-               FROM messages
-               WHERE phone_number = %s
-               ORDER BY timestamp ASC""",
-            (phone_number,),
-            fetch=True,
-        )
-        if not rows:
+        # 1. Find the latest session for this phone
+        query = db.collection("sessions") \
+                  .where("phone_number", "==", phone_number) \
+                  .order_by("last_active_at", direction=firestore.Query.DESCENDING) \
+                  .limit(1)
+        
+        sessions = query.get()
+        if not sessions:
+            return file_logger.get_conversation_history(phone_number)
+            
+        # 2. Get messages from sub-collection
+        session_id = sessions[0].id
+        messages = db.collection("sessions").document(session_id) \
+                     .collection("messages") \
+                     .order_by("timestamp", direction=firestore.Query.ASCENDING) \
+                     .get()
+        
+        if not messages:
             return file_logger.get_conversation_history(phone_number)
 
         lines = []
-        for sender_name, message, ts in rows:
+        for m_doc in messages:
+            m = m_doc.to_dict()
+            ts = m.get("timestamp")
             ts_str = ts.strftime("%d/%m/%y, %I:%M %p").lower() if ts else ""
-            lines.append(f"{ts_str} - {sender_name}: {message}")
+            lines.append(f"{ts_str} - {m.get('sender_name')}: {m.get('message')}")
         return "\n".join(lines)
     except Exception as e:
-        print(f"⚠️  DB get_conversation_history error: {e}")
+        print(f"⚠️  Firebase get_conversation_history error: {e}")
         return file_logger.get_conversation_history(phone_number)
