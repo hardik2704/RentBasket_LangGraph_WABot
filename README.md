@@ -156,8 +156,8 @@ RentBasket_LangGraph_WABot/
 | `python webhook_server.py` | Start WhatsApp webhook server |
 | `python webhook_server.py --port 8000` | Custom port |
 | `ngrok http 5000` | Expose server to internet |
-| `python scripts/sync_logs.py` | Sync production logs locally |
-| `python scripts/sync_logs.py --watch` | Keep logs synced in real-time |
+| `python3 scripts/sync_logs.py` | Sync production logs locally |
+| `python3 scripts/sync_logs.py --watch` | Keep logs synced in real-time |
 
 ---
 
@@ -219,8 +219,8 @@ Conversation logs are stored in **PostgreSQL (Supabase)** for persistence and an
 ### 🔄 Syncing File Logs from Render
 File-based logs (`.txt`) continue to work as a backup. Sync them locally:
 
-1. **Manual Sync**: `python scripts/sync_logs.py`
-2. **Watch Mode**: `python scripts/sync_logs.py --watch`
+1. **Manual Sync**: `python3 scripts/sync_logs.py`
+2. **Watch Mode**: `python3 scripts/sync_logs.py --watch`
 
 3. **Locations**:
    - `logs/demo_user.txt` - Local demo mode logs
