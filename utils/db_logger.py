@@ -1,23 +1,27 @@
 """
-Database-backed conversation logger for RentBasket WhatsApp Bot.
+Database-backed conversation logger for RentBasket WhatsApp Bot (Firestore Edition).
 Drop-in replacement for utils/logger.py — same function signatures.
-Falls back to file-based logging if DATABASE_URL is not set.
+Falls back to file-based logging if Firebase is not configured.
 """
 
 import os
 import sys
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import BOT_NAME
 from utils.firebase_client import get_db, log_session_msg, log_event as firebase_log_event
+from google.cloud import firestore
 
 # Import file-based logger as fallback
 from utils import logger as file_logger
 
+def is_db_available() -> bool:
+    """Check if Firestore is configured and reachable."""
+    return get_db() is not None
 
 # ========================================
 # SESSION MANAGEMENT
@@ -38,15 +42,19 @@ def start_new_session(phone_number: str, user_name: str = None) -> Optional[str]
     try:
         # Create a new document with an auto-generated ID
         session_ref = db.collection("sessions").document()
+        ts = datetime.now(timezone.utc)
+        start_line = f"[{ts.strftime('%d/%m/%y, %I:%M %p').lower()}] --- Session started ---"
+        
         session_ref.set({
             "phone_number": phone_number,
             "user_name": user_name,
-            "created_at": datetime.now(timezone.utc),
-            "last_active_at": datetime.now(timezone.utc),
+            "created_at": ts,
+            "last_active_at": ts,
             "total_messages": 0,
             "conversation_stage": "greeting",
             "active_agent": "orchestrator",
-            "is_active": True
+            "is_active": True,
+            "live_transcript": [start_line]
         })
         return session_ref.id
     except Exception as e:
@@ -54,29 +62,40 @@ def start_new_session(phone_number: str, user_name: str = None) -> Optional[str]
         return None
 
 
-def get_or_create_session(phone_number: str, user_name: str = None) -> Optional[int]:
+def get_or_create_session(phone_number: str, user_name: str = None) -> Optional[str]:
     """
     Get the most recent active session for this phone, or create a new one.
     A session is considered active if last message was within 30 minutes.
     """
-    if not is_db_available():
+    db = get_db()
+    if not db:
         return None
 
     try:
-        row = execute_query_one(
-            """SELECT id FROM sessions
-               WHERE phone_number = %s
-                 AND last_active_at > NOW() - INTERVAL '30 minutes'
-               ORDER BY last_active_at DESC
-               LIMIT 1""",
-            (phone_number,),
-        )
-        if row:
-            return row[0]
+        # 30 minute window for session continuity
+        thirty_mins_ago = datetime.now(timezone.utc) - timedelta(minutes=30)
+        
+        # Query for active session
+        # NOTE: This requires a composite index on phone_number + last_active_at
+        query = db.collection("sessions") \
+                  .where("phone_number", "==", phone_number) \
+                  .where("last_active_at", ">", thirty_mins_ago) \
+                  .order_by("last_active_at", direction=firestore.Query.DESCENDING) \
+                  .limit(1)
+        
+        docs = query.get()
+        if docs:
+            return docs[0].id
+            
         return start_new_session(phone_number, user_name)
     except Exception as e:
-        print(f"⚠️  DB get_or_create_session error: {e}")
-        return None
+        # If index is missing or query fails, just start a new session to keep bot alive
+        if "requires an index" in str(e):
+            print(f"🚨 Firestore Index Required: {e}")
+        else:
+            print(f"⚠️  Firebase get_or_create_session error: {e}")
+            
+        return start_new_session(phone_number, user_name)
 
 
 def update_session(

@@ -52,11 +52,17 @@ def log_session_msg(session_id: str, message_data: dict):
     db = get_db()
     if not db: return
     
-    session_ref = db.collection("sessions").document(session_id)
+    # Update main session metadata
+    ts = datetime.now(timezone.utc)
+    sender_label = message_data.get("sender_name", "Unknown")
+    msg_text = message_data.get("message", "")
+    transcript_line = f"[{ts.strftime('%d/%m/%y, %I:%M %p').lower()}] {sender_label}: {msg_text}"
+
     session_ref.set({
-        "last_active_at": datetime.now(timezone.utc),
+        "last_active_at": ts,
         "phone_number": message_data.get("phone"),
-        "user_name": message_data.get("user_name")
+        "user_name": message_data.get("user_name"),
+        "live_transcript": firestore.ArrayUnion([transcript_line])
     }, merge=True)
     
     session_ref.collection("messages").add({

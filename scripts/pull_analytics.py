@@ -16,9 +16,11 @@ from google.cloud import firestore
 def pull_support_metrics():
     db = get_db()
     if not db:
+        print("⚠️  FIREBASE_CONFIG not found in environment!")
         print("❌ Firebase not available. Cannot pull analytics.")
         return
 
+    print(f"\n✨ Firebase initialized successfully.")
     print(f"\n📊 RentBasket Support Pilot Metrics (As of {datetime.now().strftime('%Y-%m-%d %H:%M:%S')})\n")
 
     try:
@@ -26,6 +28,7 @@ def pull_support_metrics():
         total_sessions = len(db.collection("sessions").get())
         
         # Get support specific events
+        # NOTE: Simple equality queries don't need composite indexes
         tickets_created = len(db.collection("analytics").where("event_type", "==", "support_ticket_created").get())
         escalations = len(db.collection("analytics").where("event_type", "==", "support_escalation").get())
         
@@ -61,26 +64,41 @@ def pull_support_metrics():
             
         # Add Recent Logs for human review
         print("\n📝 Recent Tickets (Last 3):")
-        recent_tickets = db.collection("tickets").order_by("created_at", direction=firestore.Query.DESCENDING).limit(3).get()
-        if not recent_tickets:
-            print("   (None)")
-        for rt_doc in recent_tickets:
-            rt = rt_doc.to_dict()
-            print(f"   - #{rt_doc.id[:8]} | {rt.get('issue_type')}: {rt.get('summary')} ({rt.get('status')})")
+        try:
+            recent_tickets = db.collection("tickets").order_by("created_at", direction=firestore.Query.DESCENDING).limit(3).get()
+            if not recent_tickets:
+                print("   (None)")
+            for rt_doc in recent_tickets:
+                rt = rt_doc.to_dict()
+                created_at = rt.get("created_at")
+                ts_str = created_at.strftime('%Y-%m-%d %H:%M') if created_at else "Unknown"
+                print(f"   - #{rt_doc.id[:8]} at {ts_str} | {rt.get('issue_type')}: {rt.get('summary')} ({rt.get('status')})")
+        except Exception as e:
+            if "requires an index" in str(e):
+                print("   ⚠️  (Recent Tickets index building...)")
+            else:
+                print(f"   ❌ Error: {e}")
 
         print("\n🚨 Recent Escalations (Last 3):")
-        recent_esc = db.collection("analytics") \
-                       .where("event_type", "==", "support_escalation") \
-                       .order_by("timestamp", direction=firestore.Query.DESCENDING) \
-                       .limit(3).get()
-        if not recent_esc:
-            print("   (None)")
-        for re_doc in recent_esc:
-            re = re_doc.to_dict()
-            ts = re.get("timestamp")
-            ts_str = ts.strftime('%H:%M') if ts else "??:??"
-            reason = re.get("event_data", {}).get("reason_for_escalation", "Unknown")
-            print(f"   - {re.get('phone')} at {ts_str}: {reason}")
+        try:
+            recent_esc = db.collection("analytics") \
+                           .where("event_type", "==", "support_escalation") \
+                           .order_by("timestamp", direction=firestore.Query.DESCENDING) \
+                           .limit(3).get()
+            if not recent_esc:
+                print("   (None)")
+            for re_doc in recent_esc:
+                re = re_doc.to_dict()
+                ts = re.get("timestamp")
+                ts_str = ts.strftime('%H:%M') if ts else "??:??"
+                reason = re.get("event_data", {}).get("reason_for_escalation", "Unknown")
+                print(f"   - {re.get('phone')} at {ts_str}: {reason}")
+        except Exception as e:
+            if "requires an index" in str(e):
+                print("   ⚠️  (Please create the index using the link in your console logs)")
+                print(f"   👉 Link: {str(e).split('here: ')[1] if 'here: ' in str(e) else 'Check Firebase Console'}")
+            else:
+                print(f"   ❌ Error: {e}")
             
         print("\n---")
         print("💡 Tips for Pilot Analysis:")

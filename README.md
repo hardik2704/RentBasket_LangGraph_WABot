@@ -219,13 +219,23 @@ Conversation logs are stored in **Google Firebase (Firestore)** for high-availab
      ```
 
 ### 🗂️ Firestore Schema Structure
-| Collection | Description | Evolvability |
+| Collection | Description | Usage Tip |
 | :--- | :--- | :--- |
-| `sessions` | Session lifecycle & parent metadata | Snapshot of latest user state |
-| `sessions/{id}/messages` | Full audit trail (Sub-collection) | Real-time chat history stream |
+| `sessions` | Session meta & **Live Transcript** | 💡 Read the `live_transcript` field for instant chat history! |
+| `sessions/{id}/messages` | Full audit trail (Sub-collection) | Best for deep data analysis & audit |
 | `analytics` | Business events (negotiations, handoffs) | Event-driven pilot metrics |
 | `customers` | Core profiles indexed by Phone | Integrated CRM-style lookups |
 | `tickets` | [NEW] Support tickets for human ops | Operational dashboard fuel |
+
+### 🔄 Migrating Local Logs to Firestore
+If you have historical `.txt` logs in the `logs/` directory, you can push them to Firebase in one go:
+```bash
+python3 scripts/migrate_local_logs.py
+```
+This will:
+1. Parse your `91*.txt` files into individual chat sessions.
+2. Create standard Firestore `sessions` documents.
+3. Automatically populate the `live_transcript` and `messages` sub-collections.
 
 ### 🔄 Syncing File Logs from Render
 File-based logs (`.txt`) continue to work as a backup. Sync them locally:
