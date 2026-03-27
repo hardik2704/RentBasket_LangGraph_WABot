@@ -94,7 +94,7 @@ def seed_customers():
                 "rented_items": cust["rented_items"],
                 "member_since": cust["member_since"],
                 "is_active": True,
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now(timezone.utc)
             })
             print(f"   ✔ Seeded/Updated: {cust['name']} ({normalized})")
             

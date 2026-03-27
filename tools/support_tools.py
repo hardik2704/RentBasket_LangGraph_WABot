@@ -12,7 +12,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.firebase_client import get_db
 from langchain_core.tools import tool
-from datetime import datetime
+from datetime import datetime, timezone
 
 @tool
 def log_support_ticket_tool(
@@ -53,7 +53,7 @@ def log_support_ticket_tool(
             "escalation_flag": escalation_flag,
             "media_refs": media_refs,
             "status": "open",
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc)
         }
         
         ticket_ref.set(ticket_data)

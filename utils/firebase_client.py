@@ -8,7 +8,7 @@ import os
 import json
 import firebase_admin
 from firebase_admin import credentials, firestore
-from datetime import datetime
+from datetime import datetime, timezone
 
 _db = None
 
@@ -54,14 +54,14 @@ def log_session_msg(session_id: str, message_data: dict):
     
     session_ref = db.collection("sessions").document(session_id)
     session_ref.set({
-        "last_active_at": datetime.utcnow(),
+        "last_active_at": datetime.now(timezone.utc),
         "phone_number": message_data.get("phone"),
         "user_name": message_data.get("user_name")
     }, merge=True)
     
     session_ref.collection("messages").add({
         **message_data,
-        "timestamp": datetime.utcnow()
+        "timestamp": datetime.now(timezone.utc)
     })
 
 def log_event(phone: str, event_type: str, event_data: dict = None, session_id: str = None):
@@ -73,7 +73,7 @@ def log_event(phone: str, event_type: str, event_data: dict = None, session_id: 
         "session_id": session_id,
         "event_type": event_type,
         "event_data": event_data or {},
-        "timestamp": datetime.utcnow()
+        "timestamp": datetime.now(timezone.utc)
     })
 
 def log_ticket(ticket_id: str, ticket_data: dict):
@@ -82,5 +82,5 @@ def log_ticket(ticket_id: str, ticket_data: dict):
     if not db: return
     db.collection("tickets").document(ticket_id).set({
         **ticket_data,
-        "updated_at": datetime.utcnow()
+        "updated_at": datetime.now(timezone.utc)
     }, merge=True)

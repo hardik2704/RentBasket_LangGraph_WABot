@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RentBasket WhatsApp Bot "Ku" v1.0
+RentBasket WhatsApp Bot "Ku" v1.1
 Main entry point with demo mode for testing
 
 Usage:

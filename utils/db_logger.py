@@ -7,7 +7,7 @@ Falls back to file-based logging if DATABASE_URL is not set.
 import os
 import sys
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -41,8 +41,8 @@ def start_new_session(phone_number: str, user_name: str = None) -> Optional[str]
         session_ref.set({
             "phone_number": phone_number,
             "user_name": user_name,
-            "created_at": datetime.utcnow(),
-            "last_active_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
+            "last_active_at": datetime.now(timezone.utc),
             "total_messages": 0,
             "conversation_stage": "greeting",
             "active_agent": "orchestrator",
@@ -94,7 +94,7 @@ def update_session(
 
     try:
         updates = {
-            "last_active_at": datetime.utcnow(),
+            "last_active_at": datetime.now(timezone.utc),
             "total_messages": firestore.Increment(1)
         }
 
