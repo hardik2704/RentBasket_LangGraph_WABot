@@ -46,6 +46,7 @@ def log_message(
     sender_name: str, 
     message: str,
     is_bot: bool = False,
+    agent_used: str = None,
     quoted_message_id: str = None,
     reaction_emoji: str = None
 ) -> None:
@@ -61,7 +62,12 @@ def log_message(
         display_phone = "91" + display_phone
 
     if is_bot:
-        sender = BOT_NAME
+        if agent_used:
+            # Format agent name (e.g., "sales" -> "Sales")
+            agent_display = agent_used.capitalize()
+            sender = f"{BOT_NAME} ({agent_display})"
+        else:
+            sender = BOT_NAME
     else:
         # Include both name and number for better tracking/knowledge
         name = sender_name or "User"
@@ -79,6 +85,7 @@ def log_conversation_turn(
     user_name: str,
     user_message: str,
     bot_response: str,
+    agent_used: str = None,
     quoted_message_id: str = None,
     reaction_emoji: str = None
 ) -> None:
@@ -90,13 +97,14 @@ def log_conversation_turn(
         user_name: User's name (from WhatsApp profile or phone number)
         user_message: What the user said
         bot_response: What the bot responded
+        agent_used: Name of the agent that generated the response
     """
     # Log user message
     log_message(phone_number, user_name, user_message, is_bot=False, 
                 quoted_message_id=quoted_message_id, reaction_emoji=reaction_emoji)
     
     # Log bot response
-    log_message(phone_number, BOT_NAME, bot_response, is_bot=True)
+    log_message(phone_number, BOT_NAME, bot_response, is_bot=True, agent_used=agent_used)
 
 
 def log_system_message(phone_number: str, message: str) -> None:

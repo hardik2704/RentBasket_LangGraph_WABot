@@ -84,6 +84,18 @@ GREETING_WORDS = {"hi", "hello", "hey", "hii", "hiii", "helo", "heloo", "helo", 
                   "namaste", "namaskar", "good morning", "good afternoon", "good evening",
                   "hola", "yo", "sup", "start"}
 
+# ========================================
+# SPECIAL CUSTOMER HANDLER
+# ========================================
+
+SPECIAL_CUSTOMER_PHONE = "9958448249"
+
+SPECIAL_GREETING_BUTTONS = [
+    {"id": "SUP_TYPE_MAINTENANCE", "title": "Complaint"},
+    {"id": "SUP_TYPE_BILLING", "title": "Make Payment"},
+    {"id": "BROWSE_FURNITURE", "title": "Order products"}
+]
+
 def is_greeting(text: str) -> bool:
     """Check if the incoming message is a greeting."""
     return text.strip().lower().rstrip("!.,?") in GREETING_WORDS
@@ -93,25 +105,35 @@ def handle_greeting(phone: str, sender_name: str):
     Send the structured greeting message with interactive buttons.
     This bypasses the LLM entirely for a deterministic, instant response.
     """
-    # Use proper name if it looks real, otherwise generic
-    name = sender_name if sender_name and sender_name.strip() else "there"
+    normalized_phone = normalize_phone(phone)
+    
+    # Check if this is the special customer number
+    if normalized_phone == SPECIAL_CUSTOMER_PHONE:
+        greeting_text = "Welcome back, How can I help you? 😊"
+        buttons = SPECIAL_GREETING_BUTTONS
+        action_type = "special_greeting"
+    else:
+        # Use proper name if it looks real, otherwise generic
+        name = sender_name if sender_name and sender_name.strip() else "there"
 
-    greeting_text = (
-        f"Hi {name} \ud83d\udc4b\n"
-        f"I'm Ku \ud83d\udc22 from RentBasket, your personal rental assistant.\n"
-        f"\n"
-        f"We offer quality furniture and appliances on rent at affordable prices, "
-        f"powered by customer service which is best in the market.\n"
-        f"\n"
-        f"Check out our website for more details:\n"
-        f"https://rentbasket.com"
-    )
+        greeting_text = (
+            f"Hi {name} 👋\n"
+            f"I'm Ku 🐢 from RentBasket, your personal rental assistant.\n"
+            f"\n"
+            f"We offer quality furniture and appliances on rent at affordable prices, "
+            f"powered by customer service which is best in the market.\n"
+            f"\n"
+            f"Check out our website for more details:\n"
+            f"https://rentbasket.com"
+        )
+        buttons = GREETING_BUTTONS
+        action_type = "greeting"
 
     try:
         result = whatsapp_client.send_interactive_buttons(
             to_phone=phone,
             body_text=greeting_text,
-            buttons=GREETING_BUTTONS
+            buttons=buttons
         )
         if "error" in result:
             print(f"   \u26a0\ufe0f Interactive buttons failed: {result['error']}")
@@ -130,15 +152,16 @@ def handle_greeting(phone: str, sender_name: str):
     # Log to DB + file
     try:
         session_id = get_or_create_session(phone, sender_name)
+        # Log as Sales agent for consistent record even if it's a greeting
         log_conversation_turn(phone, sender_name, "[Greeting]", greeting_text,
-                              session_id=session_id)
-        log_event(phone, "greeting_sent", {"buttons": [b["id"] for b in GREETING_BUTTONS]},
+                              session_id=session_id, agent_used="sales")
+        log_event(phone, action_type, {"buttons": [b["id"] for b in buttons]},
                   session_id=session_id)
     except Exception as e:
-        print(f"   \u26a0\ufe0f Logging error (non-fatal): {e}")
+        print(f"   ⚠️ Logging error (non-fatal): {e}")
 
-    print(f"   \ud83d\udc4b Greeting + interactive buttons sent to {phone}")
-    return jsonify({"status": "ok", "action": "greeting"}), 200
+    print(f"   👋 {action_type.capitalize()} + interactive buttons sent to {phone}")
+    return jsonify({"status": "ok", "action": action_type}), 200
 
 
 FALLBACK_EXAMPLES = [

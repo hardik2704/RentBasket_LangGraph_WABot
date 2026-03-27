@@ -204,7 +204,8 @@ def log_conversation_turn(
     Uses a single transaction for atomicity and efficiency.
     """
     # Always write to file too (as reliable backup)
-    file_logger.log_conversation_turn(phone_number, user_name, user_message, bot_response)
+    file_logger.log_conversation_turn(phone_number, user_name, user_message, bot_response,
+                                     agent_used=agent_used)
 
     if not is_db_available():
         return
