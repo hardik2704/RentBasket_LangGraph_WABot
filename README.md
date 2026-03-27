@@ -30,6 +30,9 @@ APP_ID=your_app_id
 APP_SECRET=your_app_secret
 VERSION=v23.0
 VERIFY_TOKEN=12345  # Your custom verify token for webhook
+
+# Firebase Configuration (Paste the entire Service Account JSON string)
+FIREBASE_CONFIG='{"type": "service_account", "project_id": "...", ...}'
 ```
 
 ### 3. Run the Bot
@@ -134,11 +137,13 @@ RentBasket_LangGraph_WABot/
 │   ├── client.py            # Handles sending text, buttons, and list messages
 │   └── indicators.py        # Typing & read receipt simulations
 ├── 📝 utils/                # Shared helpers
-│   ├── db_logger.py         # Advanced logging to PostgreSQL/Supabase
+│   ├── firebase_client.py   # [NEW] Firestore initialization & SDK wrapper
+│   ├── db_logger.py         # [UPDATED] Advanced logging to Google Firestore
 │   └── logger.py            # Local file-based logging for debugging
 ├── 📜 scripts/              # Dev & ops automation
-│   ├── final_sync.py        # Final production log synchronization
-│   └── setup_db.py          # Database schema initialization
+│   ├── pull_analytics.py    # [UPDATED] Pulls pilot metrics from Firestore
+│   ├── seed_customers.py    # [UPDATED] Populates Firestore with test data
+│   └── sync_logs.py         # Sync production file-based logs locally
 ├── 📦 data/                 # Static assets and knowledge base
 │   ├── products.py          # Product catalog definitions
 │   └── knowledge_base.py    # RAG source data for policies
@@ -183,38 +188,44 @@ RentBasket_LangGraph_WABot/
 | `APP_SECRET` | No | Meta App Secret |
 | `VERSION` | No | Graph API version (default: v23.0) |
 | `VERIFY_TOKEN` | No | Webhook verification token (default: 12345) |
-| `DATABASE_URL` | No** | PostgreSQL connection string (Supabase) |
+| `FIREBASE_CONFIG` | Yes** | Full Service Account JSON string for Firestore |
 
 *Required for WhatsApp integration
-**If not set, falls back to file-based logging
+**If not set, falls back to local file-based logging
 
 ---
 
-## 📊 Logs
+## 📊 Logs & Persistence
 
-Conversation logs are stored in **PostgreSQL (Supabase)** for persistence and analytics, with automatic file-based fallback.
+Conversation logs are stored in **Google Firebase (Firestore)** for high-availability persistence and support analytics, with automatic file-based fallback.
 
-### 🗄️ Database Setup (Recommended)
+### 🔥 Firebase/Firestore Setup (Recommended)
 
-1. Create a free project at [supabase.com](https://supabase.com)
-2. Copy `DATABASE_URL` from **Settings → Database → Connection string (URI)**
-3. Add to `.env`:
-   ```env
-   DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.YOUR_PROJECT.supabase.co:5432/postgres
-   ```
-4. Run the setup script:
-   ```bash
-   python scripts/setup_db.py
-   ```
-5. Add `DATABASE_URL` to Render environment variables and redeploy.
+1. **Create Firebase Project**:
+   - Go to [Firebase Console](https://console.firebase.google.com/) and create a new project.
+   - Enable **Cloud Firestore** in test mode or production mode.
+2. **Generate Service Account**:
+   - Go to **Project Settings → Service Accounts**.
+   - Click **Generate New Private Key**.
+3. **Environment Configuration**:
+   - Add the **Entire JSON content** of the downloaded file to your `.env` or Render environment:
+     ```env
+     FIREBASE_CONFIG='{"type": "service_account", "project_id": "...", ...}'
+     ```
+4. **Seed Test Data**:
+   - Run the seeding script to populate your new database:
+     ```bash
+     python3 scripts/seed_customers.py
+     ```
 
-**What gets stored:**
-| Table | Contents |
-|---|---|
-| `sessions` | Session lifecycle, pincode, items, duration, agent, stage |
-| `messages` | Every user↔bot message with intent, agent, tools used |
-| `analytics_events` | Pricing negotiations, handoffs, button presses |
-| `customers` | Core customer profiles (name, email, phone, location, rented items history) |
+### 🗂️ Firestore Schema Structure
+| Collection | Description | Evolvability |
+| :--- | :--- | :--- |
+| `sessions` | Session lifecycle & parent metadata | Snapshot of latest user state |
+| `sessions/{id}/messages` | Full audit trail (Sub-collection) | Real-time chat history stream |
+| `analytics` | Business events (negotiations, handoffs) | Event-driven pilot metrics |
+| `customers` | Core profiles indexed by Phone | Integrated CRM-style lookups |
+| `tickets` | [NEW] Support tickets for human ops | Operational dashboard fuel |
 
 ### 🔄 Syncing File Logs from Render
 File-based logs (`.txt`) continue to work as a backup. Sync them locally:
@@ -237,8 +248,7 @@ File-based logs (`.txt`) continue to work as a backup. Sync them locally:
 | Webhook verification fails | Ensure `VERIFY_TOKEN` matches Meta dashboard |
 | ngrok URL expired | Restart ngrok; update webhook URL in Meta |
 | No response on WhatsApp | Check webhook server logs; verify ngrok is running |
-| DB connection error | Check `DATABASE_URL` is correct; bot falls back to file logs |
-| `psycopg2` import error | Run `pip install psycopg2-binary` |
+| Firebase Init Error | Ensure `FIREBASE_CONFIG` is a valid JSON string |
 
 ---
 
