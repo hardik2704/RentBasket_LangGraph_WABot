@@ -411,12 +411,33 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
                 needs_human=new_state.get("needs_human"),
             )
             
-            # --- CUSTOM UX HANDLER FOR ANALYTICS ---
+            # --- ANALYTICS EVENTS ---
             workflow_stage = new_state.get("collected_info", {}).get("workflow_stage")
             if workflow_stage == "ticket_logged":
                 log_event(phone, "support_ticket_created", {"issue": new_state.get("support_context", {}).get("issue_type")}, session_id=session_id)
             elif workflow_stage == "escalated":
                 log_event(phone, "support_escalation", {"context": new_state.get("support_context", {})}, session_id=session_id)
+
+            # Lead stage transitions
+            prev_stage = state.get("collected_info", {}).get("_last_lead_stage")
+            new_lead_stage = new_state.get("collected_info", {}).get("_last_lead_stage")
+            # Check Firestore lead for actual stage (set by sync_lead_data_tool)
+            try:
+                from utils.firebase_client import get_lead
+                lead_doc = get_lead(normalized_phone)
+                if lead_doc:
+                    current_lead_stage = lead_doc.get("lead_stage")
+                    if current_lead_stage == "qualified" and prev_stage not in ("qualified", "cart_created", "reserved", "converted"):
+                        log_event(phone, "lead_qualified", {"stage": current_lead_stage}, session_id=session_id)
+                    elif current_lead_stage == "cart_created" and prev_stage not in ("cart_created", "reserved", "converted"):
+                        log_event(phone, "cart_created", {
+                            "cart": lead_doc.get("final_cart", []),
+                            "stage": current_lead_stage,
+                        }, session_id=session_id)
+                    # Persist observed stage into state for next turn comparison
+                    new_state["collected_info"]["_last_lead_stage"] = current_lead_stage
+            except Exception as _e:
+                pass  # Analytics failure must never affect bot response
 
             
             # Apply formatting
@@ -471,6 +492,41 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
                         )
                     continue
                 
+                # ── Cart Confirmation Buttons ──────────────────────────────
+                elif "[SEND_CART_BUTTONS]" in msg:
+                    # Send the cart text first, then send the action buttons separately
+                    cart_text = msg.replace("[SEND_CART_BUTTONS]", "").strip()
+                    if cart_text:
+                        whatsapp_client.send_text_message(phone, cart_text, preview_url=False)
+                        time.sleep(0.6)
+
+                    # Hot-lead detection → swap primary button + add footer
+                    try:
+                        from utils.firebase_client import is_hot_lead
+                        _hot = is_hot_lead(normalize_phone(phone))
+                    except Exception:
+                        _hot = False
+
+                    if _hot:
+                        primary_btn = {"id": "RESERVE_SETUP", "title": "🔥 Reserve Now"}
+                        cart_footer = "🎁 Free delivery locked in for you!"
+                    else:
+                        primary_btn = {"id": "RESERVE_SETUP", "title": "✅ Reserve Now"}
+                        cart_footer = None
+
+                    cart_action_buttons = [
+                        primary_btn,
+                        {"id": "MODIFY_CART",    "title": "✏️ Modify Cart"},
+                        {"id": "TALK_TO_EXPERT", "title": "👨‍💼 Talk to Expert"},
+                    ]
+                    whatsapp_client.send_interactive_buttons(
+                        to_phone=phone,
+                        body_text="What would you like to do? 👇",
+                        buttons=cart_action_buttons,
+                        footer=cart_footer,
+                    )
+                    continue
+
                 # Standard handoff handler
                 elif "[SEND_HANDOFF_BUTTONS]" in msg:
                     clean_msg = msg.replace("[SEND_HANDOFF_BUTTONS]", "").strip()
@@ -555,9 +611,16 @@ def handle_webhook():
         if message_type == "interactive" and interactive_response:
             return handle_interactive_response(phone, sender_name, interactive_response, message_id)
         
+        if not text and message_type in ("image", "video", "document", "audio"):
+            return handle_media_message(
+                phone, sender_name, message_type,
+                message_data.get("media_id"),
+                message_data.get("media_caption", ""),
+                message_id
+            )
+
         if not text:
-            # Skip non-text messages (images, audio, etc.)
-            print("   ⚠️ Skipping non-text message")
+            print("   ⚠️ Skipping unsupported message type")
             return jsonify({"status": "non_text_message"}), 200
             
         # 2. START BACKGROUND PROCESSING
@@ -755,13 +818,90 @@ Example message:
             # Handle List Selection -> Route back to Agent as Text
             category_text = button_title
             print(f"   📋 List item selected: {category_text}. Routing to agent.")
-            
+
             thread = threading.Thread(
                 target=process_webhook_async,
                 args=(phone, category_text, sender_name, message_id, "text", None)
             )
             thread.start()
             return jsonify({"status": "ok", "action": "list_route_to_agent"}), 200
+
+        # ── Cart Confirmation Buttons ──────────────────────────────────────────
+
+        elif button_id == "RESERVE_SETUP":
+            # ✅ / 🔥  Primary CTA — close the deal
+            normalized = normalize_phone(phone)
+            try:
+                from utils.firebase_client import upsert_lead
+                upsert_lead(normalized, {
+                    "lead_stage": "reserved",
+                    "conversion_intent": "high",
+                })
+            except Exception as e:
+                print(f"   ⚠️ Lead update failed (non-fatal): {e}")
+
+            session_id = get_or_create_session(phone, sender_name)
+            log_event(phone, "cart_reserved", {"button": button_id}, session_id=session_id)
+
+            response = (
+                f"🎉 *Your setup is reserved!*\n\n"
+                f"Our team will call you within *2 hours* to confirm delivery. 🚚\n\n"
+                f"📞 Need it faster? Call us directly:\n"
+                f"• Gurgaon: {SALES_PHONE_GURGAON}\n"
+                f"• Noida: {SALES_PHONE_NOIDA}\n\n"
+                f"📅 What is your preferred delivery date?"
+            )
+            whatsapp_client.send_text_message(phone, response)
+            print(f"   ✅ Lead reserved for {phone}")
+            return jsonify({"status": "ok", "action": "reserved"}), 200
+
+        elif button_id == "MODIFY_CART":
+            # ✏️  Handle objections — keep the lead warm
+            normalized = normalize_phone(phone)
+            try:
+                from utils.firebase_client import upsert_lead
+                upsert_lead(normalized, {"lead_stage": "cart_modification"})
+            except Exception as e:
+                print(f"   ⚠️ Lead update failed (non-fatal): {e}")
+
+            print(f"   ✏️ Cart modification requested by {phone}. Routing to sales agent.")
+            thread = threading.Thread(
+                target=process_webhook_async,
+                args=(
+                    phone,
+                    "I want to modify my cart. What are my options?",
+                    sender_name, message_id, "text", None,
+                )
+            )
+            thread.start()
+            return jsonify({"status": "ok", "action": "cart_modification"}), 200
+
+        elif button_id == "TALK_TO_EXPERT":
+            # 👨‍💼  High-intent human handoff
+            normalized = normalize_phone(phone)
+            try:
+                from utils.firebase_client import upsert_lead
+                upsert_lead(normalized, {
+                    "lead_stage": "sales_handoff",
+                    "human_handover": True,
+                })
+            except Exception as e:
+                print(f"   ⚠️ Lead update failed (non-fatal): {e}")
+
+            session_id = get_or_create_session(phone, sender_name)
+            log_event(phone, "expert_requested", {"phone": normalized}, session_id=session_id)
+
+            response = (
+                f"👨‍💼 *Connecting you to a sales expert!*\n\n"
+                f"Our specialist will reach out within *30 minutes*. 🤝\n\n"
+                f"Your cart is saved — they'll have all your details already. ✅\n\n"
+                f"For urgent queries:\n"
+                f"• Gurgaon: {SALES_PHONE_GURGAON}\n"
+                f"• Noida: {SALES_PHONE_NOIDA}"
+            )
+            whatsapp_client.send_text_message(phone, response)
+            print(f"   👨‍💼 Expert requested for {phone}")
+            return jsonify({"status": "ok", "action": "expert_requested"}), 200
 
         else:
             response = "I received your selection. How can I help you further?"
@@ -771,6 +911,78 @@ Example message:
     except Exception as e:
         print(f"   ⚠️ Error handling interactive response: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+def handle_media_message(phone: str, sender_name: str, media_type: str, media_id: str, caption: str, message_id: str):
+    """
+    Handle incoming media (image, video, document, audio).
+    - Acknowledges receipt immediately.
+    - Tags media_id to the active session and lead/ticket in Firestore.
+    - Routes based on customer status:
+        * active_customer  → likely support evidence; attach to ticket context.
+        * lead / unknown   → likely a room photo or product inquiry; pass to sales flow.
+    """
+    print(f"   📎 Media received: type={media_type}, id={media_id}, caption={caption!r}")
+
+    normalized_phone = normalize_phone(phone)
+    session_id = get_or_create_session(phone, sender_name)
+
+    # Acknowledge receipt
+    type_label = {"image": "photo 📷", "video": "video 🎥", "document": "document 📄", "audio": "voice message 🎙️"}.get(media_type, "file 📎")
+    ack_text = f"Got your {type_label}! I've noted it on your case."
+
+    # Look up customer status from in-memory state
+    with conversations_lock:
+        state = conversations.get(phone)
+    customer_status = (state or {}).get("collected_info", {}).get("customer_status", "unknown")
+
+    if customer_status in ("active_customer", "past_customer"):
+        # Attach to support ticket context
+        ack_text = (
+            f"Got your {type_label}! 📎\n"
+            f"I've attached it to your support case. Our team will review it shortly.\n\n"
+            f"Is there anything else you'd like to describe about the issue?"
+        )
+        # Log media reference in Firestore ticket context via analytics
+        log_event(phone, "media_received", {
+            "media_type": media_type,
+            "media_id": media_id,
+            "caption": caption,
+            "context": "support_evidence",
+        }, session_id=session_id)
+    else:
+        # Lead / unknown — treat as room photo or product reference
+        ack_text = (
+            f"Thanks for sharing that {type_label}! 😊\n"
+            f"I'll use this to help find the best options for you.\n\n"
+            f"Could you tell me a bit more about what you're looking for?"
+        )
+        log_event(phone, "media_received", {
+            "media_type": media_type,
+            "media_id": media_id,
+            "caption": caption,
+            "context": "sales_inquiry",
+        }, session_id=session_id)
+
+        # Update lead with media flag
+        try:
+            from utils.firebase_client import upsert_lead
+            upsert_lead(normalized_phone, {"has_media": True, "media_ref": media_id})
+        except Exception as e:
+            print(f"   ⚠️ Lead media update failed (non-fatal): {e}")
+
+    # Log to conversation
+    log_conversation_turn(
+        phone, sender_name,
+        f"[{media_type.upper()} id={media_id} caption={caption!r}]",
+        ack_text,
+        session_id=session_id,
+        agent_used="media_handler",
+    )
+
+    whatsapp_client.send_text_message(phone, ack_text)
+    print(f"   ✅ Media acknowledged for {phone}")
+    return jsonify({"status": "ok", "action": "media_handled"}), 200
 
 
 def handle_fallback(phone: str, sender_name: str):
@@ -832,6 +1044,9 @@ def parse_whatsapp_webhook(payload: dict) -> dict:
         reaction = None
         context_id = message.get("context", {}).get("id")
         
+        media_id = None
+        media_caption = None
+
         if msg_type == "text":
             text = message.get("text", {}).get("body")
         elif msg_type == "interactive":
@@ -839,7 +1054,13 @@ def parse_whatsapp_webhook(payload: dict) -> dict:
         elif msg_type == "reaction":
             reaction = message.get("reaction", {})
             text = f"[Reaction: {reaction.get('emoji')}]"
-        
+        elif msg_type in ("image", "video", "document", "audio"):
+            media_obj = message.get(msg_type, {})
+            media_id = media_obj.get("id")
+            media_caption = media_obj.get("caption", "")
+            # Use caption as text if provided, else a placeholder
+            text = media_caption if media_caption else f"[{msg_type.capitalize()} received]"
+
         return {
             "message_id": message.get("id"),
             "from_phone": message.get("from"),
@@ -849,7 +1070,9 @@ def parse_whatsapp_webhook(payload: dict) -> dict:
             "text": text,
             "interactive": interactive,
             "reaction": reaction,
-            "quoted_message_id": context_id
+            "quoted_message_id": context_id,
+            "media_id": media_id,
+            "media_caption": media_caption,
         }
         
     except Exception as e:

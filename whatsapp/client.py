@@ -292,6 +292,48 @@ class WhatsAppClient:
         return self._make_request("messages", payload)
 
 
+    def send_template_message(
+        self,
+        to_phone: str,
+        template_name: str,
+        language_code: str = "en",
+        components: list = None,
+    ) -> dict:
+        """
+        Send a pre-approved HSM (Highly Structured Message) template.
+        Required for bot-initiated messages outside the 24-hour reply window.
+
+        Args:
+            to_phone: Recipient phone number
+            template_name: Approved template name (e.g. "cart_reminder", "followup_day1")
+            language_code: Template language (default "en")
+            components: Optional list of header/body/button variable components
+
+        Returns:
+            API response dict
+        """
+        if self.demo_mode:
+            print(f"\n📤 [TEMPLATE] To: {to_phone}")
+            print(f"   Template: {template_name} ({language_code})")
+            if components:
+                print(f"   Components: {components}")
+            return {"success": True, "demo": True}
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": to_phone,
+            "type": "template",
+            "template": {
+                "name": template_name,
+                "language": {"code": language_code},
+            },
+        }
+        if components:
+            payload["template"]["components"] = components
+
+        return self._make_request("messages", payload)
+
+
 # Webhook handler for incoming messages
 def parse_webhook_payload(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
