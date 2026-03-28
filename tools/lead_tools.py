@@ -6,7 +6,7 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.firebase_client import upsert_lead
+from utils.firebase_client import upsert_lead, get_lead
 from utils.phone_utils import normalize_phone
 from data.products import apply_discount, calculate_rent, id_to_name
 
@@ -49,7 +49,23 @@ def sync_lead_data_tool(
 
     if phone: lead_data["phone"] = phone
     if delivery_location: lead_data["delivery_location"] = delivery_location
-    if product_preferences: lead_data["product_preferences"] = product_preferences
+
+    # Accumulate product_preferences (merge with existing, don't overwrite)
+    if product_preferences:
+        try:
+            normalized = normalize_phone(phone) if phone else phone
+            existing_lead = get_lead(normalized) if normalized else None
+            existing_prefs = existing_lead.get("product_preferences", []) if existing_lead else []
+            # Merge: add new prefs that aren't already tracked
+            existing_ids = {str(p.get("product_id", p.get("category", ""))) for p in existing_prefs}
+            for pref in product_preferences:
+                pref_key = str(pref.get("product_id", pref.get("category", "")))
+                if pref_key not in existing_ids:
+                    existing_prefs.append(pref)
+            lead_data["product_preferences"] = existing_prefs
+        except Exception:
+            lead_data["product_preferences"] = product_preferences
+
     if lead_stage: lead_data["lead_stage"] = lead_stage
     if conversation_summary: lead_data["conversation_summary"] = conversation_summary
     if budget_range: lead_data["budget_range"] = budget_range

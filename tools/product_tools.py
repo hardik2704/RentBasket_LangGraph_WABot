@@ -44,13 +44,18 @@ def search_products_tool(query: str, category: Optional[str] = None) -> str:
         if cat_key in category_to_id:
             products = get_products_by_category(cat_key)
             for p in products[:8]:  # Limit to 8 items
-                results.append(f"• {p['name']} (ID: {p['id']})")
-    
+                # Show 12-month discounted price as "Starting from"
+                orig_12mo = calculate_rent(p['id'], 12)
+                disc_12mo = apply_discount(orig_12mo) if orig_12mo else 0
+                results.append(f"• {p['name']} - Starting from ₹{disc_12mo:,}/mo (ID: {p['id']})")
+
     # Also search by name
     if query:
         name_results = search_products_by_name(query)
         for p in name_results[:8]:
-            item = f"• {p['name']} (ID: {p['id']})"
+            orig_12mo = calculate_rent(p['id'], 12)
+            disc_12mo = apply_discount(orig_12mo) if orig_12mo else 0
+            item = f"• {p['name']} - Starting from ₹{disc_12mo:,}/mo (ID: {p['id']})"
             if item not in results:
                 results.append(item)
     
@@ -92,14 +97,19 @@ def get_price_tool(product_id: int, duration: int = 6, unit: str = "months") -> 
     else:
         price_info = "Daily rates vary by tenure."
 
+    # Show 12-month discounted price as "Starting from" reference
+    orig_12mo = calculate_rent(product_id, 12)
+    disc_12mo = apply_discount(orig_12mo) if orig_12mo else 0
+
     return f"""
 *{product['name']}*
+Starting from ₹{disc_12mo:,}/mo (12-month plan, 30% discount applied)
 Rent for {duration} {unit}: {rent_display}
 
 {unit == "months" and "*Duration Options (30% Flat Discount applied):*" or ""}
 {price_info}
 
-*Note:* The *Upfront Deal* applies an additional *10% discount* when you pay the full amount in advance.
+*Note:* Pay upfront for an additional *10% discount* on top of the 30% flat discount.
 """
 
 
@@ -154,8 +164,10 @@ def create_quote_tool(product_ids: str, duration: int = 12, unit: str = "months"
     # ── One Time section ──────────────────────────────────
     transport = 400
     transport_disc = -400          # Free delivery promo
+    installation = 500
+    installation_disc = -500       # Free installation promo
     security = min(int(round(total_discounted * 2)), 15000)
-    net_first_month = security + net_monthly   # transport nets to 0
+    net_first_month = security + net_monthly   # transport + installation net to 0
 
     sep = "━━━━━━━━━━━━━━━━━━━━"
 
@@ -174,19 +186,21 @@ def create_quote_tool(product_ids: str, duration: int = 12, unit: str = "months"
 
         f"{sep}\n"
         f"*One Time Charges*\n"
-        f"Security Deposit   ₹{security:,} _(refundable)_\n"
-        f"Delivery           ₹{transport:,}\n"
-        f"Delivery Discount  -₹{abs(transport_disc):,}\n"
+        f"Security Deposit       ₹{security:,} _(refundable)_\n"
+        f"Delivery               ₹{transport:,}\n"
+        f"Delivery Discount      -₹{abs(transport_disc):,}\n"
+        f"Installation           ₹{installation:,}\n"
+        f"Installation Discount  -₹{abs(installation_disc):,}\n"
         f"*Net Payable (1st Month)   ₹{net_first_month:,}*\n\n"
 
         f"{sep}\n"
         f"You save *₹{total_savings:,}/month* x {duration} months = *₹{total_savings * duration:,}* on this cart!\n\n"
 
         f"*Terms & Conditions*\n"
-        f"• Products are in mint condition\n"
-        f"• Standard maintenance included\n"
-        f"• Free shipping & standard installation\n"
-        f"• Complete KYC before delivery\n\n"
+        f"- Products are in mint condition\n"
+        f"- Standard maintenance included\n"
+        f"- Free shipping & standard installation\n"
+        f"- Complete KYC before delivery\n\n"
 
         f"[SEND_CART_BUTTONS]"
     )
