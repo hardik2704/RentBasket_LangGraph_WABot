@@ -17,6 +17,7 @@ from agents.recommendation_agent import run_recommendation_agent
 from agents.support_agent import run_support_agent
 from tools.customer_tools import verify_customer_status
 from utils.phone_utils import normalize_phone
+from utils.firebase_client import upsert_lead, get_lead
 
 # ========================================
 # AGENT REGISTRY (plug-and-play)
@@ -197,6 +198,22 @@ def route_and_run(
                     state["collected_info"]["customer_status"] = "lead"
                 print(f"  👤 Status set to: {state['collected_info']['customer_status']}")
 
+                # --- LEAD TRACKING INTEGRATION ---
+                if state["collected_info"]["customer_status"] == "lead":
+                    # Check if lead exists, if not create 'new' lead
+                    existing_lead = get_lead(normalized)
+                    if not existing_lead:
+                        print(f"  🆕 Creating new lead for {normalized}")
+                        upsert_lead(normalized, {
+                            "name": state["collected_info"].get("customer_name") or "New Lead",
+                            "phone": normalized,
+                            "lead_stage": "new"
+                        })
+                    else:
+                        # Sync existing lead name into state if local state is empty
+                        if not state["collected_info"].get("customer_name") and existing_lead.get("name"):
+                            state["collected_info"]["customer_name"] = existing_lead["name"]
+
     # 2. INTENT CLASSIFICATION
     intent = classify_intent(user_message, state)
     current_agent = state.get("active_agent", DEFAULT_AGENT)
@@ -225,7 +242,11 @@ def route_and_run(
 
     # Principle C: Recommendation Query -> Recommendation Agent
     elif intent == "recommendation":
-        target_agent = "recommendation"
+        # Keep leads in the Sales Agent for consistent qualification
+        if status == "lead":
+            target_agent = "sales"
+        else:
+            target_agent = "recommendation"
 
     # Principle D: Pricing/Sales -> Sales Agent
     elif intent == "sales":

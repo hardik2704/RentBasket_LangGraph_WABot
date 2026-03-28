@@ -37,6 +37,7 @@ from utils.db_logger import (
     update_session,
     log_event,
 )
+from utils.firebase_client import upsert_lead, get_lead
 
 # ========================================
 # CONFIGURATION
@@ -157,6 +158,13 @@ def handle_greeting(phone: str, sender_name: str):
                               session_id=session_id, agent_used="sales")
         log_event(phone, action_type, {"buttons": [b["id"] for b in buttons]},
                   session_id=session_id)
+        
+        # --- LEAD TRACKING ---
+        upsert_lead(normalized_phone, {
+            "name": sender_name or "New Lead",
+            "phone": normalized_phone,
+            "lead_stage": "new"
+        })
     except Exception as e:
         print(f"   ⚠️ Logging error (non-fatal): {e}")
 

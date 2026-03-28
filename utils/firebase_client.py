@@ -90,3 +90,42 @@ def log_ticket(ticket_id: str, ticket_data: dict):
         **ticket_data,
         "updated_at": datetime.now(timezone.utc)
     }, merge=True)
+
+def upsert_lead(phone: str, lead_data: dict):
+    """
+    Save or update lead profile in the 'leads' collection.
+    Schema:
+    - name: string (Primary name)
+    - push_name: string (WhatsApp push name)
+    - extracted_name: string (Name mentioned in chat)
+    - phone: string
+    - delivery_location: {address, city, pincode}
+    - product_preferences: [{category, product_id}]
+    - final_cart: [{product_id, quantity, duration, final_price}]
+    - lead_stage: new | qualified | cart_created | reserved | converted
+    - updated_at: timestamp
+    """
+    db = get_db()
+    if not db: return
+    
+    # Ensure updated_at is always refreshed
+    data_to_save = {
+        **lead_data,
+        "updated_at": datetime.now(timezone.utc)
+    }
+    
+    # Set created_at if it's a new document
+    doc_ref = db.collection("leads").document(phone)
+    doc = doc_ref.get()
+    if not doc.exists:
+        data_to_save["created_at"] = datetime.now(timezone.utc)
+        data_to_save["lead_stage"] = lead_data.get("lead_stage", "new")
+    
+    doc_ref.set(data_to_save, merge=True)
+
+def get_lead(phone: str):
+    """Retrieve lead data from Firestore."""
+    db = get_db()
+    if not db: return None
+    doc = db.collection("leads").document(phone).get()
+    return doc.to_dict() if doc.exists else None
