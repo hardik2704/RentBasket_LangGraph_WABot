@@ -51,8 +51,9 @@ def log_session_msg(session_id: str, message_data: dict):
     """Logs a message into a session's sub-collection."""
     db = get_db()
     if not db: return
-    
+
     # Update main session metadata
+    session_ref = db.collection("sessions").document(session_id)
     ts = datetime.now(timezone.utc)
     sender_label = message_data.get("sender_name", "Unknown")
     msg_text = message_data.get("message", "")

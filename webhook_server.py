@@ -81,9 +81,13 @@ GREETING_BUTTONS = [
 ]
 
 # Words that count as a greeting (first message or re-greeting)
-GREETING_WORDS = {"hi", "hello", "hey", "hii", "hiii", "helo", "heloo", "helo", "helloo",
+GREETING_WORDS = {"hi", "hello", "hey", "hii", "hiii", "helo", "heloo", "helloo",
                   "namaste", "namaskar", "good morning", "good afternoon", "good evening",
-                  "hola", "yo", "sup", "start"}
+                  "hola", "yo", "sup", "start", "hai", "hlw", "hlo", "hy"}
+
+def is_greeting(text: str) -> bool:
+    """Return True if the message is a greeting word."""
+    return text.strip().lower() in GREETING_WORDS
 
 # ========================================
 # SPECIAL CUSTOMER HANDLER
