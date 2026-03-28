@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 load_dotenv()
 
-from config import BOT_NAME, SALES_PHONE_GURGAON, SALES_PHONE_NOIDA
+from config import BOT_NAME, SALES_PHONE_GURGAON, SALES_PHONE_NOIDA, KU_REFERRAL_LINK
 from agents.orchestrator import route_and_run
 from agents.state import create_initial_state
 from whatsapp.client import WhatsAppClient
@@ -932,7 +932,7 @@ Example message:
         # ── Cart Confirmation Buttons ──────────────────────────────────────────
 
         elif button_id == "RESERVE_SETUP":
-            # ✅ / 🔥  Primary CTA — close the deal
+            # Primary CTA — close the deal with referral discount
             normalized = normalize_phone(phone)
             try:
                 from utils.firebase_client import upsert_lead
@@ -941,21 +941,19 @@ Example message:
                     "conversion_intent": "high",
                 })
             except Exception as e:
-                print(f"   ⚠️ Lead update failed (non-fatal): {e}")
+                print(f"   Lead update failed (non-fatal): {e}")
 
-            session_id = get_or_create_session(phone, sender_name)
-            log_event(phone, "cart_reserved", {"button": button_id}, session_id=session_id)
+            session_id = get_or_create_session(normalized, sender_name)
+            log_event(normalized, "cart_reserved", {"button": button_id}, session_id=session_id)
 
             response = (
-                f"*Your setup is reserved!*\n\n"
-                f"Our team will call you within *2 hours* to confirm delivery.\n\n"
-                f"Need it faster? Call us directly:\n"
-                f"• Gurgaon: {SALES_PHONE_GURGAON}\n"
-                f"• Noida: {SALES_PHONE_NOIDA}\n\n"
-                f"What is your preferred delivery date?"
+                f"Since you completed the discussion with our Bot Ku, "
+                f"I want to give you an additional discount of 5%.\n\n"
+                f"You can proceed to create the cart and place the order here: "
+                f"{KU_REFERRAL_LINK}"
             )
-            whatsapp_client.send_text_message(phone, response)
-            print(f"   ✅ Lead reserved for {phone}")
+            whatsapp_client.send_text_message(phone, response, preview_url=True)
+            print(f"   Lead reserved for {phone}")
             return jsonify({"status": "ok", "action": "reserved"}), 200
 
         elif button_id == "MODIFY_CART":
