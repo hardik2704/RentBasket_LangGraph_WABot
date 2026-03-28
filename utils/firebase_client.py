@@ -107,22 +107,26 @@ def upsert_lead(phone: str, lead_data: dict):
     - updated_at: timestamp
     """
     db = get_db()
-    if not db: return
-    
-    # Ensure updated_at is always refreshed
-    data_to_save = {
-        **lead_data,
-        "updated_at": datetime.now(timezone.utc)
-    }
-    
-    # Set created_at if it's a new document
-    doc_ref = db.collection("leads").document(phone)
-    doc = doc_ref.get()
-    if not doc.exists:
-        data_to_save["created_at"] = datetime.now(timezone.utc)
-        data_to_save["lead_stage"] = lead_data.get("lead_stage", "new")
-    
-    doc_ref.set(data_to_save, merge=True)
+    if not db:
+        print(f"CRITICAL: Firebase not initialized -- lead {phone} NOT saved!")
+        return
+
+    try:
+        data_to_save = {
+            **lead_data,
+            "updated_at": datetime.now(timezone.utc)
+        }
+
+        doc_ref = db.collection("leads").document(phone)
+        doc = doc_ref.get()
+        if not doc.exists:
+            data_to_save["created_at"] = datetime.now(timezone.utc)
+            data_to_save["lead_stage"] = lead_data.get("lead_stage", "new")
+
+        doc_ref.set(data_to_save, merge=True)
+    except Exception as e:
+        print(f"CRITICAL: Failed to write lead {phone} to Firestore: {e}")
+        import traceback; traceback.print_exc()
 
 def get_lead(phone: str):
     """Retrieve lead data from Firestore."""

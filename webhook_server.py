@@ -83,7 +83,8 @@ GREETING_BUTTONS = [
 # Words that count as a greeting (first message or re-greeting)
 GREETING_WORDS = {"hi", "hello", "hey", "hii", "hiii", "helo", "heloo", "helloo",
                   "namaste", "namaskar", "good morning", "good afternoon", "good evening",
-                  "hola", "yo", "sup", "start", "hai", "hlw", "hlo", "hy"}
+                  "hola", "yo", "sup", "start", "hai", "hlw", "hlo", "hy",
+                  "ho", "hoo", "h", "ji", "hellow", "helo"}
 
 def is_greeting(text: str) -> bool:
     """Return True if the message is a greeting word."""
@@ -136,23 +137,27 @@ def handle_greeting(phone: str, sender_name: str):
         except Exception as e2:
             print(f"   \u274c Even plain text failed: {e2}")
 
-    # Log to DB + file
+    # --- LEAD TRACKING (independent — must not depend on session/logging) ---
     try:
-        session_id = get_or_create_session(phone, sender_name)
-        # Log as Sales agent for consistent record even if it's a greeting
-        log_conversation_turn(phone, sender_name, "[Greeting]", greeting_text,
-                              session_id=session_id, agent_used="sales")
-        log_event(phone, action_type, {"buttons": [b["id"] for b in buttons]},
-                  session_id=session_id)
-        
-        # --- LEAD TRACKING ---
         upsert_lead(normalized_phone, {
             "name": sender_name or "New Lead",
             "phone": normalized_phone,
+            "push_name": sender_name,
             "lead_stage": "new"
         })
     except Exception as e:
-        print(f"   ⚠️ Logging error (non-fatal): {e}")
+        print(f"   CRITICAL: Lead creation failed for {normalized_phone}: {e}")
+        import traceback; traceback.print_exc()
+
+    # Log to DB + file (non-critical — failures here must never block lead creation)
+    try:
+        session_id = get_or_create_session(normalized_phone, sender_name)
+        log_conversation_turn(normalized_phone, sender_name, "[Greeting]", greeting_text,
+                              session_id=session_id, agent_used="sales")
+        log_event(normalized_phone, action_type, {"buttons": [b["id"] for b in buttons]},
+                  session_id=session_id)
+    except Exception as e:
+        print(f"   Logging error (non-fatal): {e}")
 
     print(f"   👋 {action_type.capitalize()} + interactive buttons sent to {phone}")
     return jsonify({"status": "ok", "action": action_type}), 200
@@ -208,6 +213,18 @@ whatsapp_client = WhatsAppClient(
     access_token=ACCESS_TOKEN,
     demo_mode=False  # Real mode!
 )
+
+# Verify Firebase connectivity at startup
+try:
+    from utils.firebase_client import get_db as _startup_get_db
+    _fb_db = _startup_get_db()
+    if _fb_db:
+        print("Firebase: Connected")
+    else:
+        print("CRITICAL: Firebase NOT initialized -- leads will NOT be saved!")
+        print("   Check that FIREBASE_CONFIG environment variable is set correctly.")
+except Exception as e:
+    print(f"CRITICAL: Firebase startup check failed: {e}")
 
 
 @app.route("/", methods=["GET"])
@@ -360,12 +377,12 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
             with conversations_lock:
                 if phone not in conversations:
                     conversations[phone] = create_initial_state()
-                    start_new_session(phone, sender_name)
-                    print(f"   📝 New conversation started for {phone} (Normalized: {normalized_phone})")
+                    start_new_session(normalized_phone, sender_name)
+                    print(f"   New conversation started for {normalized_phone}")
                 state = conversations[phone]
             
-            # Get or create DB session
-            session_id = get_or_create_session(phone, sender_name)
+            # Get or create DB session (use normalized phone for consistency)
+            session_id = get_or_create_session(normalized_phone, sender_name)
             
             # Ensure customer name and phone are in state
             if sender_name and not state["collected_info"].get("customer_name"):
@@ -373,7 +390,20 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
             
             # Always use normalized phone for state consistency
             state["collected_info"]["phone"] = normalized_phone
-            
+
+            # --- EARLY LEAD CREATION (safety net — runs before agent processing) ---
+            try:
+                if not get_lead(normalized_phone):
+                    upsert_lead(normalized_phone, {
+                        "name": sender_name or "New Lead",
+                        "phone": normalized_phone,
+                        "push_name": sender_name,
+                        "lead_stage": "new"
+                    })
+                    print(f"   Lead created for {normalized_phone}")
+            except Exception as e:
+                print(f"   CRITICAL: Early lead creation failed for {normalized_phone}: {e}")
+
             # Capture Session Cache Facts
             is_frustrated = any(kw in text.lower() for kw in ["angry", "bad", "worst", "slow", "pathetic", "help", "not working"])
             has_media = message_type in ("image", "video", "document")
@@ -426,9 +456,9 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
             # --- ANALYTICS EVENTS ---
             workflow_stage = new_state.get("collected_info", {}).get("workflow_stage")
             if workflow_stage == "ticket_logged":
-                log_event(phone, "support_ticket_created", {"issue": new_state.get("support_context", {}).get("issue_type")}, session_id=session_id)
+                log_event(normalized_phone, "support_ticket_created", {"issue": new_state.get("support_context", {}).get("issue_type")}, session_id=session_id)
             elif workflow_stage == "escalated":
-                log_event(phone, "support_escalation", {"context": new_state.get("support_context", {})}, session_id=session_id)
+                log_event(normalized_phone, "support_escalation", {"context": new_state.get("support_context", {})}, session_id=session_id)
 
             # Lead stage transitions
             prev_stage = state.get("collected_info", {}).get("_last_lead_stage")
@@ -440,9 +470,9 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
                 if lead_doc:
                     current_lead_stage = lead_doc.get("lead_stage")
                     if current_lead_stage == "qualified" and prev_stage not in ("qualified", "cart_created", "reserved", "converted"):
-                        log_event(phone, "lead_qualified", {"stage": current_lead_stage}, session_id=session_id)
+                        log_event(normalized_phone, "lead_qualified", {"stage": current_lead_stage}, session_id=session_id)
                     elif current_lead_stage == "cart_created" and prev_stage not in ("cart_created", "reserved", "converted"):
-                        log_event(phone, "cart_created", {
+                        log_event(normalized_phone, "cart_created", {
                             "cart": lead_doc.get("final_cart", []),
                             "stage": current_lead_stage,
                         }, session_id=session_id)
@@ -561,7 +591,7 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
             # Log turn with metadata (DB + file)
             log_response = response.replace("|||", "\n")
             log_conversation_turn(
-                phone, sender_name, text, log_response,
+                normalized_phone, sender_name, text, log_response,
                 session_id=session_id,
                 agent_used=agent_used,
                 intent=intent,
