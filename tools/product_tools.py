@@ -106,24 +106,26 @@ Rent for {duration} {unit}: {rent_display}
 @tool
 def create_quote_tool(product_ids: str, duration: int = 12, unit: str = "months") -> str:
     """
-    Create a rental quote with 30% discount and 18% GST.
+    Create a full Order Confirmation-style rental quote with 30% discount and 18% GST.
+    Mirrors the RentBasket website Order Confirmation screen.
     Duplicate product IDs count as multiple units (e.g. "28,28" = 2x product 28).
+    Appends [SEND_CART_BUTTONS] at the end — the webhook renders Reserve / Modify / Expert buttons.
     """
     try:
         ids = [int(pid.strip()) for pid in product_ids.split(",")]
     except ValueError:
         return "Invalid IDs format."
 
-    # Count quantities by tallying duplicates
     from collections import Counter
     qty_map = Counter(pid for pid in ids if pid in id_to_name)
     if not qty_map:
         return "No valid products found."
 
-    line_items = []
+    order_lines = []
     total_original = 0
     total_discounted = 0
     total_savings = 0
+    unit_str = "/mo" if unit == "months" else ""
 
     for pid, qty in qty_map.items():
         orig_per_unit = calculate_rent(pid, duration, unit)
@@ -132,34 +134,64 @@ def create_quote_tool(product_ids: str, duration: int = 12, unit: str = "months"
         disc_per_unit = apply_discount(orig_per_unit)
         name = id_to_name[pid]
 
-        line_savings = (orig_per_unit - disc_per_unit) * qty
-        line_orig_total = orig_per_unit * qty
-        line_disc_total = disc_per_unit * qty
+        total_savings += (orig_per_unit - disc_per_unit) * qty
+        total_original += orig_per_unit * qty
+        total_discounted += disc_per_unit * qty
 
-        total_original += line_orig_total
-        total_discounted += line_disc_total
-        total_savings += line_savings
-
-        qty_prefix = f"{qty}x" if qty > 1 else "1x"
-        unit_str = "/mo" if unit == "months" else ""
-        line_items.append(
-            f"• {qty_prefix} {name} : ~₹{orig_per_unit:,}{unit_str}~ ₹{disc_per_unit:,}{unit_str} + GST"
+        qty_label = f"{qty}x" if qty > 1 else "1x"
+        order_lines.append(
+            f"• {qty_label} {name} ({duration} {unit})\n"
+            f"  ~₹{orig_per_unit:,}{unit_str}~ *₹{disc_per_unit:,}{unit_str}* + GST"
         )
 
-    if not line_items:
+    if not order_lines:
         return "No valid products found."
 
-    items_str = "\n".join(line_items)
-    security = min(int(round(total_discounted * 2)), 15000)
+    # ── Monthly Rent section ──────────────────────────────
+    gst = int(round(total_discounted * 0.18))
+    net_monthly = total_discounted + gst
 
-    return (
-        f"🛒 *Your Cart:*\n\n"
-        f"{items_str}\n\n"
-        f"💰 *Total: ₹{total_discounted:,}/month + GST*\n"
-        f"🎉 *Total Savings: ₹{total_savings:,}/month*\n\n"
-        f"🔒 Security Deposit: ₹{security:,} (refundable)\n"
-        f"✅ Free delivery, maintenance & returns."
+    # ── One Time section ──────────────────────────────────
+    transport = 400
+    transport_disc = -400          # Free delivery promo
+    security = min(int(round(total_discounted * 2)), 15000)
+    net_first_month = security + net_monthly   # transport nets to 0
+
+    sep = "━━━━━━━━━━━━━━━━━━━━"
+
+    cart_text = (
+        f"🛒 *Order Confirmation*\n"
+        f"{sep}\n\n"
+
+        f"📦 *Order Details*\n"
+        + "\n".join(order_lines) +
+
+        f"\n\n{sep}\n"
+        f"📅 *Monthly Rent*\n"
+        f"Rent          ₹{total_discounted:,}/mo\n"
+        f"GST (18%)     ₹{gst:,}/mo\n"
+        f"*Net Monthly  ₹{net_monthly:,}/mo*\n\n"
+
+        f"{sep}\n"
+        f"💳 *One Time Charges*\n"
+        f"Security Deposit   ₹{security:,} _(refundable)_\n"
+        f"Delivery           ₹{transport:,}\n"
+        f"Delivery Discount  -₹{abs(transport_disc):,}\n"
+        f"*Net Payable (1st Month)   ₹{net_first_month:,}*\n\n"
+
+        f"{sep}\n"
+        f"🎉 You save *₹{total_savings:,}/month* on this cart!\n\n"
+
+        f"📋 *Terms & Conditions*\n"
+        f"• Products are in mint condition\n"
+        f"• Standard maintenance included\n"
+        f"• Free shipping & standard installation\n"
+        f"• Complete KYC before delivery\n\n"
+
+        f"[SEND_CART_BUTTONS]"
     )
+
+    return cart_text
 
 
 @tool 

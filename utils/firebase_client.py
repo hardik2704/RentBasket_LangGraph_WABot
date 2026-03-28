@@ -129,3 +129,34 @@ def get_lead(phone: str):
     if not db: return None
     doc = db.collection("leads").document(phone).get()
     return doc.to_dict() if doc.exists else None
+
+
+def is_hot_lead(phone: str) -> bool:
+    """
+    A lead is 'hot' (🔥) when:
+      - lead_stage is 'cart_created', 'qualified', or 'browsing'
+      - last_message_timestamp was within the past 2 hours
+
+    Used to dynamically swap the primary cart button to
+    '🔥 Reserve Now' and show a free-delivery footer.
+    """
+    db = get_db()
+    if not db:
+        return False
+    try:
+        doc = db.collection("leads").document(phone).get()
+        if not doc.exists:
+            return False
+        data = doc.to_dict()
+        stage = data.get("lead_stage", "new")
+        if stage not in ("cart_created", "qualified", "browsing"):
+            return False
+        last_ts = data.get("last_message_timestamp")
+        if not last_ts:
+            return False
+        # Normalise to UTC-aware datetime
+        if hasattr(last_ts, "tzinfo") and last_ts.tzinfo is None:
+            last_ts = last_ts.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - last_ts).total_seconds() <= 7200  # 2 hours
+    except Exception:
+        return False

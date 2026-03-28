@@ -492,6 +492,41 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
                         )
                     continue
                 
+                # ── Cart Confirmation Buttons ──────────────────────────────
+                elif "[SEND_CART_BUTTONS]" in msg:
+                    # Send the cart text first, then send the action buttons separately
+                    cart_text = msg.replace("[SEND_CART_BUTTONS]", "").strip()
+                    if cart_text:
+                        whatsapp_client.send_text_message(phone, cart_text, preview_url=False)
+                        time.sleep(0.6)
+
+                    # Hot-lead detection → swap primary button + add footer
+                    try:
+                        from utils.firebase_client import is_hot_lead
+                        _hot = is_hot_lead(normalize_phone(phone))
+                    except Exception:
+                        _hot = False
+
+                    if _hot:
+                        primary_btn = {"id": "RESERVE_SETUP", "title": "🔥 Reserve Now"}
+                        cart_footer = "🎁 Free delivery locked in for you!"
+                    else:
+                        primary_btn = {"id": "RESERVE_SETUP", "title": "✅ Reserve Now"}
+                        cart_footer = None
+
+                    cart_action_buttons = [
+                        primary_btn,
+                        {"id": "MODIFY_CART",    "title": "✏️ Modify Cart"},
+                        {"id": "TALK_TO_EXPERT", "title": "👨‍💼 Talk to Expert"},
+                    ]
+                    whatsapp_client.send_interactive_buttons(
+                        to_phone=phone,
+                        body_text="What would you like to do? 👇",
+                        buttons=cart_action_buttons,
+                        footer=cart_footer,
+                    )
+                    continue
+
                 # Standard handoff handler
                 elif "[SEND_HANDOFF_BUTTONS]" in msg:
                     clean_msg = msg.replace("[SEND_HANDOFF_BUTTONS]", "").strip()
@@ -783,13 +818,90 @@ Example message:
             # Handle List Selection -> Route back to Agent as Text
             category_text = button_title
             print(f"   📋 List item selected: {category_text}. Routing to agent.")
-            
+
             thread = threading.Thread(
                 target=process_webhook_async,
                 args=(phone, category_text, sender_name, message_id, "text", None)
             )
             thread.start()
             return jsonify({"status": "ok", "action": "list_route_to_agent"}), 200
+
+        # ── Cart Confirmation Buttons ──────────────────────────────────────────
+
+        elif button_id == "RESERVE_SETUP":
+            # ✅ / 🔥  Primary CTA — close the deal
+            normalized = normalize_phone(phone)
+            try:
+                from utils.firebase_client import upsert_lead
+                upsert_lead(normalized, {
+                    "lead_stage": "reserved",
+                    "conversion_intent": "high",
+                })
+            except Exception as e:
+                print(f"   ⚠️ Lead update failed (non-fatal): {e}")
+
+            session_id = get_or_create_session(phone, sender_name)
+            log_event(phone, "cart_reserved", {"button": button_id}, session_id=session_id)
+
+            response = (
+                f"🎉 *Your setup is reserved!*\n\n"
+                f"Our team will call you within *2 hours* to confirm delivery. 🚚\n\n"
+                f"📞 Need it faster? Call us directly:\n"
+                f"• Gurgaon: {SALES_PHONE_GURGAON}\n"
+                f"• Noida: {SALES_PHONE_NOIDA}\n\n"
+                f"📅 What is your preferred delivery date?"
+            )
+            whatsapp_client.send_text_message(phone, response)
+            print(f"   ✅ Lead reserved for {phone}")
+            return jsonify({"status": "ok", "action": "reserved"}), 200
+
+        elif button_id == "MODIFY_CART":
+            # ✏️  Handle objections — keep the lead warm
+            normalized = normalize_phone(phone)
+            try:
+                from utils.firebase_client import upsert_lead
+                upsert_lead(normalized, {"lead_stage": "cart_modification"})
+            except Exception as e:
+                print(f"   ⚠️ Lead update failed (non-fatal): {e}")
+
+            print(f"   ✏️ Cart modification requested by {phone}. Routing to sales agent.")
+            thread = threading.Thread(
+                target=process_webhook_async,
+                args=(
+                    phone,
+                    "I want to modify my cart. What are my options?",
+                    sender_name, message_id, "text", None,
+                )
+            )
+            thread.start()
+            return jsonify({"status": "ok", "action": "cart_modification"}), 200
+
+        elif button_id == "TALK_TO_EXPERT":
+            # 👨‍💼  High-intent human handoff
+            normalized = normalize_phone(phone)
+            try:
+                from utils.firebase_client import upsert_lead
+                upsert_lead(normalized, {
+                    "lead_stage": "sales_handoff",
+                    "human_handover": True,
+                })
+            except Exception as e:
+                print(f"   ⚠️ Lead update failed (non-fatal): {e}")
+
+            session_id = get_or_create_session(phone, sender_name)
+            log_event(phone, "expert_requested", {"phone": normalized}, session_id=session_id)
+
+            response = (
+                f"👨‍💼 *Connecting you to a sales expert!*\n\n"
+                f"Our specialist will reach out within *30 minutes*. 🤝\n\n"
+                f"Your cart is saved — they'll have all your details already. ✅\n\n"
+                f"For urgent queries:\n"
+                f"• Gurgaon: {SALES_PHONE_GURGAON}\n"
+                f"• Noida: {SALES_PHONE_NOIDA}"
+            )
+            whatsapp_client.send_text_message(phone, response)
+            print(f"   👨‍💼 Expert requested for {phone}")
+            return jsonify({"status": "ok", "action": "expert_requested"}), 200
 
         else:
             response = "I received your selection. How can I help you further?"
