@@ -39,6 +39,47 @@ from utils.db_logger import (
 )
 from utils.firebase_client import upsert_lead, get_lead
 
+
+def restore_lead_to_state(normalized_phone: str, state: dict) -> dict:
+    """
+    Load persisted lead data from Firestore into the in-memory conversation state.
+    Called when a new conversation is created (server restart or re-greeting)
+    so the bot remembers duration, name, location, etc.
+    """
+    try:
+        lead = get_lead(normalized_phone)
+        if not lead:
+            return state
+
+        collected = state.get("collected_info", {})
+
+        # Restore duration (critical -- prevents re-asking)
+        if lead.get("duration_months") and not collected.get("duration_months"):
+            collected["duration_months"] = lead["duration_months"]
+
+        # Restore customer name
+        name = lead.get("extracted_name") or lead.get("name") or lead.get("push_name")
+        if name and not collected.get("customer_name"):
+            collected["customer_name"] = name
+
+        # Restore delivery location
+        loc = lead.get("delivery_location") or {}
+        if loc.get("pincode") and not collected.get("pincode"):
+            collected["pincode"] = loc["pincode"]
+        if loc.get("city") and not collected.get("city"):
+            collected["city"] = loc["city"]
+
+        # Restore phone
+        collected["phone"] = normalized_phone
+
+        state["collected_info"] = collected
+        print(f"   Restored lead data for {normalized_phone}: duration={collected.get('duration_months')}, name={collected.get('customer_name')}")
+    except Exception as e:
+        print(f"   Warning: Failed to restore lead data for {normalized_phone}: {e}")
+
+    return state
+
+
 # ========================================
 # CONFIGURATION
 # ========================================
@@ -139,15 +180,33 @@ def handle_greeting(phone: str, sender_name: str):
 
     # --- LEAD TRACKING (independent — must not depend on session/logging) ---
     try:
-        upsert_lead(normalized_phone, {
+        existing_lead = get_lead(normalized_phone)
+        lead_payload = {
             "name": sender_name or "New Lead",
             "phone": normalized_phone,
             "push_name": sender_name,
-            "lead_stage": "new"
-        })
+        }
+        # Only set lead_stage to "new" for genuinely new leads
+        # Don't overwrite advanced stages like "cart_created" or "qualified"
+        if not existing_lead:
+            lead_payload["lead_stage"] = "new"
+        upsert_lead(normalized_phone, lead_payload)
     except Exception as e:
         print(f"   CRITICAL: Lead creation failed for {normalized_phone}: {e}")
         import traceback; traceback.print_exc()
+
+    # --- RESTORE LEAD DATA INTO CONVERSATION STATE ---
+    # When user re-greets, restore their persisted data (duration, name, location)
+    try:
+        with conversations_lock:
+            if phone not in conversations:
+                conversations[phone] = create_initial_state()
+            conversations[phone] = restore_lead_to_state(normalized_phone, conversations[phone])
+            if sender_name:
+                conversations[phone]["collected_info"]["customer_name"] = sender_name
+            conversations[phone]["collected_info"]["phone"] = normalized_phone
+    except Exception as e:
+        print(f"   Warning: State restoration failed (non-fatal): {e}")
 
     # Log to DB + file (non-critical — failures here must never block lead creation)
     try:
@@ -159,7 +218,7 @@ def handle_greeting(phone: str, sender_name: str):
     except Exception as e:
         print(f"   Logging error (non-fatal): {e}")
 
-    print(f"   👋 {action_type.capitalize()} + interactive buttons sent to {phone}")
+    print(f"   Greeting + interactive buttons sent to {phone}")
     return jsonify({"status": "ok", "action": action_type}), 200
 
 
@@ -377,6 +436,8 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
             with conversations_lock:
                 if phone not in conversations:
                     conversations[phone] = create_initial_state()
+                    # Restore persisted lead data (duration, name, location) from Firestore
+                    conversations[phone] = restore_lead_to_state(normalized_phone, conversations[phone])
                     start_new_session(normalized_phone, sender_name)
                     print(f"   New conversation started for {normalized_phone}")
                 state = conversations[phone]

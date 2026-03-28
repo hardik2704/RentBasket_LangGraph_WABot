@@ -23,6 +23,7 @@ def sync_lead_data_tool(
     conversation_summary: Optional[str] = None,
     budget_range: Optional[Dict[str, Any]] = None,
     preferences_notes: Optional[str] = None,
+    duration_months: Optional[int] = None,
 ) -> str:
     """
     Update the lead data in Firestore 'leads' collection.
@@ -32,6 +33,7 @@ def sync_lead_data_tool(
                   e.g. {"min": 1000, "max": 3000}
     preferences_notes: free-text string of any stated preferences
                        e.g. "wants AC, prefers furnished, PG room, bachelor"
+    duration_months: rental duration in months (e.g. 4, 6, 12). Persist this whenever the customer states a duration.
     """
     lead_data = {
         "last_message_timestamp": datetime.now(timezone.utc)
@@ -52,6 +54,7 @@ def sync_lead_data_tool(
     if conversation_summary: lead_data["conversation_summary"] = conversation_summary
     if budget_range: lead_data["budget_range"] = budget_range
     if preferences_notes: lead_data["preferences_notes"] = preferences_notes
+    if duration_months: lead_data["duration_months"] = duration_months
     
     # Process final_cart with defaults
     if final_cart:

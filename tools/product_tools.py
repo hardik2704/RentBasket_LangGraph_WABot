@@ -180,7 +180,7 @@ def create_quote_tool(product_ids: str, duration: int = 12, unit: str = "months"
         f"*Net Payable (1st Month)   ₹{net_first_month:,}*\n\n"
 
         f"{sep}\n"
-        f"You save *₹{total_savings:,}/month* on this cart!\n\n"
+        f"You save *₹{total_savings:,}/month* x {duration} months = *₹{total_savings * duration:,}* on this cart!\n\n"
 
         f"*Terms & Conditions*\n"
         f"• Products are in mint condition\n"

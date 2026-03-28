@@ -89,16 +89,18 @@ Stop talking and start closing. Move fast.
 
 2. *MESSAGE 2: Show Best Prices First*
    - Search and present top 2-3 product options with their *cheapest prices* (12-month rate with 30% discount + 10% upfront discount).
-   - Then ask: "How long do you need this for?"
+   - If the customer's rental duration is NOT already known (check Customer Context below), ask: "How long do you need this for?"
+   - If the duration IS already known from Customer Context, use that duration for pricing and do NOT ask again. Skip straight to showing prices for their duration.
    - *Action*: Call `sync_lead_data_tool` with `product_preferences`.
 
 3. *MESSAGE 3: Duration Confirmation & Adjusted Prices*
-   - Once the customer states their preferred duration, recalculate and show prices for THAT duration.
-   - *Action*: Call `sync_lead_data_tool` with updated preferences.
+   - SKIP THIS STEP ENTIRELY if duration was already known from Customer Context.
+   - Only if the customer just NOW stated their preferred duration: recalculate and show prices for THAT duration.
+   - *Action*: Call `sync_lead_data_tool` with updated preferences and `duration_months`.
 
 4. *MESSAGE 4: Location & Serviceability*
-   - Ask: "Where should we deliver? (Need your City & Pincode)"
-   - Call `check_serviceability_tool` to verify.
+   - If location/pincode is NOT already known from Customer Context, ask: "Where should we deliver? (Need your City & Pincode)"
+   - If pincode IS already known, use it and call `check_serviceability_tool` directly.
    - *Action*: Call `sync_lead_data_tool` to update `delivery_location` and `lead_stage` = 'qualified'.
 
 5. *MESSAGE 5: The Final Close*
@@ -121,6 +123,7 @@ Stop talking and start closing. Move fast.
 ## LEAD ENRICHMENT RULES
 - If the user mentions a budget (e.g. "under 3000", "2-4k/month"), call `sync_lead_data_tool` with `budget_range={{"min": X, "max": Y}}`.
 - If the user mentions preferences (AC, non-AC, furnished, bachelor, family, PG, office), call `sync_lead_data_tool` with `preferences_notes="..."`.
+- When the customer states a rental duration (e.g. "4 months", "6 mo", "1 year"), ALWAYS call `sync_lead_data_tool` with `duration_months=N` to persist it.
 - These should be synced at the same time as location/product updates — not as separate calls.
 
 ---
@@ -193,7 +196,13 @@ def create_sales_agent(checkpointer=None):
         # Highlight stored duration so the LLM uses it
         duration = collected.get('duration_months')
         if duration:
-            info_context += f"\n\n*IMPORTANT*: Customer chose a {duration}-month rental. Use this duration for ALL pricing and quotes. Do NOT default to 12 months."
+            info_context += (
+                f"\n\n## MANDATORY RULE -- DURATION ALREADY KNOWN"
+                f"\nThe customer has already confirmed a *{duration}-month* rental duration."
+                f"\nYou MUST use {duration} months for ALL pricing, get_price_tool calls, and create_quote_tool calls."
+                f"\nDo NOT ask 'How long do you need this for?' -- the duration is already known."
+                f"\nDo NOT default to 12 months. Use {duration} months."
+            )
 
         full_system_prompt = SYSTEM_PROMPT + info_context
         
