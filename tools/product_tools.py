@@ -104,45 +104,62 @@ Rent for {duration} {unit}: {rent_display}
 
 
 @tool
-def create_quote_tool(product_ids: str, duration: int = 6, unit: str = "months") -> str:
+def create_quote_tool(product_ids: str, duration: int = 12, unit: str = "months") -> str:
     """
     Create a rental quote with 30% discount and 18% GST.
+    Duplicate product IDs count as multiple units (e.g. "28,28" = 2x product 28).
     """
     try:
         ids = [int(pid.strip()) for pid in product_ids.split(",")]
     except ValueError:
         return "Invalid IDs format."
-    
-    valid_ids = [pid for pid in ids if pid in id_to_name]
-    if not valid_ids:
+
+    # Count quantities by tallying duplicates
+    from collections import Counter
+    qty_map = Counter(pid for pid in ids if pid in id_to_name)
+    if not qty_map:
         return "No valid products found."
-    
-    quote = create_bundle_quote(valid_ids, duration, unit)
-    items_str = "\n".join([f"  • {item['product']}: {item['display_text']}" for item in quote['items']])
-    
-    upfront_total = apply_discount(quote['total_original'], upfront=True)
-    upfront_gst = int(round(upfront_total * 0.18))
-    upfront_grand = upfront_total + upfront_gst
-    
-    return f"""
-📋 **RENTAL QUOTE** ({duration} {unit})
 
-{items_str}
+    line_items = []
+    total_original = 0
+    total_discounted = 0
+    total_savings = 0
 
-━━━━━━━━━━━━━━━━━━
-**Subtotal: ₹{quote['total_discounted']:,}**
-**GST (18%): ₹{quote['gst_amount']:,}**
-**Total Monthly: ₹{quote['grand_total']:,}** {unit == "months" and "+GST" or ""}
-**Security Deposit: ₹{quote['security_deposit']:,}** (refundable)
-━━━━━━━━━━━━━━━━━━
+    for pid, qty in qty_map.items():
+        orig_per_unit = calculate_rent(pid, duration, unit)
+        if orig_per_unit is None:
+            continue
+        disc_per_unit = apply_discount(orig_per_unit)
+        name = id_to_name[pid]
 
-🔥 **PRO TIP: Pay Upfront & Save More!**
-Pay for the entire {duration} months upfront and get an additional **10% off**!
-Effective Monthly: ₹{upfront_total:,} +GST
-Grand Total: **₹{upfront_grand:,}** (inc. GST)
+        line_savings = (orig_per_unit - disc_per_unit) * qty
+        line_orig_total = orig_per_unit * qty
+        line_disc_total = disc_per_unit * qty
 
-✅ Free delivery, maintenance & returns.
-"""
+        total_original += line_orig_total
+        total_discounted += line_disc_total
+        total_savings += line_savings
+
+        qty_prefix = f"{qty}x" if qty > 1 else "1x"
+        unit_str = "/mo" if unit == "months" else ""
+        line_items.append(
+            f"• {qty_prefix} {name} : ~₹{orig_per_unit:,}{unit_str}~ ₹{disc_per_unit:,}{unit_str} + GST"
+        )
+
+    if not line_items:
+        return "No valid products found."
+
+    items_str = "\n".join(line_items)
+    security = min(int(round(total_discounted * 2)), 15000)
+
+    return (
+        f"🛒 *Your Cart:*\n\n"
+        f"{items_str}\n\n"
+        f"💰 *Total: ₹{total_discounted:,}/month + GST*\n"
+        f"🎉 *Total Savings: ₹{total_savings:,}/month*\n\n"
+        f"🔒 Security Deposit: ₹{security:,} (refundable)\n"
+        f"✅ Free delivery, maintenance & returns."
+    )
 
 
 @tool 

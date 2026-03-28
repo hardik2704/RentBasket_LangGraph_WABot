@@ -19,11 +19,18 @@ def sync_lead_data_tool(
     product_preferences: Optional[List[Dict[str, Any]]] = None,
     final_cart: Optional[List[Dict[str, Any]]] = None,
     lead_stage: Optional[str] = None,
-    conversation_summary: Optional[str] = None
+    conversation_summary: Optional[str] = None,
+    budget_range: Optional[Dict[str, Any]] = None,
+    preferences_notes: Optional[str] = None,
 ) -> str:
     """
     Update the lead data in Firestore 'leads' collection.
     Use this tool whenever the user provides new information (location, prefs, items).
+
+    budget_range: dict with optional keys 'min' and 'max' (monthly ₹ amounts).
+                  e.g. {"min": 1000, "max": 3000}
+    preferences_notes: free-text string of any stated preferences
+                       e.g. "wants AC, prefers furnished, PG room, bachelor"
     """
     lead_data = {
         "last_message_timestamp": datetime.now(timezone.utc)
@@ -42,6 +49,8 @@ def sync_lead_data_tool(
     if product_preferences: lead_data["product_preferences"] = product_preferences
     if lead_stage: lead_data["lead_stage"] = lead_stage
     if conversation_summary: lead_data["conversation_summary"] = conversation_summary
+    if budget_range: lead_data["budget_range"] = budget_range
+    if preferences_notes: lead_data["preferences_notes"] = preferences_notes
     
     # Process final_cart with defaults
     if final_cart:
