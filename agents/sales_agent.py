@@ -114,7 +114,7 @@ Stop talking and start closing. Use smart defaults to move fast.
 8. *request_human_handoff_tool* - Escalate if user is confused or stuck.
 
 ## 📋 LEAD ENRICHMENT RULES
-- If the user mentions a budget (e.g. "under ₹3000", "2-4k/month"), call `sync_lead_data_tool` with `budget_range={"min": X, "max": Y}`.
+- If the user mentions a budget (e.g. "under ₹3000", "2-4k/month"), call `sync_lead_data_tool` with `budget_range={{"min": X, "max": Y}}`.
 - If the user mentions preferences (AC, non-AC, furnished, bachelor, family, PG, office), call `sync_lead_data_tool` with `preferences_notes="..."`.
 - These should be synced at the same time as location/product updates — not as separate calls.
 
