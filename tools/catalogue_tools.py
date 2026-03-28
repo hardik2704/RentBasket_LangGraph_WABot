@@ -16,6 +16,8 @@ from data.products import (
     get_all_categories,
     get_product_by_id,
     calculate_rent,
+    apply_discount,
+    format_price_comparison,
     TRENDING_PRODUCTS,
 )
 
@@ -24,23 +26,28 @@ from data.products import (
 # PRICING HELPERS (display-only, never modifies original data)
 # ========================================
 
-UPFRONT_DISCOUNT = 0.10  # 10% discount for upfront 12-month payment
+UPFRONT_DISCOUNT = 0.30  # Flat 30% discount
 
 def _best_price(product_id: int) -> int:
     """
-    Calculate the best display price: 12-month rate minus 10% upfront discount.
-    This is display-only — original id_to_price is never modified.
+    Calculate the best display price: 30% flat + 10% additional upfront.
     """
     prices = id_to_price.get(product_id)
     if not prices:
         return 0
-    twelve_month_rate = prices[-1]  # Get the longest available duration rate (12m+ in new structure)
-    return round(twelve_month_rate * (1 - UPFRONT_DISCOUNT))
+    twelve_month_rate = prices[-1]
+    return apply_discount(twelve_month_rate, upfront=True)
 
 
-def _format_price(amount: int) -> str:
-    """Format price with rupee symbol and comma separation."""
-    return f"₹{amount:,}"
+def _format_price(amount: int, is_original: bool = False) -> str:
+    """Format price with rupee symbol. If amount is original, we just format it simply."""
+    if is_original:
+        return f"₹{amount:,}"
+    # This is a bit tricky since _format_price is used in many tools.
+    # We want the '~Old~ New Rs +GST' format.
+    # However, some tools only pass the NEW amount.
+    # To be safe, we'll try to find the original if only amount is given, or just show New Rs +GST.
+    return f"₹{amount:,} +GST"
 
 
 def _category_product_count(category: str) -> int:
@@ -132,14 +139,14 @@ def browse_category_tool(category: str) -> str:
     trending_id = TRENDING_PRODUCTS.get(cat_key)
     
     for p in products:
-        best = _best_price(p["id"])
         twelve_rate = p["prices"][-1]  # Get the longest duration (12m+) rate
+        price_display = format_price_comparison(twelve_rate, 12, "months")
         trending_badge = " 🔥 *Popular*" if p["id"] == trending_id else ""
         lines.append(f"  • *{p['name']}*{trending_badge}")
-        lines.append(f"    Starting Price: {_format_price(best)}/mo (12-month plan with upfront discount)")
+        lines.append(f"    Starting Price: {price_display} (12-month plan)")
         lines.append("")
     
-    lines.append(f"💡 *Starting prices* include a 10% upfront payment discount on the 12-month plan.")
+    lines.append(f"💡 *Starting prices* include a flat 30% discount on the 12-month plan.")
     lines.append(f"Want to compare any of these? Or check prices for a different duration?")
     
     return "\n".join(lines)
@@ -180,12 +187,10 @@ def compare_products_tool(product_ids: str, duration_months: int = 12) -> str:
     lines = [f"⚖️ *Product Comparison* ({duration_months}-month plan)\n"]
     
     for p in products:
-        rent = calculate_rent(p["id"], duration_months)
-        best = _best_price(p["id"])
+        orig_rent = calculate_rent(p["id"], duration_months)
+        price_display = format_price_comparison(orig_rent, duration_months)
         lines.append(f"┌─ *{p['name']}*")
-        lines.append(f"│  {duration_months}-month rate: {_format_price(rent)}/mo")
-        lines.append(f"│  Best price (12mo+upfront): {_format_price(best)}/mo")
-        lines.append(f"│  Total for 12mo upfront: {_format_price(best * 12)}")
+        lines.append(f"│  {duration_months}-month rate: {price_display}")
         lines.append(f"└────────────────")
         lines.append("")
     
@@ -203,11 +208,7 @@ def compare_products_tool(product_ids: str, duration_months: int = 12) -> str:
 
     # Show savings comparison
     if len(products) >= 2:
-        prices = [_best_price(p["id"]) for p in products]
-        cheapest = min(prices)
-        cheapest_name = products[prices.index(cheapest)]["name"]
-        lines.append(f"💰 *Best value*: {cheapest_name} at {_format_price(cheapest)}/mo")
-        lines.append(f"🏷️ Prices include *10% Upfront Payment Discount* on 12-month plan.")
+        lines.append(f"🏷️ Prices include a flat **30% Discount** across all items!")
     
     return "\n".join(lines)
 

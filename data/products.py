@@ -898,28 +898,75 @@ def format_product_for_display(product: Dict[str, Any], duration: int = 6) -> st
     return f"• {product['name']}: ₹{rent}/month ({duration}mo)"
 
 
+def apply_discount(original_price: int, discount_percent: int = 30, upfront: bool = False) -> int:
+    """
+    Apply global 30% discount first. 
+    If upfront=True, apply an ADDITIONAL 10% discount on the result.
+    Returns whole number (no decimals).
+    """
+    if not original_price:
+        return 0
+    # Tier 1: 30% Flat
+    multiplier = (100 - discount_percent) / 100
+    discounted = original_price * multiplier
+    
+    # Tier 2: 10% Upfront (additional)
+    if upfront:
+        discounted *= 0.90
+        
+    return int(round(discounted))
+
+
+def format_price_comparison(original_price: int, duration: int = 6, unit: str = "months") -> str:
+    """
+    Format price in the user-requested: ~Original~ Final Rs +GST format.
+    Includes the 'Best Price' (Upfront) for 12 months.
+    """
+    final_price = apply_discount(original_price)
+    unit_str = "/mo" if unit == "months" else ""
+    base_fmt = f"~₹{original_price:,}~ ₹{final_price:,}{unit_str} +GST"
+    
+    # If 12 months, also show the Upfront Price (additional 10% off)
+    if duration >= 12 and unit == "months":
+        upfront_price = apply_discount(original_price, upfront=True)
+        return f"{base_fmt}\n    🚀 *Upfront Deal: ₹{upfront_price:,}/mo +GST*"
+        
+    return base_fmt
+
+
 def create_bundle_quote(product_ids: List[int], duration: int, unit: str = "months") -> Dict[str, Any]:
-    """Create a quote for multiple products."""
+    """Create a quote for multiple products with 30% discount and 18% GST."""
     items = []
-    total_rent = 0
+    total_original = 0
+    total_discounted = 0
     
     for pid in product_ids:
         product = get_product_by_id(pid)
         if product:
-            rent = calculate_rent(pid, duration, unit)
+            orig_rent = calculate_rent(pid, duration, unit)
+            discounted_rent = apply_discount(orig_rent)
             items.append({
                 "product": product["name"],
-                "monthly_rent" if unit == "months" else "total_rent": rent
+                "original_rent": orig_rent,
+                "monthly_rent": discounted_rent, # Final discounted rent
+                "display_text": format_price_comparison(orig_rent, duration, unit)
             })
-            total_rent += rent
+            total_original += orig_rent
+            total_discounted += discounted_rent
     
-    # Estimate security (roughly 2x monthly rent, capped)
-    # For daily rentals, security might be different, but let's keep it simple for now or use a heuristic.
-    security = min(total_rent * 2, 15000)
+    # Calculate GST (18%)
+    gst_amount = int(round(total_discounted * 0.18))
+    grand_total = total_discounted + gst_amount
+    
+    # Estimate security (roughly 2x monthly rent, capped at 15k)
+    security = min(total_discounted * 2, 15000)
     
     return {
         "items": items,
-        "total_monthly_rent" if unit == "months" else "total_rent": total_rent,
+        "total_original": total_original,
+        "total_discounted": total_discounted,
+        "gst_amount": gst_amount,
+        "grand_total": grand_total,
         "security_deposit": security,
         "duration": duration,
         "unit": unit
