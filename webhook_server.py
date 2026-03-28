@@ -75,9 +75,9 @@ def is_pricing_negotiation(text: str) -> bool:
 # ========================================
 
 GREETING_BUTTONS = [
-    {"id": "BROWSE_FURNITURE",   "title": "🛋️ Browse Furniture"},
-    {"id": "BROWSE_APPLIANCES",  "title": "❄️ Browse Appliances"},
-    {"id": "COMPLETE_HOME_SETUP","title": "🏠 Set Up My Home"},
+    {"id": "BROWSE_FURNITURE",   "title": "Browse Furniture"},
+    {"id": "BROWSE_APPLIANCES",  "title": "Browse Appliances"},
+    {"id": "COMPLETE_HOME_SETUP","title": "Set Up My Home"},
 ]
 
 # Words that count as a greeting (first message or re-greeting)
