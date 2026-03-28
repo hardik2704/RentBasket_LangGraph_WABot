@@ -143,7 +143,7 @@ def browse_category_tool(category: str) -> str:
         price_display = format_price_comparison(twelve_rate, 12, "months")
         trending_badge = " 🔥 *Popular*" if p["id"] == trending_id else ""
         lines.append(f"  • *{p['name']}*{trending_badge}")
-        lines.append(f"    Starting Price: {price_display} (12-month plan)")
+        lines.append(f"    Starting from {price_display}")
         lines.append("")
     
     lines.append(f"💡 *Starting prices* include a flat 30% discount on the 12-month plan.")

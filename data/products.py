@@ -919,17 +919,18 @@ def apply_discount(original_price: int, discount_percent: int = 30, upfront: boo
 
 def format_price_comparison(original_price: int, duration: int = 6, unit: str = "months") -> str:
     """
-    Format price in the user-requested: ~Original~ Final Rs +GST format.
+    Format price in the user-requested: ₹~Original~ ₹Final/mo +GST format.
     Includes the 'Best Price' (Upfront) for 12 months.
     """
     final_price = apply_discount(original_price)
     unit_str = "/mo" if unit == "months" else ""
-    base_fmt = f"~₹{original_price:,}~ ₹{final_price:,}{unit_str} +GST"
+    # Format: ₹~1,119~ ₹783/mo +GST
+    base_fmt = f"₹~{original_price:,}~ ₹{final_price:,}{unit_str} +GST"
     
     # If 12 months, also show the Upfront Price (additional 10% off)
     if duration >= 12 and unit == "months":
         upfront_price = apply_discount(original_price, upfront=True)
-        return f"{base_fmt}\n    🚀 *Upfront Deal: ₹{upfront_price:,}/mo +GST*"
+        return f"{base_fmt}\n    🚀 Upfront Deal: ₹{upfront_price:,}/mo +GST (12-month plan)"
         
     return base_fmt
 
