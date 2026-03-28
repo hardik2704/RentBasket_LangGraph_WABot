@@ -143,3 +143,36 @@ Grand Total: **₹{upfront_grand:,}** (inc. GST)
 
 ✅ Free delivery, maintenance & returns.
 """
+
+
+@tool 
+def get_trending_products_tool(category: Optional[str] = None) -> str:
+    """
+    Get trending/recommended products for quick suggestions.
+    Use this for bundle deals or when customer wants recommendations.
+    
+    Args:
+        category: Optional category to get trending product for
+    
+    Returns:
+        List of trending products with prices
+    """
+    def _get_price_helper(pid, dur):
+        orig = calculate_rent(pid, dur)
+        return format_price_comparison(orig, dur)
+
+    if category and category.lower() in TRENDING_PRODUCTS:
+        pid = TRENDING_PRODUCTS[category.lower()]
+        product = get_product_by_id(pid)
+        rent_display = _get_price_helper(pid, 6)
+        return f"🔥 Trending in {category}: {product['name']} - {rent_display} (6mo)"
+    
+    # Return all trending products
+    results = ["🔥 **Trending Products:**\n"]
+    for cat, pid in TRENDING_PRODUCTS.items():
+        product = get_product_by_id(pid)
+        if product:
+            rent_display = _get_price_helper(pid, 6)
+            results.append(f"• {cat.title()}: {product['name']} - {rent_display} (6mo)")
+    
+    return "\n".join(results)
