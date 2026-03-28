@@ -89,18 +89,6 @@ GREETING_WORDS = {"hi", "hello", "hey", "hii", "hiii", "helo", "heloo", "helo", 
 # SPECIAL CUSTOMER HANDLER
 # ========================================
 
-SPECIAL_CUSTOMER_PHONE = "9958448249"
-
-SPECIAL_GREETING_BUTTONS = [
-    {"id": "SUP_TYPE_MAINTENANCE", "title": "Complaint"},
-    {"id": "SUP_TYPE_BILLING", "title": "Make Payment"},
-    {"id": "BROWSE_FURNITURE", "title": "Order products"}
-]
-
-def is_greeting(text: str) -> bool:
-    """Check if the incoming message is a greeting."""
-    return text.strip().lower().rstrip("!.,?") in GREETING_WORDS
-
 def handle_greeting(phone: str, sender_name: str):
     """
     Send the structured greeting message with interactive buttons.
@@ -108,27 +96,21 @@ def handle_greeting(phone: str, sender_name: str):
     """
     normalized_phone = normalize_phone(phone)
     
-    # Check if this is the special customer number
-    if normalized_phone == SPECIAL_CUSTOMER_PHONE:
-        greeting_text = "Welcome back, How can I help you? 😊"
-        buttons = SPECIAL_GREETING_BUTTONS
-        action_type = "special_greeting"
-    else:
-        # Use proper name if it looks real, otherwise generic
-        name = sender_name if sender_name and sender_name.strip() else "there"
+    # Use proper name if it looks real, otherwise generic
+    name = sender_name if sender_name and sender_name.strip() else "there"
 
-        greeting_text = (
-            f"Hi {name} 👋\n"
-            f"I'm Ku 🐢 from RentBasket, your personal rental assistant.\n"
-            f"\n"
-            f"We offer quality furniture and appliances on rent at affordable prices, "
-            f"powered by customer service which is best in the market.\n"
-            f"\n"
-            f"Check out our website for more details:\n"
-            f"https://rentbasket.com"
-        )
-        buttons = GREETING_BUTTONS
-        action_type = "greeting"
+    greeting_text = (
+        f"Hi {name} 👋\n"
+        f"I'm Ku 🐢 from RentBasket, your personal rental assistant.\n"
+        f"\n"
+        f"We offer quality furniture and appliances on rent at affordable prices, "
+        f"powered by customer service which is best in the market.\n"
+        f"\n"
+        f"Check out our website for more details:\n"
+        f"https://rentbasket.com"
+    )
+    buttons = GREETING_BUTTONS
+    action_type = "greeting"
 
     try:
         result = whatsapp_client.send_interactive_buttons(
