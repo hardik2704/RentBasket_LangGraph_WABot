@@ -75,15 +75,24 @@ def is_pricing_negotiation(text: str) -> bool:
 # ========================================
 
 GREETING_BUTTONS = [
-    {"id": "BROWSE_FURNITURE", "title": "Browse Furniture"},
-    {"id": "BROWSE_APPLIANCES", "title": "Browse Appliances"},
-    {"id": "COMPLETE_HOME_SETUP", "title": "Complete Home Setup"}
+    {"id": "BROWSE_FURNITURE",   "title": "🛋️ Browse Furniture"},
+    {"id": "BROWSE_APPLIANCES",  "title": "❄️ Browse Appliances"},
+    {"id": "COMPLETE_HOME_SETUP","title": "🏠 Set Up My Home"},
 ]
 
 # Words that count as a greeting (first message or re-greeting)
-GREETING_WORDS = {"hi", "hello", "hey", "hii", "hiii", "helo", "heloo", "helo", "helloo",
-                  "namaste", "namaskar", "good morning", "good afternoon", "good evening",
-                  "hola", "yo", "sup", "start"}
+GREETING_WORDS = {
+    "hi", "hello", "hey", "hii", "hiii", "helo", "heloo", "helloo",
+    "namaste", "namaskar", "good morning", "good afternoon", "good evening",
+    "hola", "yo", "sup", "start", "hai", "helo", "hlw", "hlo", "hy",
+}
+
+def is_greeting(text: str) -> bool:
+    """
+    Return True if the message is a plain greeting (no other intent).
+    Checks the full lowercased/stripped message against GREETING_WORDS.
+    """
+    return text.strip().lower() in GREETING_WORDS
 
 # ========================================
 # SPECIAL CUSTOMER HANDLER
@@ -100,14 +109,10 @@ def handle_greeting(phone: str, sender_name: str):
     name = sender_name if sender_name and sender_name.strip() else "there"
 
     greeting_text = (
-        f"Hi {name} 👋\n"
-        f"I'm Ku 🐢 from RentBasket, your personal rental assistant.\n"
-        f"\n"
-        f"We offer quality furniture and appliances on rent at affordable prices, "
-        f"powered by customer service which is best in the market.\n"
-        f"\n"
-        f"Check out our website for more details:\n"
-        f"https://rentbasket.com"
+        f"Hi {name} 👋, I am Ku from RentBasket - your Personal Digital Assistant.\n\n"
+        f"We offer Quality furniture and appliances on rent at affordable prices, "
+        f"powered by customer service which is best in the market.\n\n"
+        f"Check out our website for more details: https://rentbasket.com"
     )
     buttons = GREETING_BUTTONS
     action_type = "greeting"
@@ -761,56 +766,71 @@ Thank you for choosing RentBasket! 😊"""
             return jsonify({"status": "ok", "action": "route_to_agent"}), 200
             
         elif button_id == "BROWSE_FURNITURE":
-            # List Message for Furniture
+            # Persist category preference on lead
+            try:
+                upsert_lead(normalize_phone(phone), {
+                    "preferences_notes": "Interested in Furniture",
+                    "lead_stage": "browsing",
+                })
+            except Exception: pass
             sections = [{
                 "title": "Furniture Categories",
                 "rows": [
-                    {"id": "CAT_BEDS", "title": "Beds & Mattresses"},
-                    {"id": "CAT_SOFAS", "title": "Sofas"},
-                    {"id": "CAT_DINING", "title": "Dining Tables"},
-                    {"id": "CAT_WFH", "title": "Work From Home Setup"},
-                    {"id": "CAT_ALL_FURNITURE", "title": "View All Furniture"}
+                    {"id": "CAT_BEDS",          "title": "Beds & Mattresses"},
+                    {"id": "CAT_SOFAS",         "title": "Sofas"},
+                    {"id": "CAT_DINING",        "title": "Dining Tables"},
+                    {"id": "CAT_WFH",           "title": "Work From Home Setup"},
+                    {"id": "CAT_ALL_FURNITURE", "title": "View All Furniture"},
                 ]
             }]
             whatsapp_client.send_list_message(
                 to_phone=phone,
                 body_text="Great choice! 🛋️\nWhat type of furniture are you looking for?",
                 button_text="Select Category",
-                sections=sections
+                sections=sections,
             )
             return jsonify({"status": "ok", "action": "list_furniture"}), 200
 
         elif button_id == "BROWSE_APPLIANCES":
-            # List Message for Appliances
+            try:
+                upsert_lead(normalize_phone(phone), {
+                    "preferences_notes": "Interested in Appliances",
+                    "lead_stage": "browsing",
+                })
+            except Exception: pass
             sections = [{
                 "title": "Appliance Categories",
                 "rows": [
-                    {"id": "CAT_FRIDGE", "title": "Refrigerators"},
-                    {"id": "CAT_WASHING", "title": "Washing Machines"},
-                    {"id": "CAT_AC", "title": "Air Conditioners"},
-                    {"id": "CAT_RO", "title": "RO Water Purifiers"},
-                    {"id": "CAT_ALL_APPLIANCES", "title": "View All Appliances"}
+                    {"id": "CAT_FRIDGE",         "title": "Refrigerators"},
+                    {"id": "CAT_WASHING",        "title": "Washing Machines"},
+                    {"id": "CAT_AC",             "title": "Air Conditioners"},
+                    {"id": "CAT_RO",             "title": "RO Water Purifiers"},
+                    {"id": "CAT_ALL_APPLIANCES", "title": "View All Appliances"},
                 ]
             }]
             whatsapp_client.send_list_message(
                 to_phone=phone,
                 body_text="Perfect! ❄️\nWhich appliance do you need?",
                 button_text="Select Category",
-                sections=sections
+                sections=sections,
             )
             return jsonify({"status": "ok", "action": "list_appliances"}), 200
 
         elif button_id == "COMPLETE_HOME_SETUP":
-            response = """Nice! 🏡  
-I can help you set up a complete home in minutes.
-
-Please tell me:
-• City / Location
-• House Type (1RK / 1BHK / 2BHK)
-• Budget per month
-
-Example message:
-"1BHK setup under ₹3000" """
+            try:
+                upsert_lead(normalize_phone(phone), {
+                    "preferences_notes": "Wants complete home setup",
+                    "lead_stage": "browsing",
+                })
+            except Exception: pass
+            response = (
+                "Nice! 🏠 I can set up your entire home in minutes.\n\n"
+                "Just tell me:\n"
+                "• Your City & Pincode\n"
+                "• House type (1RK / 1BHK / 2BHK / 3BHK)\n"
+                "• Monthly budget\n\n"
+                "Example: _\"1BHK in Gurgaon 122001 under ₹3000\"_"
+            )
             whatsapp_client.send_text_message(phone, response)
             return jsonify({"status": "ok", "action": "complete_home_setup"}), 200
 
