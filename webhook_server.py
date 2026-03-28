@@ -104,8 +104,8 @@ def handle_greeting(phone: str, sender_name: str):
     name = sender_name if sender_name and sender_name.strip() else "there"
 
     greeting_text = (
-        f"Hi {name} 👋\n"
-        f"I'm Ku 🐢 from RentBasket, your personal rental assistant.\n"
+        f"Hi {name}\n"
+        f"I'm Ku from RentBasket, your personal rental assistant.\n"
         f"\n"
         f"We offer quality furniture and appliances on rent at affordable prices, "
         f"powered by customer service which is best in the market.\n"
@@ -393,6 +393,14 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
                 state["collected_info"]["pincode"] = pincode_match.group()
                 print(f"   📍 Pincode {state['collected_info']['pincode']} extracted")
 
+            # Duration extraction from incoming message
+            duration_match = re.search(r'(\d+)\s*(?:months?|mo\b)', text.lower())
+            if duration_match:
+                dur = int(duration_match.group(1))
+                if 1 <= dur <= 36:
+                    state["collected_info"]["duration_months"] = dur
+                    print(f"   📅 Duration {dur} months extracted")
+
             # Process message with the agent
             print(f"   🤖 Processing with {BOT_NAME}...")
             response, new_state = route_and_run(text, state)
@@ -512,20 +520,20 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
                         _hot = False
 
                     if _hot:
-                        primary_btn = {"id": "RESERVE_SETUP", "title": "🔥 Reserve Now"}
-                        cart_footer = "🎁 Free delivery locked in for you!"
+                        primary_btn = {"id": "RESERVE_SETUP", "title": "Reserve Now"}
+                        cart_footer = "Free delivery locked in for you!"
                     else:
-                        primary_btn = {"id": "RESERVE_SETUP", "title": "✅ Reserve Now"}
+                        primary_btn = {"id": "RESERVE_SETUP", "title": "Reserve Now"}
                         cart_footer = None
 
                     cart_action_buttons = [
                         primary_btn,
-                        {"id": "MODIFY_CART",    "title": "✏️ Modify Cart"},
-                        {"id": "TALK_TO_EXPERT", "title": "👨‍💼 Talk to Expert"},
+                        {"id": "MODIFY_CART",    "title": "Modify Cart"},
+                        {"id": "TALK_TO_EXPERT", "title": "Talk to Expert"},
                     ]
                     whatsapp_client.send_interactive_buttons(
                         to_phone=phone,
-                        body_text="What would you like to do? 👇",
+                        body_text="What would you like to do?",
                         buttons=cart_action_buttons,
                         footer=cart_footer,
                     )
@@ -535,8 +543,8 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
                 elif "[SEND_HANDOFF_BUTTONS]" in msg:
                     clean_msg = msg.replace("[SEND_HANDOFF_BUTTONS]", "").strip()
                     handoff_buttons = [
-                        {"id": "CALL_ME", "title": "📞 Call me"},
-                        {"id": "WHATSAPP", "title": "💬 Chat here"}
+                        {"id": "CALL_ME", "title": "Call me"},
+                        {"id": "WHATSAPP", "title": "Chat here"}
                     ]
                     whatsapp_client.send_interactive_buttons(
                         to_phone=phone,
@@ -679,15 +687,15 @@ def handle_pricing_negotiation(phone: str, sender_name: str, text: str, message_
         {"id": "TALK_TO_SALES", "title": "Talk to Sales"}
     ]
     
-    body_text = """I completely understand — let me help you find the absolute best value for your budget. 👍
+    body_text = """I completely understand — let me help you find the absolute best value for your budget.
 
 How would you like to proceed?"""
-    
+
     whatsapp_client.send_interactive_buttons(
         to_phone=phone,
         body_text=body_text,
         buttons=buttons,
-        header="💰 Best Price Request",
+        header="Best Price Request",
         footer=f"Sales: {SALES_PHONE_GURGAON}"
     )
     
@@ -722,7 +730,7 @@ def handle_interactive_response(phone: str, sender_name: str, interactive: dict,
         
         if button_id in ("TALK_TO_TEAM", "CALL_ME", "TALK_TO_SALES"):
             # Handle callback request
-            response = f"""📞 *Callback Confirmed!*
+            response = f"""*Callback Confirmed!*
 
 Our sales team will call you within *15 minutes* to discuss your requirements.
 
@@ -734,7 +742,7 @@ If urgent, call directly:
 • Gurgaon: {SALES_PHONE_GURGAON}
 • Noida: {SALES_PHONE_NOIDA}
 
-Thank you for choosing RentBasket! 😊"""
+Thank you for choosing RentBasket!"""
             whatsapp_client.send_text_message(phone, response)
             print(f"   📋 [Placeholder] Would create sales lead for {phone}")
             return jsonify({"status": "ok", "action": "callback_queued"}), 200
@@ -778,7 +786,7 @@ Thank you for choosing RentBasket! 😊"""
             }]
             whatsapp_client.send_list_message(
                 to_phone=phone,
-                body_text="Great choice! 🛋️\nWhat type of furniture are you looking for?",
+                body_text="Great choice!\nWhat type of furniture are you looking for?",
                 button_text="Select Category",
                 sections=sections
             )
@@ -798,14 +806,14 @@ Thank you for choosing RentBasket! 😊"""
             }]
             whatsapp_client.send_list_message(
                 to_phone=phone,
-                body_text="Perfect! ❄️\nWhich appliance do you need?",
+                body_text="Perfect!\nWhich appliance do you need?",
                 button_text="Select Category",
                 sections=sections
             )
             return jsonify({"status": "ok", "action": "list_appliances"}), 200
 
         elif button_id == "COMPLETE_HOME_SETUP":
-            response = """Nice! 🏡  
+            response = """Nice!
 I can help you set up a complete home in minutes.
 
 Please tell me:
@@ -820,8 +828,8 @@ Example message:
 
         elif button_id.startswith("CAT_"):
             # Handle List Selection -> Route back to Agent as Text
-            category_text = button_title
-            print(f"   📋 List item selected: {category_text}. Routing to agent.")
+            category_text = f"Show me {button_title} options with prices"
+            print(f"   📋 List item selected: {button_title}. Routing to agent.")
 
             thread = threading.Thread(
                 target=process_webhook_async,
@@ -848,12 +856,12 @@ Example message:
             log_event(phone, "cart_reserved", {"button": button_id}, session_id=session_id)
 
             response = (
-                f"🎉 *Your setup is reserved!*\n\n"
-                f"Our team will call you within *2 hours* to confirm delivery. 🚚\n\n"
-                f"📞 Need it faster? Call us directly:\n"
+                f"*Your setup is reserved!*\n\n"
+                f"Our team will call you within *2 hours* to confirm delivery.\n\n"
+                f"Need it faster? Call us directly:\n"
                 f"• Gurgaon: {SALES_PHONE_GURGAON}\n"
                 f"• Noida: {SALES_PHONE_NOIDA}\n\n"
-                f"📅 What is your preferred delivery date?"
+                f"What is your preferred delivery date?"
             )
             whatsapp_client.send_text_message(phone, response)
             print(f"   ✅ Lead reserved for {phone}")
@@ -896,9 +904,9 @@ Example message:
             log_event(phone, "expert_requested", {"phone": normalized}, session_id=session_id)
 
             response = (
-                f"👨‍💼 *Connecting you to a sales expert!*\n\n"
-                f"Our specialist will reach out within *30 minutes*. 🤝\n\n"
-                f"Your cart is saved — they'll have all your details already. ✅\n\n"
+                f"*Connecting you to a sales expert!*\n\n"
+                f"Our specialist will reach out within *30 minutes*.\n\n"
+                f"Your cart is saved — they'll have all your details already.\n\n"
                 f"For urgent queries:\n"
                 f"• Gurgaon: {SALES_PHONE_GURGAON}\n"
                 f"• Noida: {SALES_PHONE_NOIDA}"
@@ -932,7 +940,7 @@ def handle_media_message(phone: str, sender_name: str, media_type: str, media_id
     session_id = get_or_create_session(phone, sender_name)
 
     # Acknowledge receipt
-    type_label = {"image": "photo 📷", "video": "video 🎥", "document": "document 📄", "audio": "voice message 🎙️"}.get(media_type, "file 📎")
+    type_label = {"image": "photo", "video": "video", "document": "document", "audio": "voice message"}.get(media_type, "file")
     ack_text = f"Got your {type_label}! I've noted it on your case."
 
     # Look up customer status from in-memory state
@@ -943,7 +951,7 @@ def handle_media_message(phone: str, sender_name: str, media_type: str, media_id
     if customer_status in ("active_customer", "past_customer"):
         # Attach to support ticket context
         ack_text = (
-            f"Got your {type_label}! 📎\n"
+            f"Got your {type_label}!\n"
             f"I've attached it to your support case. Our team will review it shortly.\n\n"
             f"Is there anything else you'd like to describe about the issue?"
         )
@@ -957,7 +965,7 @@ def handle_media_message(phone: str, sender_name: str, media_type: str, media_id
     else:
         # Lead / unknown — treat as room photo or product reference
         ack_text = (
-            f"Thanks for sharing that {type_label}! 😊\n"
+            f"Thanks for sharing that {type_label}!\n"
             f"I'll use this to help find the best options for you.\n\n"
             f"Could you tell me a bit more about what you're looking for?"
         )
@@ -992,7 +1000,7 @@ def handle_media_message(phone: str, sender_name: str, media_type: str, media_id
 def handle_fallback(phone: str, sender_name: str):
     """Send fallback message with dynamic examples."""
     examples = get_next_fallback_examples()
-    response = f"""Oops! I'm still learning and didn't quite catch that. 🐢
+    response = f"""Oops! I'm still learning and didn't quite catch that.
 
 You can try asking things like:
 

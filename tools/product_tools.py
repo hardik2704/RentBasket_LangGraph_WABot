@@ -59,7 +59,7 @@ def search_products_tool(query: str, category: Optional[str] = None) -> str:
         categories = list(set(category_to_id.keys()))[:10]
         return f"""
 Nothing found matching '{query}'.
-⚠️ INSTRUCTION FOR AGENT: Do NOT say "Not Available" coldly.
+INSTRUCTION FOR AGENT: Do NOT say "Not Available" coldly.
 Instead, pivot elegantly: "We don't carry {query} right now, but if you're setting up your home, we have premium beds, wardrobes, and appliances available!"
 Available categories: {', '.join(categories)}
 """
@@ -68,7 +68,7 @@ Available categories: {', '.join(categories)}
     # For example, if they searched L-shape sofa and we found 7-seater sofas.
     prompt_hint = ""
     if query and len(query) > 3 and not category:
-        prompt_hint = f"\n💡 INSTRUCTION FOR AGENT: If these aren't exact matches for '{query}' (e.g., matching 7-seater for L-shape), present them as the CLOSEST ALTERNATIVES. Do NOT say 'We do not have {query}'. Instead say: 'I may not have that exact listing right now, but I do have fantastic options that are closest to what you need:' and list the products below."
+        prompt_hint = f"\nINSTRUCTION FOR AGENT: If these aren't exact matches for '{query}' (e.g., matching 7-seater for L-shape), present them as the CLOSEST ALTERNATIVES. Do NOT say 'We do not have {query}'. Instead say: 'I may not have that exact listing right now, but I do have great options that are closest to what you need:' and list the products below."
         
     return f"Found {len(results)} products matching intent for '{query}':\n" + "\n".join(results[:10]) + prompt_hint
 
@@ -96,10 +96,10 @@ def get_price_tool(product_id: int, duration: int = 6, unit: str = "months") -> 
 *{product['name']}*
 Rent for {duration} {unit}: {rent_display}
 
-{unit == "months" and "📅 *Duration Options (30% Flat Discount applied):*" or ""}
+{unit == "months" and "*Duration Options (30% Flat Discount applied):*" or ""}
 {price_info}
 
-💡 *Note:* The 🚀 *Upfront Deal* applies an additional **10% discount** when you pay the full amount in advance.
+*Note:* The *Upfront Deal* applies an additional *10% discount* when you pay the full amount in advance.
 """
 
 
@@ -160,29 +160,29 @@ def create_quote_tool(product_ids: str, duration: int = 12, unit: str = "months"
     sep = "━━━━━━━━━━━━━━━━━━━━"
 
     cart_text = (
-        f"🛒 *Order Confirmation*\n"
+        f"*Order Confirmation*\n"
         f"{sep}\n\n"
 
-        f"📦 *Order Details*\n"
+        f"*Order Details*\n"
         + "\n".join(order_lines) +
 
         f"\n\n{sep}\n"
-        f"📅 *Monthly Rent*\n"
+        f"*Monthly Rent*\n"
         f"Rent          ₹{total_discounted:,}/mo\n"
         f"GST (18%)     ₹{gst:,}/mo\n"
         f"*Net Monthly  ₹{net_monthly:,}/mo*\n\n"
 
         f"{sep}\n"
-        f"💳 *One Time Charges*\n"
+        f"*One Time Charges*\n"
         f"Security Deposit   ₹{security:,} _(refundable)_\n"
         f"Delivery           ₹{transport:,}\n"
         f"Delivery Discount  -₹{abs(transport_disc):,}\n"
         f"*Net Payable (1st Month)   ₹{net_first_month:,}*\n\n"
 
         f"{sep}\n"
-        f"🎉 You save *₹{total_savings:,}/month* on this cart!\n\n"
+        f"You save *₹{total_savings:,}/month* on this cart!\n\n"
 
-        f"📋 *Terms & Conditions*\n"
+        f"*Terms & Conditions*\n"
         f"• Products are in mint condition\n"
         f"• Standard maintenance included\n"
         f"• Free shipping & standard installation\n"
@@ -214,10 +214,10 @@ def get_trending_products_tool(category: Optional[str] = None) -> str:
         pid = TRENDING_PRODUCTS[category.lower()]
         product = get_product_by_id(pid)
         rent_display = _get_price_helper(pid, 6)
-        return f"🔥 Trending in {category}: {product['name']} - {rent_display} (6mo)"
-    
+        return f"Trending in {category}: {product['name']} - {rent_display} (6mo)"
+
     # Return all trending products
-    results = ["🔥 **Trending Products:**\n"]
+    results = ["*Trending Products:*\n"]
     for cat, pid in TRENDING_PRODUCTS.items():
         product = get_product_by_id(pid)
         if product:

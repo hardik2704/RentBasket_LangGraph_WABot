@@ -7,6 +7,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.firebase_client import upsert_lead
+from utils.phone_utils import normalize_phone
 from data.products import apply_discount, calculate_rent, id_to_name
 
 @tool
@@ -83,7 +84,10 @@ def sync_lead_data_tool(
             lead_data["lead_stage"] = "cart_created"
 
     try:
-        upsert_lead(phone, lead_data)
-        return f"✅ Lead successfully updated for {phone}."
+        normalized = normalize_phone(phone) if phone else phone
+        if normalized:
+            lead_data["phone"] = normalized
+        upsert_lead(normalized, lead_data)
+        return f"Lead successfully updated for {normalized}."
     except Exception as e:
-        return f"❌ Failed to update lead in Firestore: {str(e)}"
+        return f"Failed to update lead in Firestore: {str(e)}"

@@ -930,7 +930,7 @@ def format_price_comparison(original_price: int, duration: int = 6, unit: str = 
     # If 12 months, also show the Upfront Price (additional 10% off)
     if duration >= 12 and unit == "months":
         upfront_price = apply_discount(original_price, upfront=True)
-        return f"{base_fmt}\n    🚀 Upfront Deal: ₹{upfront_price:,}/mo + GST (12-month plan)"
+        return f"{base_fmt}\n    Upfront Deal: ₹{upfront_price:,}/mo + GST (12-month plan)"
 
     return base_fmt
 

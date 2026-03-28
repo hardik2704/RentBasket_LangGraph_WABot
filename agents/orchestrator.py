@@ -50,7 +50,7 @@ DEFAULT_AGENT = "sales"
 
 def run_support_intake_stub(message, state):
     """Fallback for unknown users asking for support."""
-    response = "🛠️ I see you're asking about maintenance or an existing order, but I couldn't find your account with this number.\n\nCould you please share your *Registered Email ID* or *Customer ID*? Once verified, I can help you with your account! 😊"
+    response = "I see you're asking about maintenance or an existing order, but I couldn't find your account with this number.\n\nCould you please share your *Registered Email ID* or *Customer ID*? Once verified, I can help you with your account."
     return response, state
 
 AGENT_REGISTRY["support_intake"]["runner"] = run_support_intake_stub
@@ -80,12 +80,15 @@ SALES — The user wants to:
 - Get a specific price/quote for a new rental
 - Check pincode serviceability
 - Ask about terms for new orders
+- Select or mention a product by name (for renting)
 
 ESCALATION — The user is frustrated, or explicitly asking for a human agent.
 
 GENERAL — Greeting or casual talk.
 
 CRITICAL CONTEXT:
+- If the user is a LEAD (not an existing customer) and mentions a product name, category, or anything related to renting/buying, classify as SALES — never SUPPORT.
+- Only classify a LEAD's message as SUPPORT if they explicitly mention a broken item, repair, billing issue, or return.
 - If the user is an ACTIVE_CUSTOMER and mentions a product name while in a SUPPORT context, classify as SUPPORT.
 - If the user is currently talking to the SUPPORT agent, tend towards SUPPORT unless they are clearly starting a new SALES journey.
 
@@ -118,6 +121,15 @@ def classify_intent(
         if any(kw in lower_msg for kw in ["human", "executive", "agent", "person", "call me"]):
             return "escalation"
 
+        # 2.5 SALES FLOW STICKINESS: If user is a lead in an active sales flow,
+        # keep them in sales unless they explicitly ask for support
+        current_agent = state.get("active_agent", "sales")
+        if current_agent == "sales" and status == "lead":
+            support_keywords = ["broken", "repair", "fix", "maintenance", "billing", "invoice",
+                                "refund", "pickup", "return", "complaint", "issue with"]
+            if not any(kw in lower_msg for kw in support_keywords):
+                return "sales"
+
         # 3. LLM CLASSIFICATION
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
         
@@ -134,6 +146,8 @@ def classify_intent(
             context = f"\n\nRecent conversation:\n" + "\n".join(recent_messages)
         
         verification_hint = f"\nUser Status: {status.upper()}"
+        verification_hint += f"\nCurrent Agent: {state.get('active_agent', 'sales')}"
+        verification_hint += f"\nConversation Stage: {state.get('conversation_stage', 'unknown')}"
 
         response = llm.invoke([
             SystemMessage(content=CLASSIFIER_PROMPT + verification_hint),
@@ -235,10 +249,14 @@ def route_and_run(
     elif intent == "support":
         if status in ("active_customer", "past_customer"):
             target_agent = "support"
+        elif status == "lead":
+            # Leads should not go to support - keep in sales
+            target_agent = "sales"
+            print("  -> Lead routed to sales despite SUPPORT classification")
         else:
-            # Unknown/Lead asking for support -> Intake Mode
+            # Unknown asking for support -> Intake Mode
             target_agent = "support_intake"
-            print("  🛠️ Routing to Support Intake (No account found)")
+            print("  -> Routing to Support Intake (No account found)")
 
     # Principle C: Recommendation Query -> Recommendation Agent
     elif intent == "recommendation":
@@ -279,7 +297,7 @@ def route_and_run(
              from agents.support_agent import process_escalation
              response, new_state = process_escalation(state, f"Agent Failure: {str(e)}")
         else:
-             response = "⚠️ I encountered a temporary technical glitch. I've notified our team to assist you manually right away! [SEND_HANDOFF_BUTTONS]"
+             response = "I encountered a temporary technical glitch. I've notified our team to assist you manually right away. [SEND_HANDOFF_BUTTONS]"
              new_state = state
              new_state["needs_human"] = True
     
