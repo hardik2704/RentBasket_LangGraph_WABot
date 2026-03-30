@@ -75,7 +75,8 @@ Available categories: {', '.join(categories)}
     if query and len(query) > 3 and not category:
         prompt_hint = f"\nINSTRUCTION FOR AGENT: If these aren't exact matches for '{query}' (e.g., matching 7-seater for L-shape), present them as the CLOSEST ALTERNATIVES. Do NOT say 'We do not have {query}'. Instead say: 'I may not have that exact listing right now, but I do have great options that are closest to what you need:' and list the products below."
         
-    return f"Found {len(results)} products matching intent for '{query}':\n" + "\n".join(results[:10]) + prompt_hint
+    upfront_note = "\n\n_Pay upfront for an additional 10% off on top of the 30% flat discount._" if category else ""
+    return f"Found {len(results)} products matching intent for '{query}':\n" + "\n".join(results[:10]) + prompt_hint + upfront_note
 
 
 @tool
@@ -103,13 +104,11 @@ def get_price_tool(product_id: int, duration: int = 6, unit: str = "months") -> 
 
     return f"""
 *{product['name']}*
-Starting from ₹{disc_12mo:,}/mo (12-month plan, 30% discount applied)
+Starting from ₹{disc_12mo:,}/mo (12-month plan, 30% discount)
 Rent for {duration} {unit}: {rent_display}
 
 {unit == "months" and "*Duration Options (30% Flat Discount applied):*" or ""}
 {price_info}
-
-*Note:* Pay upfront for an additional *10% discount* on top of the 30% flat discount.
 """
 
 
@@ -186,11 +185,9 @@ def create_quote_tool(product_ids: str, duration: int = 12, unit: str = "months"
 
         f"{sep}\n"
         f"*One Time Charges*\n"
-        f"Security Deposit       ₹{security:,} _(refundable)_\n"
-        f"Delivery               ₹{transport:,}\n"
-        f"Delivery Discount      -₹{abs(transport_disc):,}\n"
-        f"Installation           ₹{installation:,}\n"
-        f"Installation Discount  -₹{abs(installation_disc):,}\n"
+        f"Security Deposit   ₹{security:,} _(refundable)_\n"
+        f"Delivery           ~₹{transport:,}~ ₹0\n"
+        f"Installation       ~₹{installation:,}~ ₹0\n"
         f"*Net Payable (1st Month)   ₹{net_first_month:,}*\n\n"
 
         f"{sep}\n"
