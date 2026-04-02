@@ -19,6 +19,8 @@ import threading
 import time
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
+from typing import List, Dict, Tuple, Optional
+from openai import OpenAI
 
 # Ensure parent packages are importable
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -154,23 +156,28 @@ WHY_RENTBASKET_TEXT = (
 
 LATEST_REVIEWS_TEXT = (
     "\u2b50 Latest Customer Experiences with RentBasket \u2b50\n\n"
-    "Abhinandh Prakash \u2b50\u2b50\u2b50\u2b50\u2b50 \u2022 4 weeks ago\n"
+    "Abhinandh Prakash \u2b50\u2b50\u2b50\u2b50\u2b50 \u2022\n"
+    "4 weeks ago\n\n"
     "\"Rented a fridge, bed, and sofa. The quality is excellent and Raj provided stellar service "
-    "from start to finish. Very happy!\"\n"
+    "from start to finish. Very happy!\"\n\n"                       
     "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
-    "Samriddhi Kakkar \u2b50\u2b50\u2b50\u2b50\u2b50 \u2022 6 weeks ago\n"
+    "Samriddhi Kakkar \u2b50\u2b50\u2b50\u2b50\u2b50 \u2022\n"
+    "6 weeks ago\n\n"
     "\"Renting since 2024. Great quality products and the service is incredibly quick. "
-    "Highly recommend their washing machines and ACs.\"\n"
+    "Highly recommend their washing machines and ACs.\"\n\n"
     "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
-    "Nitu Kumari \u2b50\u2b50\u2b50\u2b50\u2b50 \u2022 7 weeks ago\n"
+    "Nitu Kumari \u2b50\u2b50\u2b50\u2b50\u2b50 \u2022\n"
+    "7 weeks ago\n\n"
     "\"Had a great experience for 3 years! Any issue and they are just one call away. "
     "Must recommend for anyone looking for reliability.\"\n"
     "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
-    "Vivek Singh \u2b50\u2b50\u2b50\u2b50\u2b50 \u2022 7 weeks ago\n"
+    "Vivek Singh \u2b50\u2b50\u2b50\u2b50\u2b50 \u2022\n"
+    "7 weeks ago\n\n"
     "\"Half my home is furnished by RentBasket. Most cost-efficient and quality products "
     "in the market. The transaction was seamless.\"\n"
     "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
-    "Shivam Sood \u2b50\u2b50\u2b50\u2b50\u2b50 \u2022 2 weeks ago\n"
+    "Shivam Sood \u2b50\u2b50\u2b50\u2b50\u2b50 \u2022\n"
+    "2 weeks ago\n\n"
     "\"Very prompt service, delivery, and installation. A truly hassle-free experience!\"\n"
     "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
     "\U0001f680 Comfort On Rent, Happiness Delivered."
@@ -300,149 +307,371 @@ def get_next_fallback_examples() -> str:
     fallback_counter += 1
     return "\n".join(examples)
 
+
 # ========================================
-# SALES MODE: Cart Builder & Voice Transcription
+# SALES MODE: Cart Builder + Voice Transcription
 # ========================================
 
-from data.products import search_products_by_name, calculate_rent, apply_discount, get_product_by_id
+from data.products import (
+    search_products_by_name,
+    calculate_rent,
+    apply_discount,
+    get_product_by_id,
+)
+
+# ---------------------------
+# CONFIG
+# ---------------------------
+
+GST_RATE = 0.18
+DEFAULT_DURATION = 12
+MAX_DURATION = 36
+
+# Initialize OpenAI client once
+# Make sure OPENAI_API_KEY is set in your environment
+openai_client = OpenAI()
+
+# Optional shared state expected by your app
+# session_context = {}
+# per_phone_locks = {}
+# per_phone_locks_lock = threading.Lock()
+# whatsapp_client = ...
+# normalize_phone = ...
+# get_or_create_session = ...
+# log_conversation_turn = ...
+# log_event = ...
 
 
-def parse_cart_items(text: str) -> list:
+# ---------------------------
+# HELPERS
+# ---------------------------
+
+WORD_NUMBERS = {
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "thirteen": 13,
+    "fourteen": 14,
+    "fifteen": 15,
+    "sixteen": 16,
+    "seventeen": 17,
+    "eighteen": 18,
+    "nineteen": 19,
+    "twenty": 20,
+}
+
+
+def _safe_int(value: str, default: int = 1) -> int:
+    try:
+        return int(value)
+    except Exception:
+        return default
+
+
+def normalize_text(text: str) -> str:
+    if not text:
+        return ""
+    text = text.strip().lower()
+    text = re.sub(r"[“”\"']", "", text)
+    text = re.sub(r"\s+", " ", text)
+    return text
+
+
+def extract_duration(text: str, default: int = DEFAULT_DURATION) -> int:
     """
-    Parse free-text input into cart items.
-    Handles formats like: "bed, fridge, washing machine"
-    or "2 beds, 1 fridge for 6 months"
-    Returns list of dicts: {name, qty, duration, product_id, product_name, rent}
+    Extract duration from text like:
+    - for 12 months
+    - 6 months
+    - for six months
     """
-    # Split by commas, newlines, or "and"
-    segments = re.split(r'[,\n]+|(?:\band\b)', text, flags=re.IGNORECASE)
+    t = normalize_text(text)
 
-    # Check for a global duration in the text
-    global_duration = 12  # default
-    duration_match = re.search(r'(\d+)\s*(?:months?|mo\b)', text.lower())
-    if duration_match:
-        dur = int(duration_match.group(1))
-        if 1 <= dur <= 36:
-            global_duration = dur
+    # Numeric duration
+    m = re.search(r"(?:for\s*)?(\d{1,2})\s*(?:months?|mo\b)", t)
+    if m:
+        duration = _safe_int(m.group(1), default)
+        return max(1, min(duration, MAX_DURATION))
 
+    # Word duration
+    for word, num in WORD_NUMBERS.items():
+        if re.search(rf"(?:for\s*)?\b{word}\b\s*(?:months?|mo\b)", t):
+            return max(1, min(num, MAX_DURATION))
+
+    return default
+
+
+def remove_duration_phrases(text: str) -> str:
+    t = normalize_text(text)
+    t = re.sub(r"(?:for\s*)?\d{1,2}\s*(?:months?|mo\b)", "", t)
+    for word in WORD_NUMBERS.keys():
+        t = re.sub(rf"(?:for\s*)?\b{word}\b\s*(?:months?|mo\b)", "", t)
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def extract_qty_and_item(segment: str) -> Tuple[int, str]:
+    """
+    Supports:
+    - 2 bed
+    - 2x bed
+    - two bed
+    - 2 beds
+    """
+    seg = normalize_text(segment)
+
+    # numeric quantity
+    m = re.match(r"^(\d+)\s*x?\s+(.+)$", seg)
+    if m:
+        qty = max(1, _safe_int(m.group(1), 1))
+        item = m.group(2).strip()
+        return qty, item
+
+    # word quantity
+    for word, num in WORD_NUMBERS.items():
+        if seg.startswith(word + " "):
+            item = seg[len(word):].strip()
+            return max(1, num), item
+
+    return 1, seg
+
+
+def split_into_segments(text: str) -> List[str]:
+    """
+    Break a transcript into likely product chunks.
+    """
+    t = normalize_text(text)
+
+    # Normalize separators common in speech-to-text
+    t = t.replace(" plus ", ", ")
+    t = t.replace(" also ", ", ")
+    t = t.replace(" and ", ", ")
+    t = t.replace(" तथा ", ", ")  # harmless if transcript has mixed language
+
+    # Split by commas / newlines / semicolons
+    raw_segments = re.split(r"[,\n;]+", t)
+    segments = [s.strip() for s in raw_segments if s.strip()]
+    return segments
+
+
+def clean_item_segment(segment: str) -> str:
+    """
+    Remove filler words that often appear in voice transcripts.
+    """
+    seg = normalize_text(segment)
+
+    seg = re.sub(r"^\b(i want|need|want|please add|add|give me|get me|send me)\b\s*", "", seg)
+    seg = re.sub(r"\b(please|kindly)\b", "", seg)
+    seg = re.sub(r"\s+", " ", seg).strip()
+    return seg
+
+
+# ---------------------------
+# CART PARSING
+# ---------------------------
+
+def parse_cart_items(text: str) -> List[dict]:
+    """
+    Parse free-text or transcript input into cart items.
+
+    Returns:
+        [
+          {
+            name, qty, duration, product_id, product_name,
+            rent, original_rent, matched
+          },
+          ...
+        ]
+    """
+    if not text or not text.strip():
+        return []
+
+    duration = extract_duration(text, DEFAULT_DURATION)
+    text_wo_duration = remove_duration_phrases(text)
+
+    segments = split_into_segments(text_wo_duration)
     items = []
+
     for seg in segments:
-        seg = seg.strip()
+        seg = clean_item_segment(seg)
         if not seg:
             continue
 
-        # Skip if this segment is just a duration reference
-        if re.match(r'^\s*(?:for\s*)?\d+\s*(?:months?|mo)\s*$', seg, re.IGNORECASE):
+        qty, item_text = extract_qty_and_item(seg)
+        item_text = re.sub(r"\b(for|months?|mo)\b.*$", "", item_text).strip()
+
+        if not item_text:
             continue
 
-        # Extract quantity (e.g., "2 beds" or "2x bed")
-        qty = 1
-        qty_match = re.match(r'^(\d+)\s*[xX]?\s*(.+)$', seg)
-        if qty_match:
-            qty = int(qty_match.group(1))
-            seg = qty_match.group(2).strip()
-
-        # Remove trailing duration from segment (e.g., "bed for 6 months")
-        seg = re.sub(r'\s+for\s+\d+\s*(?:months?|mo)\s*$', '', seg, flags=re.IGNORECASE).strip()
-        if not seg:
-            continue
-
-        # Search product DB
-        matches = search_products_by_name(seg)
+        matches = search_products_by_name(item_text) or []
         if matches:
-            product = matches[0]  # Take best match
-            rent = calculate_rent(product["id"], global_duration)
-            discounted_rent = apply_discount(rent) if rent else 0
+            product = matches[0]
+            original_rent = calculate_rent(product["id"], duration) or 0
+            final_rent = apply_discount(original_rent) if original_rent else 0
+
             items.append({
-                "name": seg,
+                "name": item_text,
                 "qty": qty,
-                "duration": global_duration,
+                "duration": duration,
                 "product_id": product["id"],
                 "product_name": product["name"],
-                "rent": discounted_rent,
-                "original_rent": rent,
+                "rent": final_rent,
+                "original_rent": original_rent,
+                "matched": True,
             })
         else:
             items.append({
-                "name": seg,
+                "name": item_text,
                 "qty": qty,
-                "duration": global_duration,
+                "duration": duration,
                 "product_id": None,
-                "product_name": seg.title(),
+                "product_name": item_text.title(),
                 "rent": 0,
                 "original_rent": 0,
+                "matched": False,
             })
 
     return items
 
 
-def format_sales_cart(items: list, duration: int = 12) -> str:
-    """Format cart items into a WhatsApp-friendly cart message."""
+# ---------------------------
+# FORMATTING
+# ---------------------------
+
+def format_sales_cart(items: list, duration: int = DEFAULT_DURATION) -> str:
+    """
+    WhatsApp-friendly cart message.
+    """
     if not items:
-        return "Could not find any matching products. Please try again with product names like: bed, fridge, washing machine, sofa, AC, etc."
+        return (
+            "I could not find any matching products.\n\n"
+            "Please try again with items like:\n"
+            "bed, fridge, washing machine, sofa, AC, mattress"
+        )
 
     lines = []
     lines.append("*Tentative Cart*")
     lines.append(f"Duration: {duration} months\n")
 
     total_monthly = 0
-    for i, item in enumerate(items, 1):
-        pid_str = f"#{item['product_id']}" if item['product_id'] else "(not found)"
-        rent_str = f"\u20b9{item['rent']:,}/mo" if item['rent'] else "Price N/A"
-        lines.append(f"{i}. {item['product_name']} {pid_str}")
-        lines.append(f"   Qty: {item['qty']} | {rent_str} + GST")
-        total_monthly += item['rent'] * item['qty']
 
-    gst = int(round(total_monthly * 0.18))
+    for i, item in enumerate(items, 1):
+        product_name = item["product_name"]
+        pid_str = f"#{item['product_id']}" if item["product_id"] else "(not found)"
+        qty = item["qty"]
+        per_unit_rent = item["rent"] or 0
+        item_monthly = per_unit_rent * qty
+
+        if item["matched"] and per_unit_rent:
+            rent_str = f"₹{per_unit_rent:,}/mo"
+        else:
+            rent_str = "Price N/A"
+
+        lines.append(f"{i}. {product_name} {pid_str}")
+        lines.append(f"   Qty: {qty} | {rent_str} + GST")
+
+        total_monthly += item_monthly
+
+    gst = int(round(total_monthly * GST_RATE))
     grand_total = total_monthly + gst
 
-    lines.append(f"\n*Monthly Rent: \u20b9{total_monthly:,} + GST (\u20b9{gst:,}) = \u20b9{grand_total:,}/mo*")
-
-    # One-time charges note
-    lines.append(f"\n_Note: Security deposit & one-time charges applicable at the time of order._")
+    lines.append(
+        f"\n*Monthly Rent: ₹{total_monthly:,} + GST (₹{gst:,}) = ₹{grand_total:,}/mo*"
+    )
+    lines.append("\n_Note: Security deposit & one-time charges may apply at the time of order._")
 
     return "\n".join(lines)
 
 
-def build_and_send_sales_cart(phone: str, sender_name: str, text: str):
-    """Parse text, build cart, send it with action buttons."""
+# ---------------------------
+# VOICE TRANSCRIPTION
+# ---------------------------
+
+def transcribe_audio_bytes(audio_bytes: bytes, filename: str = "voice_note.ogg") -> str:
+    """
+    Transcribe WhatsApp voice note audio into text.
+    """
+    if not audio_bytes:
+        return ""
+
+    audio_file = io.BytesIO(audio_bytes)
+    audio_file.name = filename  # important for transcription APIs
+
+    transcript = openai_client.audio.transcriptions.create(
+        model="whisper-1",
+        file=audio_file,
+    )
+
+    text = getattr(transcript, "text", "") or ""
+    return text.strip()
+
+
+# ---------------------------
+# MAIN FLOW
+# ---------------------------
+
+def build_and_send_sales_cart(phone: str, sender_name: str, text: str, source: str = "text"):
+    """
+    Parse text, build cart, send it with action buttons.
+    """
     items = parse_cart_items(text)
-    duration = items[0]["duration"] if items else 12
+    duration = items[0]["duration"] if items else DEFAULT_DURATION
 
     cart_text = format_sales_cart(items, duration)
 
-    # Store cart in session for Upfront Payment recalculation
+    # Store cart in session for later actions like Upfront Payment / Modify Cart
     session_context[phone] = session_context.get(phone, {})
     session_context[phone]["last_cart"] = items
     session_context[phone]["last_duration"] = duration
+    session_context[phone]["last_source"] = source
+    session_context[phone]["last_raw_text"] = text
 
-    # Send the cart message
     whatsapp_client.send_text_message(phone, cart_text)
     time.sleep(0.5)
 
-    # Send action buttons
     cart_buttons = [
         {"id": "UPFRONT_PAYMENT", "title": "Upfront Payment"},
         {"id": "MODIFY_CART", "title": "Modify Cart"},
-        {"id": "TALK_TO_EXPERT", "title": "Talk to Expert"},
+        {"id": "FINAL_LINK", "title": "Final Link"},
     ]
+
     whatsapp_client.send_interactive_buttons(
         to_phone=phone,
         body_text="Choose an option:",
         buttons=cart_buttons,
     )
 
-    # Log
     normalized_phone = normalize_phone(phone)
     session_id = get_or_create_session(normalized_phone, sender_name)
-    log_conversation_turn(normalized_phone, sender_name, text, cart_text,
-                          session_id=session_id, agent_used="sales_cart_builder")
-    log_event(normalized_phone, "sales_cart_built", {"items": len(items), "duration": duration},
-              session_id=session_id)
+
+    log_conversation_turn(
+        normalized_phone,
+        sender_name,
+        text,
+        cart_text,
+        session_id=session_id,
+        agent_used="sales_cart_builder",
+    )
+
+    log_event(
+        normalized_phone,
+        "sales_cart_built",
+        {"items": len(items), "duration": duration, "source": source},
+        session_id=session_id,
+    )
 
 
 def process_sales_text_async(phone: str, sender_name: str, text: str, message_id: str):
-    """Background thread: build cart from text in SALES mode."""
+    """
+    Background thread: build cart from typed text in SALES mode.
+    """
     with per_phone_locks_lock:
         if phone not in per_phone_locks:
             per_phone_locks[phone] = threading.Lock()
@@ -450,16 +679,22 @@ def process_sales_text_async(phone: str, sender_name: str, text: str, message_id
 
     with user_lock:
         try:
-            build_and_send_sales_cart(phone, sender_name, text)
-            print(f"   Sales cart sent to {phone} from text")
+            build_and_send_sales_cart(phone, sender_name, text, source="text")
+            print(f"Sales cart sent to {phone} from text")
         except Exception as e:
-            print(f"   Error building sales cart for {phone}: {e}")
-            import traceback; traceback.print_exc()
-            whatsapp_client.send_text_message(phone, "Sorry, I couldn't process that. Please try again with product names like: bed, fridge, sofa, AC, washing machine.")
+            print(f"Error building sales cart for {phone}: {e}")
+            import traceback
+            traceback.print_exc()
+            whatsapp_client.send_text_message(
+                phone,
+                "Sorry, I couldn't process that. Please try again with product names like: bed, fridge, sofa, AC, washing machine."
+            )
 
 
 def process_sales_audio_async(phone: str, sender_name: str, media_id: str, message_id: str):
-    """Background thread: download audio, transcribe with Whisper, then build cart."""
+    """
+    Background thread: download audio, transcribe it, then build cart.
+    """
     with per_phone_locks_lock:
         if phone not in per_phone_locks:
             per_phone_locks[phone] = threading.Lock()
@@ -470,39 +705,38 @@ def process_sales_audio_async(phone: str, sender_name: str, media_id: str, messa
             # Step 1: Download audio
             audio_bytes = whatsapp_client.download_media(media_id)
             if not audio_bytes:
-                whatsapp_client.send_text_message(phone, "Sorry, I couldn't download your voice message. Please type your cart items instead.")
+                whatsapp_client.send_text_message(
+                    phone,
+                    "Sorry, I couldn't download your voice message. Please type your cart items instead."
+                )
                 return
 
-            # Step 2: Transcribe with OpenAI Whisper
-            import openai
-            audio_file = io.BytesIO(audio_bytes)
-            audio_file.name = "voice_note.ogg"  # Whisper needs a filename with extension
-
-            transcript = openai.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-            )
-            transcribed_text = transcript.text.strip()
-
+            # Step 2: Transcribe
+            transcribed_text = transcribe_audio_bytes(audio_bytes, filename="voice_note.ogg")
             if not transcribed_text:
-                whatsapp_client.send_text_message(phone, "I couldn't understand the voice message. Please try again or type your cart items.")
+                whatsapp_client.send_text_message(
+                    phone,
+                    "I couldn't understand the voice message. Please try again or type your cart items."
+                )
                 return
 
-            # Step 3: Send back what was heard
-            whatsapp_client.send_text_message(phone, f'You Asked: "{transcribed_text}"')
+            # Step 3: Confirm what was heard
+            whatsapp_client.send_text_message(phone, f'You said: "{transcribed_text}"')
             time.sleep(0.3)
 
-            # Step 4: Build and send cart
-            build_and_send_sales_cart(phone, sender_name, transcribed_text)
-            print(f"   Sales cart sent to {phone} from voice note")
+            # Step 4: Build real cart from transcript
+            build_and_send_sales_cart(phone, sender_name, transcribed_text, source="voice")
+            print(f"Sales cart sent to {phone} from voice note")
 
         except Exception as e:
-            print(f"   Error processing sales audio for {phone}: {e}")
-            import traceback; traceback.print_exc()
-            whatsapp_client.send_text_message(phone, "Sorry, I couldn't process your voice message. Please type your cart items instead.")
+            print(f"Error processing sales audio for {phone}: {e}")
+            import traceback
+            traceback.print_exc()
+            whatsapp_client.send_text_message(
+                phone,
+                "Sorry, I couldn't process your voice message. Please type your cart items instead."
+            )
 
-
-# ========================================
 # FLASK APP
 # ========================================
 
