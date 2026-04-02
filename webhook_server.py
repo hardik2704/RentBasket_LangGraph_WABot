@@ -12,6 +12,8 @@ Usage:
 import os
 import sys
 import re
+import io
+import tempfile
 import argparse
 import threading
 import time
@@ -116,10 +118,63 @@ def is_pricing_negotiation(text: str) -> bool:
 # ========================================
 
 GREETING_BUTTONS = [
-    {"id": "BROWSE_FURNITURE", "title": "Browse Furniture"},
-    {"id": "BROWSE_APPLIANCES", "title": "Browse Appliances"},
-    {"id": "COMPLETE_HOME_SETUP", "title": "Complete Home Setup"}
+    {"id": "BROWSE_PRODUCTS", "title": "Browse Products"},
+    {"id": "HOW_RENTING_WORKS", "title": "How Renting Works?"},
 ]
+
+# ========================================
+# INFORMATIONAL FLOW TEXTS
+# ========================================
+
+HOW_RENTING_WORKS_TEXT = (
+    "Let's get you settled! Here is your 4-step journey with RentBasket: \u26a1\n\n"
+    "1\ufe0f\u20e3 Select & Onboard (3 mins) \U0001f4f1\n"
+    "Pick your items on our app and finish onboarding in minutes. It's that fast!\n\n"
+    "2\ufe0f\u20e3 Secure & Relax \U0001f6e1\ufe0f\n"
+    "Pay a one-time refundable deposit. We're proud to say 95% of our customers get their full deposit back!\n\n"
+    "3\ufe0f\u20e3 Free Setup (72 hrs) \U0001f69a\n"
+    "We deliver and install everything for FREE within 72 hours. No need to hunt for help; we handle it all.\n\n"
+    "4\ufe0f\u20e3 Enjoy & Live \U0001f4b3\n"
+    "Pay low monthly rent and leave the maintenance to us. If you move, we'll relocate your items for zero extra cost! \U0001f3e0\n\n"
+    "Ready to upgrade your space?"
+)
+
+WHY_RENTBASKET_TEXT = (
+    "Why RentBasket Specifically? \u2b50\n\n"
+    "We're not just a rental service - we're your furniture partners:\n\n"
+    "\U0001f31f 4.9 Google Star Rating\n"
+    "Check out real reviews from our happy customers!\n\n"
+    "\U0001f3af Hyper-Localization\n"
+    "We know your city better than anyone, so we get you the best people and fastest service\n\n"
+    "\U0001f512 95% Full Security Refund\n"
+    "We're blessed with customers who treat our products beautifully\n\n"
+    "\U0001f49a Customer-First Approach\n"
+    "Our reviews speak louder than words"
+)
+
+LATEST_REVIEWS_TEXT = (
+    "\u2b50 Latest Customer Experiences with RentBasket \u2b50\n\n"
+    "Abhinandh Prakash \u2b50\u2b50\u2b50\u2b50\u2b50 \u2022 4 weeks ago\n"
+    "\"Rented a fridge, bed, and sofa. The quality is excellent and Raj provided stellar service "
+    "from start to finish. Very happy!\"\n"
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+    "Samriddhi Kakkar \u2b50\u2b50\u2b50\u2b50\u2b50 \u2022 6 weeks ago\n"
+    "\"Renting since 2024. Great quality products and the service is incredibly quick. "
+    "Highly recommend their washing machines and ACs.\"\n"
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+    "Nitu Kumari \u2b50\u2b50\u2b50\u2b50\u2b50 \u2022 7 weeks ago\n"
+    "\"Had a great experience for 3 years! Any issue and they are just one call away. "
+    "Must recommend for anyone looking for reliability.\"\n"
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+    "Vivek Singh \u2b50\u2b50\u2b50\u2b50\u2b50 \u2022 7 weeks ago\n"
+    "\"Half my home is furnished by RentBasket. Most cost-efficient and quality products "
+    "in the market. The transaction was seamless.\"\n"
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+    "Shivam Sood \u2b50\u2b50\u2b50\u2b50\u2b50 \u2022 2 weeks ago\n"
+    "\"Very prompt service, delivery, and installation. A truly hassle-free experience!\"\n"
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+    "\U0001f680 Comfort On Rent, Happiness Delivered."
+)
 
 # Words that count as a greeting (first message or re-greeting)
 GREETING_WORDS = {"hi", "hello", "hey", "hii", "hiii", "helo", "heloo", "helloo",
@@ -246,6 +301,208 @@ def get_next_fallback_examples() -> str:
     return "\n".join(examples)
 
 # ========================================
+# SALES MODE: Cart Builder & Voice Transcription
+# ========================================
+
+from data.products import search_products_by_name, calculate_rent, apply_discount, get_product_by_id
+
+
+def parse_cart_items(text: str) -> list:
+    """
+    Parse free-text input into cart items.
+    Handles formats like: "bed, fridge, washing machine"
+    or "2 beds, 1 fridge for 6 months"
+    Returns list of dicts: {name, qty, duration, product_id, product_name, rent}
+    """
+    # Split by commas, newlines, or "and"
+    segments = re.split(r'[,\n]+|(?:\band\b)', text, flags=re.IGNORECASE)
+
+    # Check for a global duration in the text
+    global_duration = 12  # default
+    duration_match = re.search(r'(\d+)\s*(?:months?|mo\b)', text.lower())
+    if duration_match:
+        dur = int(duration_match.group(1))
+        if 1 <= dur <= 36:
+            global_duration = dur
+
+    items = []
+    for seg in segments:
+        seg = seg.strip()
+        if not seg:
+            continue
+
+        # Skip if this segment is just a duration reference
+        if re.match(r'^\s*(?:for\s*)?\d+\s*(?:months?|mo)\s*$', seg, re.IGNORECASE):
+            continue
+
+        # Extract quantity (e.g., "2 beds" or "2x bed")
+        qty = 1
+        qty_match = re.match(r'^(\d+)\s*[xX]?\s*(.+)$', seg)
+        if qty_match:
+            qty = int(qty_match.group(1))
+            seg = qty_match.group(2).strip()
+
+        # Remove trailing duration from segment (e.g., "bed for 6 months")
+        seg = re.sub(r'\s+for\s+\d+\s*(?:months?|mo)\s*$', '', seg, flags=re.IGNORECASE).strip()
+        if not seg:
+            continue
+
+        # Search product DB
+        matches = search_products_by_name(seg)
+        if matches:
+            product = matches[0]  # Take best match
+            rent = calculate_rent(product["id"], global_duration)
+            discounted_rent = apply_discount(rent) if rent else 0
+            items.append({
+                "name": seg,
+                "qty": qty,
+                "duration": global_duration,
+                "product_id": product["id"],
+                "product_name": product["name"],
+                "rent": discounted_rent,
+                "original_rent": rent,
+            })
+        else:
+            items.append({
+                "name": seg,
+                "qty": qty,
+                "duration": global_duration,
+                "product_id": None,
+                "product_name": seg.title(),
+                "rent": 0,
+                "original_rent": 0,
+            })
+
+    return items
+
+
+def format_sales_cart(items: list, duration: int = 12) -> str:
+    """Format cart items into a WhatsApp-friendly cart message."""
+    if not items:
+        return "Could not find any matching products. Please try again with product names like: bed, fridge, washing machine, sofa, AC, etc."
+
+    lines = []
+    lines.append("*Tentative Cart*")
+    lines.append(f"Duration: {duration} months\n")
+
+    total_monthly = 0
+    for i, item in enumerate(items, 1):
+        pid_str = f"#{item['product_id']}" if item['product_id'] else "(not found)"
+        rent_str = f"\u20b9{item['rent']:,}/mo" if item['rent'] else "Price N/A"
+        lines.append(f"{i}. {item['product_name']} {pid_str}")
+        lines.append(f"   Qty: {item['qty']} | {rent_str} + GST")
+        total_monthly += item['rent'] * item['qty']
+
+    gst = int(round(total_monthly * 0.18))
+    grand_total = total_monthly + gst
+
+    lines.append(f"\n*Monthly Rent: \u20b9{total_monthly:,} + GST (\u20b9{gst:,}) = \u20b9{grand_total:,}/mo*")
+
+    # One-time charges note
+    lines.append(f"\n_Note: Security deposit & one-time charges applicable at the time of order._")
+
+    return "\n".join(lines)
+
+
+def build_and_send_sales_cart(phone: str, sender_name: str, text: str):
+    """Parse text, build cart, send it with action buttons."""
+    items = parse_cart_items(text)
+    duration = items[0]["duration"] if items else 12
+
+    cart_text = format_sales_cart(items, duration)
+
+    # Store cart in session for Upfront Payment recalculation
+    session_context[phone] = session_context.get(phone, {})
+    session_context[phone]["last_cart"] = items
+    session_context[phone]["last_duration"] = duration
+
+    # Send the cart message
+    whatsapp_client.send_text_message(phone, cart_text)
+    time.sleep(0.5)
+
+    # Send action buttons
+    cart_buttons = [
+        {"id": "UPFRONT_PAYMENT", "title": "Upfront Payment"},
+        {"id": "MODIFY_CART", "title": "Modify Cart"},
+        {"id": "TALK_TO_EXPERT", "title": "Talk to Expert"},
+    ]
+    whatsapp_client.send_interactive_buttons(
+        to_phone=phone,
+        body_text="Choose an option:",
+        buttons=cart_buttons,
+    )
+
+    # Log
+    normalized_phone = normalize_phone(phone)
+    session_id = get_or_create_session(normalized_phone, sender_name)
+    log_conversation_turn(normalized_phone, sender_name, text, cart_text,
+                          session_id=session_id, agent_used="sales_cart_builder")
+    log_event(normalized_phone, "sales_cart_built", {"items": len(items), "duration": duration},
+              session_id=session_id)
+
+
+def process_sales_text_async(phone: str, sender_name: str, text: str, message_id: str):
+    """Background thread: build cart from text in SALES mode."""
+    with per_phone_locks_lock:
+        if phone not in per_phone_locks:
+            per_phone_locks[phone] = threading.Lock()
+        user_lock = per_phone_locks[phone]
+
+    with user_lock:
+        try:
+            build_and_send_sales_cart(phone, sender_name, text)
+            print(f"   Sales cart sent to {phone} from text")
+        except Exception as e:
+            print(f"   Error building sales cart for {phone}: {e}")
+            import traceback; traceback.print_exc()
+            whatsapp_client.send_text_message(phone, "Sorry, I couldn't process that. Please try again with product names like: bed, fridge, sofa, AC, washing machine.")
+
+
+def process_sales_audio_async(phone: str, sender_name: str, media_id: str, message_id: str):
+    """Background thread: download audio, transcribe with Whisper, then build cart."""
+    with per_phone_locks_lock:
+        if phone not in per_phone_locks:
+            per_phone_locks[phone] = threading.Lock()
+        user_lock = per_phone_locks[phone]
+
+    with user_lock:
+        try:
+            # Step 1: Download audio
+            audio_bytes = whatsapp_client.download_media(media_id)
+            if not audio_bytes:
+                whatsapp_client.send_text_message(phone, "Sorry, I couldn't download your voice message. Please type your cart items instead.")
+                return
+
+            # Step 2: Transcribe with OpenAI Whisper
+            import openai
+            audio_file = io.BytesIO(audio_bytes)
+            audio_file.name = "voice_note.ogg"  # Whisper needs a filename with extension
+
+            transcript = openai.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+            )
+            transcribed_text = transcript.text.strip()
+
+            if not transcribed_text:
+                whatsapp_client.send_text_message(phone, "I couldn't understand the voice message. Please try again or type your cart items.")
+                return
+
+            # Step 3: Send back what was heard
+            whatsapp_client.send_text_message(phone, f'You Asked: "{transcribed_text}"')
+            time.sleep(0.3)
+
+            # Step 4: Build and send cart
+            build_and_send_sales_cart(phone, sender_name, transcribed_text)
+            print(f"   Sales cart sent to {phone} from voice note")
+
+        except Exception as e:
+            print(f"   Error processing sales audio for {phone}: {e}")
+            import traceback; traceback.print_exc()
+            whatsapp_client.send_text_message(phone, "Sorry, I couldn't process your voice message. Please type your cart items instead.")
+
+
+# ========================================
 # FLASK APP
 # ========================================
 
@@ -255,7 +512,7 @@ app = Flask(__name__)
 conversations = {}  # phone_number -> ConversationState
 
 # Store session context for interactive button handling
-session_context = {}  # phone_number -> {last_product, handoff_needed, intent}
+session_context = {}  # phone_number -> {last_product, handoff_needed, intent, sales_mode, last_cart}
 
 # Cache for processed message IDs to prevent duplicates (Meta retries)
 processed_ids = set()
@@ -715,6 +972,16 @@ def handle_webhook():
             return handle_interactive_response(phone, sender_name, interactive_response, message_id)
         
         if not text and message_type in ("image", "video", "document", "audio"):
+            # Intercept audio in SALES mode for transcription
+            if message_type == "audio" and session_context.get(phone, {}).get("sales_mode"):
+                media_id = message_data.get("media_id")
+                thread = threading.Thread(
+                    target=process_sales_audio_async,
+                    args=(phone, sender_name, media_id, message_id)
+                )
+                thread.start()
+                return jsonify({"status": "processing_sales_audio"}), 200
+
             return handle_media_message(
                 phone, sender_name, message_type,
                 message_data.get("media_id"),
@@ -737,6 +1004,28 @@ def handle_webhook():
         # Check for Greeting — send interactive buttons directly, skip the LLM
         if is_greeting(text):
             return handle_greeting(phone, sender_name)
+
+        # Check for SALES keyword — activate sales team cart-building mode
+        if text.strip().upper() == "SALES":
+            session_context[phone] = {"sales_mode": True, "sender_name": sender_name}
+            whatsapp_client.send_text_message(
+                phone,
+                "Share me the cart on voice message or just type it, I will create a tentative cart message for you!"
+            )
+            # Log activation
+            normalized_phone = normalize_phone(phone)
+            session_id = get_or_create_session(normalized_phone, sender_name)
+            log_event(normalized_phone, "sales_mode_activated", {}, session_id=session_id)
+            return jsonify({"status": "ok", "action": "sales_mode_activated"}), 200
+
+        # SALES mode text input — build cart from text instead of routing to LLM
+        if session_context.get(phone, {}).get("sales_mode"):
+            thread = threading.Thread(
+                target=process_sales_text_async,
+                args=(phone, sender_name, text, message_id)
+            )
+            thread.start()
+            return jsonify({"status": "processing_sales_text"}), 200
 
         thread = threading.Thread(
             target=process_webhook_async,
@@ -1003,6 +1292,98 @@ Example message:
             whatsapp_client.send_text_message(phone, response)
             print(f"   👨‍💼 Expert requested for {phone}")
             return jsonify({"status": "ok", "action": "expert_requested"}), 200
+
+        # ── Upfront Payment (SALES mode) ──────────────────────────────
+        elif button_id == "UPFRONT_PAYMENT":
+            ctx = session_context.get(phone, {})
+            last_cart = ctx.get("last_cart", [])
+            duration = ctx.get("last_duration", 12)
+
+            if not last_cart:
+                whatsapp_client.send_text_message(phone, "No cart found. Please send your product list first.")
+                return jsonify({"status": "ok", "action": "no_cart"}), 200
+
+            # Determine upfront discount: 10% for 12mo, 5% for 6mo
+            upfront_pct = 10 if duration >= 12 else 5
+
+            lines = []
+            lines.append(f"*Upfront Payment Option* (Extra {upfront_pct}% off!)")
+            lines.append(f"Duration: {duration} months\n")
+
+            total_monthly = 0
+            total_upfront_monthly = 0
+            for i, item in enumerate(last_cart, 1):
+                pid_str = f"#{item['product_id']}" if item['product_id'] else "(not found)"
+                regular_rent = item['rent']
+                if item['original_rent']:
+                    upfront_rent = apply_discount(item['original_rent'], upfront=True, upfront_percent=upfront_pct)
+                else:
+                    upfront_rent = 0
+                lines.append(f"{i}. {item['product_name']} {pid_str}")
+                lines.append(f"   Qty: {item['qty']} | ~\u20b9{regular_rent:,}/mo~ \u20b9{upfront_rent:,}/mo + GST")
+                total_monthly += regular_rent * item['qty']
+                total_upfront_monthly += upfront_rent * item['qty']
+
+            gst_regular = int(round(total_monthly * 0.18))
+            gst_upfront = int(round(total_upfront_monthly * 0.18))
+            grand_regular = total_monthly + gst_regular
+            grand_upfront = total_upfront_monthly + gst_upfront
+            total_upfront_total = grand_upfront * duration
+            savings = (grand_regular - grand_upfront) * duration
+
+            lines.append(f"\n*Regular: \u20b9{grand_regular:,}/mo*")
+            lines.append(f"*Upfront: \u20b9{grand_upfront:,}/mo*")
+            lines.append(f"\n*Total Upfront Payment: \u20b9{total_upfront_total:,}* for {duration} months")
+            lines.append(f"You save: \u20b9{savings:,} over {duration} months!")
+            lines.append(f"\n_Pay upfront and enjoy extra {upfront_pct}% discount on your entire rental._")
+
+            whatsapp_client.send_text_message(phone, "\n".join(lines))
+
+            normalized = normalize_phone(phone)
+            session_id = get_or_create_session(normalized, sender_name)
+            log_event(normalized, "upfront_payment_shown", {"duration": duration, "upfront_pct": upfront_pct}, session_id=session_id)
+            return jsonify({"status": "ok", "action": "upfront_payment"}), 200
+
+        # ── Informational Flow Buttons ─────────────────────────────────
+        elif button_id == "BROWSE_PRODUCTS":
+            response = "Our product catalogue is coming soon on WhatsApp! In the meantime, tell me what you're looking for and I'll help you find it."
+            whatsapp_client.send_text_message(phone, response)
+            return jsonify({"status": "ok", "action": "browse_products_placeholder"}), 200
+
+        elif button_id == "HOW_RENTING_WORKS":
+            follow_buttons = [
+                {"id": "BROWSE_PRODUCTS", "title": "Browse Products"},
+                {"id": "WHY_RENTBASKET", "title": "Why RentBasket?"},
+            ]
+            whatsapp_client.send_interactive_buttons(
+                to_phone=phone,
+                body_text=HOW_RENTING_WORKS_TEXT,
+                buttons=follow_buttons,
+            )
+            return jsonify({"status": "ok", "action": "how_renting_works"}), 200
+
+        elif button_id == "WHY_RENTBASKET":
+            follow_buttons = [
+                {"id": "BROWSE_PRODUCTS", "title": "Browse Products"},
+                {"id": "LATEST_REVIEWS", "title": "Latest 5 Reviews"},
+            ]
+            whatsapp_client.send_interactive_buttons(
+                to_phone=phone,
+                body_text=WHY_RENTBASKET_TEXT,
+                buttons=follow_buttons,
+            )
+            return jsonify({"status": "ok", "action": "why_rentbasket"}), 200
+
+        elif button_id == "LATEST_REVIEWS":
+            follow_buttons = [
+                {"id": "BROWSE_PRODUCTS", "title": "Browse Products"},
+            ]
+            whatsapp_client.send_interactive_buttons(
+                to_phone=phone,
+                body_text=LATEST_REVIEWS_TEXT,
+                buttons=follow_buttons,
+            )
+            return jsonify({"status": "ok", "action": "latest_reviews"}), 200
 
         else:
             response = "I received your selection. How can I help you further?"

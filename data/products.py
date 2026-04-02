@@ -898,10 +898,11 @@ def format_product_for_display(product: Dict[str, Any], duration: int = 6) -> st
     return f"• {product['name']}: ₹{rent}/month ({duration}mo)"
 
 
-def apply_discount(original_price: int, discount_percent: int = 30, upfront: bool = False) -> int:
+def apply_discount(original_price: int, discount_percent: int = 30, upfront: bool = False, upfront_percent: int = 10) -> int:
     """
-    Apply global 30% discount first. 
-    If upfront=True, apply an ADDITIONAL 10% discount on the result.
+    Apply global 30% discount first.
+    If upfront=True, apply an ADDITIONAL upfront_percent discount on the result.
+    upfront_percent defaults to 10 (for 12-month plans); use 5 for 6-month plans.
     Returns whole number (no decimals).
     """
     if not original_price:
@@ -909,11 +910,11 @@ def apply_discount(original_price: int, discount_percent: int = 30, upfront: boo
     # Tier 1: 30% Flat
     multiplier = (100 - discount_percent) / 100
     discounted = original_price * multiplier
-    
-    # Tier 2: 10% Upfront (additional)
+
+    # Tier 2: Upfront (additional)
     if upfront:
-        discounted *= 0.90
-        
+        discounted *= (100 - upfront_percent) / 100
+
     return int(round(discounted))
 
 

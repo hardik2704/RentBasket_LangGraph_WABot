@@ -69,9 +69,44 @@ class WhatsAppClient:
             print(f"API Error: {response.status_code} - {response.text}")
             return {"error": response.text}
     
+    def download_media(self, media_id: str) -> Optional[bytes]:
+        """
+        Download media from WhatsApp API (two-step: get URL, then download binary).
+        Returns raw bytes of the media file, or None on failure.
+        """
+        if self.demo_mode:
+            print(f"  [API] Would download media: {media_id}")
+            return None
+
+        try:
+            # Step 1: Get the media URL
+            url = f"{self.BASE_URL}/{media_id}"
+            headers = {"Authorization": f"Bearer {self.access_token}"}
+            resp = requests.get(url, headers=headers)
+            if resp.status_code != 200:
+                print(f"Media URL fetch failed: {resp.status_code} - {resp.text}")
+                return None
+
+            media_url = resp.json().get("url")
+            if not media_url:
+                print(f"No URL in media response: {resp.json()}")
+                return None
+
+            # Step 2: Download the actual binary
+            resp2 = requests.get(media_url, headers=headers)
+            if resp2.status_code != 200:
+                print(f"Media download failed: {resp2.status_code}")
+                return None
+
+            return resp2.content
+
+        except Exception as e:
+            print(f"Media download error: {e}")
+            return None
+
     def send_text_message(
-        self, 
-        to_phone: str, 
+        self,
+        to_phone: str,
         message: str,
         preview_url: bool = False
     ) -> Dict[str, Any]:
