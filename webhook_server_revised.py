@@ -1905,14 +1905,13 @@ Example message:
             session_id = get_or_create_session(normalized, sender_name)
             log_event(normalized, "cart_reserved", {"button": button_id}, session_id=session_id)
 
-            response = (
-                f"Since you completed the discussion with our Bot Ku, "
-                f"I want to give you an additional discount of 5%.\n\n"
-                f"You can proceed to create the cart and place the order here: "
-                f"{KU_REFERRAL_LINK}"
+            # Route to the agent so it can ask for pincode -> check serviceability -> send cart link
+            print(f"   Reserve requested by {phone}. Routing to agent for location check.")
+            thread = threading.Thread(
+                target=process_webhook_async,
+                args=(phone, "I want to reserve and proceed with the order", sender_name, message_id, "text", None)
             )
-            whatsapp_client.send_text_message(phone, response, preview_url=True)
-            print(f"   Lead reserved for {phone}")
+            thread.start()
             return jsonify({"status": "ok", "action": "reserved"}), 200
 
         elif button_id == "MODIFY_CART":

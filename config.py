@@ -58,6 +58,10 @@ SUPPORT_EMAIL = "support@rentbasket.com"
 WEBSITE = "https://rentbasket.com"
 KU_REFERRAL_LINK = "https://qr.rentbasket.com/dealer?referral_code=AS1c2NzAy"
 
+# Dynamic Cart Link (lead-shopping)
+CART_LINK_BASE_URL = os.getenv("CART_LINK_BASE_URL", "https://testqr.rentbasket.com/lead-shopping")
+CART_LINK_REFERRAL_CODE = os.getenv("CART_LINK_REFERRAL_CODE", "ATFU1NTg1")
+
 # ========================================
 # LOGGING CONFIGURATION
 # ========================================
@@ -73,22 +77,8 @@ BOT_GREETING = f"Hi! I'm *{BOT_NAME}* from RentBasket. 😊"
 # ========================================
 # SERVICE AREAS
 # ========================================
-SERVICEABLE_PINCODES = {
-    # Gurgaon sectors (122xxx)
-    "122001", "122002", "122003", "122004", "122005", "122006", "122007", "122008",
-    "122009", "122010", "122011", "122015", "122016", "122017", "122018", "122022",
-    "122101", "122102", "122103", "122104", "122105",
-    # Noida sectors (201xxx)
-    "201301", "201303", "201304", "201305", "201306", "201307", "201308", "201309",
-    "201310", "201312", "201313", "201314", "201318",
-    # Greater Noida
-    "201306", "201310",
-}
-
-# Border areas - need to check with sales
-BORDER_PINCODES = {
-    "122413", "122414",  # Manesar area
-}
+RENTBASKET_API_BASE = "https://testapi.rentbasket.com"
+MAX_SERVICEABLE_DISTANCE_KM = 20
 
 # ========================================
 # DURATION OPTIONS

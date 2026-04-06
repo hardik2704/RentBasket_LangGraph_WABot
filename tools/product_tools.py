@@ -3,11 +3,12 @@
 
 from langchain_core.tools import tool
 from typing import List, Optional
-import json
-
+import json as _json
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from urllib.parse import quote as url_quote
 
 from data.products import (
     get_products_by_category,
@@ -16,11 +17,12 @@ from data.products import (
     get_product_by_id,
     apply_discount,
     format_price_comparison,
-    create_bundle_quote,
     id_to_name,
     category_to_id,
     TRENDING_PRODUCTS
 )
+
+from config import CART_LINK_BASE_URL, CART_LINK_REFERRAL_CODE
 
 
 @tool
@@ -236,3 +238,55 @@ def get_trending_products_tool(category: Optional[str] = None) -> str:
             results.append(f"• {cat.title()}: {product['name']} - {rent_display} (6mo)")
     
     return "\n".join(results)
+
+
+@tool
+def generate_cart_link_tool(product_ids: str, duration: int = 12) -> str:
+    """
+    Generate a dynamic cart link for the customer's selected products.
+    Call this AFTER serviceability is confirmed to give the customer their checkout link.
+
+    Args:
+        product_ids: Comma-separated product IDs (e.g., "1088,1089,1088" for 2x 1088 + 1x 1089)
+        duration: Rental duration in months
+
+    Returns:
+        The full cart link URL
+    """
+    from collections import Counter
+
+    try:
+        ids = [int(pid.strip()) for pid in product_ids.split(",")]
+    except ValueError:
+        return "Invalid product IDs format. Use comma-separated numbers."
+
+    qty_map = Counter(pid for pid in ids if pid in id_to_name)
+    if not qty_map:
+        return "No valid products found for the cart link."
+
+    # Build the items payload
+    items_payload = []
+    for pid, qty in qty_map.items():
+        product = get_product_by_id(pid)
+        # Use amenity_type_id if available, otherwise fall back to product id
+        amenity_type_id = pid
+        if isinstance(product, dict):
+            amenity_type_id = (
+                product.get("amenity_type_id")
+                or product.get("amenity_id")
+                or product.get("type_id")
+                or product.get("id")
+                or pid
+            )
+        items_payload.append({
+            "amenity_type_id": int(amenity_type_id),
+            "count": int(qty),
+            "duration": int(duration),
+        })
+
+    encoded_items = url_quote(
+        _json.dumps(items_payload, separators=(",", ":"), ensure_ascii=False),
+        safe="",
+    )
+    cart_link = f"{CART_LINK_BASE_URL}?referral_code={CART_LINK_REFERRAL_CODE}&items={encoded_items}"
+    return cart_link

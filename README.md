@@ -128,11 +128,8 @@ RentBasket_LangGraph_WABot/
 ├── 🛠️ tools/                # Specialized functions used by agents
 │   ├── product_tools.py     # Real-time pricing and availability retrieval
 │   ├── catalogue_tools.py   # Product category and specification lookups
-│   ├── location_tools.py    # Serviceability validation (Pincode checks)
+│   ├── location_tools.py    # Serviceability validation (API-based pincode checks)
 │   └── human_handoff.py     # Logic for escalating to human sales agents
-├── 🚚 logistics/            # Location-based engines
-│   ├── distance_engine.py   # Calculates distances for delivery zones
-│   └── pricing.py           # Handles location-dependent rental pricing
 ├── 💬 whatsapp/             # WhatsApp Cloud API wrappers
 │   ├── client.py            # Handles sending text, buttons, and list messages
 │   └── indicators.py        # Typing & read receipt simulations

@@ -1,29 +1,34 @@
 # Location Tools for RentBasket WhatsApp Bot
-# Tools for checking serviceability by pincode
+# Tools for checking serviceability by pincode using RentBasket API
 
 from langchain_core.tools import tool
 import re
+import os
+import requests
 
 import sys
-import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import (
-    SERVICEABLE_PINCODES, 
-    BORDER_PINCODES,
     SALES_PHONE_GURGAON,
-    SALES_PHONE_NOIDA
+    SALES_PHONE_NOIDA,
+    RENTBASKET_API_BASE,
+    MAX_SERVICEABLE_DISTANCE_KM,
 )
-from logistics import DistanceEngine, calculate_delivery_price
 
-# Initialize Distance Engine
-distance_engine = DistanceEngine()
+# JWT for RentBasket API authentication
+_RENTBASKET_JWT = os.environ.get(
+    "RENTBASKET_JWT",
+    "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3NzUwNjExMDQsImV4cCI6MTE3NzUwNjExMDQsImRhdGEiOnsiaWQiOjEsImVtYWlsIjoidmlqYXltYWhlbkBnbWFpbC5jb20ifX0.WZBiCCK6R0MmubatJWpLerv5GXSSmFHC5-IjZw7jE4M",
+)
 
-# Office Pincodes for distance logging
-OFFICE_PINCODES = {
-    "Gurgaon": "122003",
-    "Noida": "201301"
-}
+
+def _api_auth_headers() -> dict:
+    """Auth headers for RentBasket API using JWT Bearer token."""
+    return {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {_RENTBASKET_JWT}",
+    }
 
 
 def _extract_pincode(text: str) -> str:
@@ -48,144 +53,196 @@ def _identify_city_from_pincode(pincode: str) -> str:
         return "Unknown area"
 
 
+def _call_distance_api(pincode: str) -> dict | None:
+    """
+    Call RentBasket API to get distance from service centers.
+
+    Returns:
+        dict with keys:
+            gurgaon_km          - actual distance from Gurgaon office (float)
+            noida_km            - actual distance from Noida office (float)
+            gurgaon_max_km      - max serviceable distance for Gurgaon (float)
+            noida_max_km        - max serviceable distance for Noida (float)
+        or None on failure.
+    """
+    url = f"{RENTBASKET_API_BASE}/get-distance-from-service-centers?pin={pincode}"
+    try:
+        resp = requests.get(url, headers=_api_auth_headers(), timeout=10)
+        resp.raise_for_status()
+        body = resp.json()
+        return _parse_distances(body)
+    except Exception as e:
+        print(f"   [ServiceabilityAPI] Error for pin {pincode}: {e}")
+        return None
+
+
+def _parse_distances(body: dict) -> dict | None:
+    """
+    Parse the API response.
+
+    Expected shape:
+    {
+      "status": "Success",
+      "responseCode": 200,
+      "data": {
+        "distance_values": {
+          "servicingdistFromGGNOffice": "20",
+          "servicingdistFromNoidaOffice": "20",
+          "distFromGGNOffice": 1.659,
+          "distFromNoidaOffice": 35.371
+        }
+      }
+    }
+    """
+    try:
+        dv = body["data"]["distance_values"]
+
+        gurgaon_km = float(dv["distFromGGNOffice"])
+        noida_km = float(dv["distFromNoidaOffice"])
+
+        # Max serviceable distance comes from the API itself; fall back to config
+        gurgaon_max = float(dv.get("servicingdistFromGGNOffice", MAX_SERVICEABLE_DISTANCE_KM))
+        noida_max = float(dv.get("servicingdistFromNoidaOffice", MAX_SERVICEABLE_DISTANCE_KM))
+
+        result = {
+            "gurgaon_km": gurgaon_km,
+            "noida_km": noida_km,
+            "gurgaon_max_km": gurgaon_max,
+            "noida_max_km": noida_max,
+        }
+        print(f"   [ServiceabilityAPI] Parsed: {result}")
+        return result
+    except (KeyError, TypeError, ValueError) as e:
+        print(f"   [ServiceabilityAPI] Parse error: {e} | raw: {body}")
+        return None
+
+
 @tool
 def check_serviceability_tool(pincode_or_location: str) -> str:
     """
     Check if a location/pincode is serviceable for delivery.
     Use this when customer provides their location or pincode.
-    
+
     Args:
         pincode_or_location: 6-digit pincode or location text containing pincode
-    
+
     Returns:
         Serviceability status and next steps
     """
     # Extract pincode if embedded in text
     pincode = _extract_pincode(pincode_or_location)
-    
+
     if not pincode:
         # Try common location names
         location_lower = pincode_or_location.lower()
-        
-        # Check for known non-serviceable areas
+
         if any(area in location_lower for area in ["delhi", "saket", "cp", "connaught", "dwarka", "rohini", "janakpuri"]):
             return f"""
-❌ **Delhi is not serviceable currently.**
+Delhi is not serviceable currently.
 
 We currently serve only:
-• Gurgaon (all sectors except Manesar)
-• Noida (all sectors)
+- Gurgaon (all sectors except Manesar)
+- Noida (all sectors)
 
-📞 For special arrangements, contact:
-• Gurgaon: {SALES_PHONE_GURGAON}
-• Noida: {SALES_PHONE_NOIDA}
+For special arrangements, contact:
+- Gurgaon: {SALES_PHONE_GURGAON}
+- Noida: {SALES_PHONE_NOIDA}
 
 If you have an alternate address in our service area, please share it!
 """
-        
+
         if any(area in location_lower for area in ["faridabad", "greater faridabad"]):
             return f"""
-❌ **Faridabad is not serviceable currently.**
+Faridabad is not serviceable currently.
 
 We serve Gurgaon & Noida only.
 
-📞 Contact our team for updates: {SALES_PHONE_GURGAON}
+Contact our team for updates: {SALES_PHONE_GURGAON}
 """
-        
+
         if any(area in location_lower for area in ["gurgaon", "gurugram", "sector"]):
             return """
-✅ **We serve Gurgaon!**
+We serve Gurgaon!
 
 Please share your exact pincode so I can confirm:
-• Delivery availability
-• Fastest delivery slot
+- Delivery availability
+- Fastest delivery slot
 
 Example: 122001, 122018, etc.
 """
-        
+
         if any(area in location_lower for area in ["noida", "greater noida"]):
             return """
-✅ **We serve Noida!**
+We serve Noida!
 
 Please share your exact pincode so I can confirm:
-• Delivery availability  
-• Fastest delivery slot
+- Delivery availability
+- Fastest delivery slot
 
 Example: 201301, 201306, etc.
 """
-        
+
         # Unknown location - ask for pincode
         return """
-To check delivery availability, please share your **6-digit pincode**.
+To check delivery availability, please share your *6-digit pincode*.
 
 We currently serve:
-• Gurgaon (all sectors except Manesar)
-• Noida (all sectors)
+- Gurgaon (all sectors except Manesar)
+- Noida (all sectors)
 """
-    # We have a pincode - check serviceability
+
+    # ── We have a pincode -- call the API ──
     city = _identify_city_from_pincode(pincode)
+    distances = _call_distance_api(pincode)
 
-    # Calculate distance to nearest office dynamically
-    min_dist = float('inf')
-    closest_office = None
-    for office, off_pin in OFFICE_PINCODES.items():
-        dist = distance_engine.estimate_road_km(off_pin, pincode)
-        if dist is not None and dist < min_dist:
-            min_dist = dist
-            closest_office = office
-            
-    is_serviceable = pincode in SERVICEABLE_PINCODES or min_dist <= 20
-    is_border = pincode in BORDER_PINCODES or (20 < min_dist <= 35)
-    
-    if is_serviceable:
-        dist_str = f" (approx {min_dist:.1f} km from {closest_office} office)" if closest_office else ""
+    if distances is None:
         return f"""
-✅ **Great news! Pincode {pincode} ({city}) is serviceable!**
+Sorry, I couldn't verify serviceability for pincode {pincode} right now. Please try again in a moment.
 
-We can deliver to your location{dist_str}.
-• Standard delivery: 2-5 business days
-• Express delivery: Subject to availability
-
-Would you like to proceed with your order?
+Or contact our sales team directly:
+- Gurgaon: {SALES_PHONE_GURGAON}
+- Noida: {SALES_PHONE_NOIDA}
 """
-    
-    if is_border:
-        dist_str = f" (approx {min_dist:.1f} km from {closest_office})" if closest_office else ""
-        return f"""
-⚠️ **Pincode {pincode} is in a border area or slightly far{dist_str}.**
 
-We might be able to cater to this location with special arrangement.
+    gurgaon_km = distances["gurgaon_km"]
+    noida_km = distances["noida_km"]
+    gurgaon_max = distances["gurgaon_max_km"]
+    noida_max = distances["noida_max_km"]
 
-📞 Please contact our sales team:
-• Gurgaon: {SALES_PHONE_GURGAON}
-• Noida: {SALES_PHONE_NOIDA}
+    gurgaon_ok = gurgaon_km <= gurgaon_max
+    noida_ok = noida_km <= noida_max
 
-They can confirm availability and arrange priority delivery.
-"""
-    
+    # Build distance info lines
+    parts = []
+    g_status = "Serviceable" if gurgaon_ok else "Not Serviceable"
+    n_status = "Serviceable" if noida_ok else "Not Serviceable"
+    parts.append(f"Approximately {gurgaon_km:.1f} km from the Gurugram Office -- {g_status}")
+    parts.append(f"Approximately {noida_km:.1f} km from the Noida Office -- {n_status}")
+    distance_info = "\n".join(parts)
+
+    if gurgaon_ok or noida_ok:
+        # Pick the closer serviceable office
+        if gurgaon_ok and noida_ok:
+            office = "Gurugram" if gurgaon_km <= noida_km else "Noida"
+        elif gurgaon_ok:
+            office = "Gurugram"
+        else:
+            office = "Noida"
+
+        return f"""SERVICEABLE
+Pincode {pincode} ({city}) is serviceable.
+
+{distance_info}
+
+Delivery from our *{office} Office*. Standard delivery: 2-5 business days."""
+
     # Not serviceable
-    if city in ["Delhi", "Faridabad", "Rohtak/Jhajjar"]:
-        return f"""
-❌ **Sorry, pincode {pincode} ({city}) is not serviceable.**
+    return f"""NOT_SERVICEABLE
+Sorry, pincode {pincode} ({city}) is outside our delivery range.
 
-We currently serve only Gurgaon & Noida.
+{distance_info}
 
-📞 For special requests, contact:
-• Call: {SALES_PHONE_GURGAON}
-
-If you have an alternate address in Gurgaon or Noida, please share it!
-"""
-    
-    # Non-serviceable, far away
-    return f"""
-❌ **Sorry, pincode {pincode} is outside our delivery range.**
-
-We currently serve Gurgaon and Noida.
-
-📞 Please contact our team if you need further assistance:
-• Gurgaon: {SALES_PHONE_GURGAON}
-• Noida: {SALES_PHONE_NOIDA}
-"""
+We serve Gurgaon and Noida within {gurgaon_max:.0f} km of our offices. Contact us for special requests: Gurgaon {SALES_PHONE_GURGAON} | Noida {SALES_PHONE_NOIDA}"""
 
 
 @tool
@@ -193,29 +250,29 @@ def get_service_areas_tool() -> str:
     """
     Get list of all serviceable areas.
     Use this when customer asks about service areas or delivery locations.
-    
+
     Returns:
         List of serviceable cities and areas
     """
     return f"""
-📍 **RentBasket Service Areas:**
+*RentBasket Service Areas:*
 
-✅ **Gurgaon (Gurugram)**
-• All main sectors covered
-• Excluding: Manesar industrial area
+*Gurgaon (Gurugram)*
+- All main sectors covered
+- Excluding: Manesar industrial area
 
-✅ **Noida**
-• All sectors covered
-• Greater Noida: Limited areas
+*Noida*
+- All sectors covered
+- Greater Noida: Limited areas
 
-❌ **Not Covered Currently:**
-• Delhi NCR (all areas)
-• Faridabad
-• Ghaziabad (most areas)
+*Not Covered Currently:*
+- Delhi NCR (all areas)
+- Faridabad
+- Ghaziabad (most areas)
 
-📞 **Contact for special requests:**
-• Gurgaon: {SALES_PHONE_GURGAON}
-• Noida: {SALES_PHONE_NOIDA}
+*Contact for special requests:*
+- Gurgaon: {SALES_PHONE_GURGAON}
+- Noida: {SALES_PHONE_NOIDA}
 
 Share your pincode and I'll confirm exact availability!
 """
