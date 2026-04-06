@@ -292,6 +292,12 @@ def _get_sales_agent(checkpointer=None):
 
 # ========================================
 # AGENT RUNNER
+
+# Public alias — kept for backwards compatibility with agents/__init__.py and main.py
+def create_sales_agent(checkpointer=None):
+    """Public wrapper around the singleton builder. Returns the compiled agent."""
+    return _get_sales_agent(checkpointer=checkpointer)
+
 # ========================================
 
 def run_agent(user_message: str, state: ConversationState = None) -> tuple[str, ConversationState]:
