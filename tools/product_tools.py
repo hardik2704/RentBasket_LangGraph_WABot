@@ -24,7 +24,6 @@ from data.products import (
 
 from config import CART_LINK_BASE_URL, CART_LINK_REFERRAL_CODE, RENTBASKET_JWT
 
-
 @tool
 def search_products_tool(query: str, category: Optional[str] = None) -> str:
     """
@@ -36,7 +35,7 @@ def search_products_tool(query: str, category: Optional[str] = None) -> str:
         category: Optional specific category to filter by (e.g., "bed", "fridge", "ac", "sofa")
     
     Returns:
-        List of matching products with their IDs
+        List of matching products
     """
     results = []
     
@@ -46,10 +45,12 @@ def search_products_tool(query: str, category: Optional[str] = None) -> str:
         if cat_key in category_to_id:
             products = get_products_by_category(cat_key)
             for p in products[:8]:  # Limit to 8 items
-                # Show 12-month discounted price as "Starting from"
                 orig_12mo = calculate_rent(p['id'], 12)
                 disc_12mo = apply_discount(orig_12mo) if orig_12mo else 0
-                results.append(f"• {p['name']} - Starting from ₹{disc_12mo:,}/mo (ID: {p['id']})")
+                
+                results.append(
+                    f"• {p['name']} - Starting from ₹{disc_12mo:,}/mo"
+                )
 
     # Also search by name
     if query:
@@ -57,62 +58,46 @@ def search_products_tool(query: str, category: Optional[str] = None) -> str:
         for p in name_results[:8]:
             orig_12mo = calculate_rent(p['id'], 12)
             disc_12mo = apply_discount(orig_12mo) if orig_12mo else 0
-            item = f"• {p['name']} - Starting from ₹{disc_12mo:,}/mo (ID: {p['id']})"
+            
+            item = f"• {p['name']} - Starting from ₹{disc_12mo:,}/mo"
+            
             if item not in results:
                 results.append(item)
     
     if not results:
-        # User searched for something strictly not in our DB (like Curtains)
         categories = list(set(category_to_id.keys()))[:10]
+        
         return f"""
 Nothing found matching '{query}'.
-INSTRUCTION FOR AGENT: Do NOT say "Not Available" coldly.
-Instead, pivot elegantly: "We don't carry {query} right now, but if you're setting up your home, we have premium beds, wardrobes, and appliances available!"
+
+INSTRUCTION FOR AGENT: 
+Do NOT say "Not Available" coldly.
+
+Instead pivot elegantly:
+"We don't carry {query} right now, but if you're setting up your home, we have premium beds, wardrobes, and appliances available!"
+
 Available categories: {', '.join(categories)}
 """
-    
-    # If we found results, we add a smart instructional hint for the agent.
-    # For example, if they searched L-shape sofa and we found 7-seater sofas.
+
+    # Smart Agent Hint
     prompt_hint = ""
     if query and len(query) > 3 and not category:
-        prompt_hint = f"\nINSTRUCTION FOR AGENT: If these aren't exact matches for '{query}' (e.g., matching 7-seater for L-shape), present them as the CLOSEST ALTERNATIVES. Do NOT say 'We do not have {query}'. Instead say: 'I may not have that exact listing right now, but I do have great options that are closest to what you need:' and list the products below."
-        
-    upfront_note = "\n\n_Pay upfront for an additional 10% off on top of the 30% flat discount._" if category else ""
-    return f"Found {len(results)} products matching intent for '{query}':\n" + "\n".join(results[:10]) + prompt_hint + upfront_note
-
-
-@tool
-def get_price_tool(product_id: int, duration: int = 6, unit: str = "months") -> str:
-    """
-    Get the rental price with 30% flat and 10% upfront layered discounts.
-    """
-    product = get_product_by_id(product_id)
-    if not product:
-        return f"Product with ID {product_id} not found."
-    
-    orig_rent = calculate_rent(product_id, duration, unit)
-    rent_display = format_price_comparison(orig_rent, duration, unit)
-    
-    if unit == "months":
-        prices = [1, 3, 6, 12]
-        opts = [f" • {d}mo: {format_price_comparison(calculate_rent(product_id, d), d)}" for d in prices]
-        price_info = "\n".join(opts)
-    else:
-        price_info = "Daily rates vary by tenure."
-
-    # Show 12-month discounted price as "Starting from" reference
-    orig_12mo = calculate_rent(product_id, 12)
-    disc_12mo = apply_discount(orig_12mo) if orig_12mo else 0
-
-    return f"""
-*{product['name']}*
-Starting from ₹{disc_12mo:,}/mo (12-month plan, 30% discount)
-Rent for {duration} {unit}: {rent_display}
-
-{unit == "months" and "*Duration Options (30% Flat Discount applied):*" or ""}
-{price_info}
+        prompt_hint = f"""
+INSTRUCTION FOR AGENT:
+If these aren't exact matches for '{query}', present them as CLOSEST ALTERNATIVES.
+Do NOT say "We do not have {query}".
+Instead say:
+"I may not have that exact listing right now, but I do have great options closest to what you need:"
 """
 
+    upfront_note = "\n\n_Pay upfront for an additional 10% off on top of the 30% flat discount._" if category else ""
+
+    return (
+        f"Found {len(results)} products matching intent for '{query}':\n"
+        + "\n".join(results[:10])
+        + prompt_hint
+        + upfront_note
+    )
 
 @tool
 def create_quote_tool(product_ids: str, duration: int = 12, unit: str = "months") -> str:
@@ -286,7 +271,7 @@ def generate_cart_link_tool(product_ids: str, duration: int = 12) -> str:
 
     encoded_items = url_quote(
         _json.dumps(items_payload, separators=(",", ":"), ensure_ascii=False),
-        safe="",
+        safe="[]{}:,",
     )
     cart_link = f"{CART_LINK_BASE_URL}?token={RENTBASKET_JWT}&referral_code={CART_LINK_REFERRAL_CODE}&items={encoded_items}"
     return cart_link

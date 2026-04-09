@@ -233,7 +233,7 @@ LATEST_REVIEWS_TEXT = (
 # ========================================
 
 BROWSE_PRODUCTS_OCCASION = os.getenv("BROWSE_PRODUCTS_OCCASION", "heavy discount offers")
-BROWSE_PRODUCTS_REFERRAL_CODE = os.getenv("BROWSE_PRODUCTS_REFERRAL_CODE", "ATFU1NTg5")
+BROWSE_PRODUCTS_REFERRAL_CODE = os.getenv("BROWSE_PRODUCTS_REFERRAL_CODE", "ATFU1NTg1")
 BROWSE_PRODUCTS_BASE_URL = os.getenv(
     "BROWSE_PRODUCTS_BASE_URL",
     "https://testqr.rentbasket.com/lead-shopping",
@@ -404,19 +404,142 @@ def _send_category_products(phone: str, category_id: str, sender_name: str) -> b
     context["last_browse_category"] = category_id
     context["last_browse_category_title"] = category_title
 
+    # Log category selection to database
+    normalized_phone = normalize_phone(phone)
+    _save_browse_lead_data(normalized_phone, {
+        "last_browsed_category": category_title,
+        "lead_stage": "browse_category_selected",
+    })
+
     if not products:
         whatsapp_client.send_text_message(
             phone,
-            f"I could not fetch products for *{category_title}* right now. Please type the exact item names you want and I will prepare the quote.",
+            f"Could not fetch products for *{category_title}* right now. Please type the exact item names you want and I will prepare the quote.",
             preview_url=False,
         )
         return True
 
-    lines = [f"*{category_title} Options*", "Reply with the exact items you want, for example: 1 Storage Bed, 1 Split AC"]
-    for idx, product in enumerate(products, 1):
-        lines.append(f"{idx}. {product.get('name', 'Product')}")
+    duration = int(context.get("browse_duration") or 6)
 
-    whatsapp_client.send_text_message(phone, "\n".join(lines), preview_url=False)
+    # Build interactive list rows with per-variant pricing
+    rows = []
+    for product in products[:9]:  # WhatsApp list allows max 10 rows per section
+        pid = product.get("id") or product.get("product_id")
+        if not pid:
+            continue
+        mrp = calculate_rent(pid, duration) or 0
+        discounted = int(round(mrp * 0.70)) if mrp else 0
+        name = product.get("name", "Product")
+        title = (name[:21] + "...") if len(name) > 24 else name
+        if discounted:
+            description = f"Rs. {discounted:,}/mo  (was Rs. {mrp:,})"
+        else:
+            description = "Tap to add"
+        rows.append({
+            "id": f"BROWSE_ITEM_{pid}",
+            "title": title,
+            "description": description,
+        })
+
+    if not rows:
+        whatsapp_client.send_text_message(
+            phone,
+            f"Showing *{category_title}* options. Type the item name with quantity, e.g.: 1 {category_title}",
+            preview_url=False,
+        )
+        return True
+
+    upfront_note = ", pay upfront for extra 10% off" if duration >= 12 else ""
+    sections = [{"title": category_title, "rows": rows}]
+    try:
+        whatsapp_client.send_list_message(
+            to_phone=phone,
+            body_text=(
+                f"*{category_title} - {duration} month rental*\n"
+                f"All prices shown after 30% discount{upfront_note}.\n"
+                f"Tap any variant to add it to your cart."
+            ),
+            button_text="Select Variant",
+            sections=sections,
+            header="Browse Products",
+            footer="You can select multiple items",
+        )
+    except Exception as e:
+        print(f"   Warning: list message failed for {phone}: {e}")
+        # Fallback to plain text
+        lines = [f"*{category_title} Options ({duration} months)*"]
+        for row in rows:
+            lines.append(f"- {row['title']}: {row['description']}")
+        lines.append("\nReply with the item name to add to cart.")
+        whatsapp_client.send_text_message(phone, "\n".join(lines), preview_url=False)
+    return True
+
+
+def _handle_browse_item_selection(phone: str, sender_name: str, product_id: int) -> bool:
+    """Handle user tapping a product variant from the list. Adds to browse cart and shows updated quote."""
+    ctx = _browse_context(phone)
+    duration = int(ctx.get("browse_duration") or 12)
+    normalized_phone = normalize_phone(phone)
+
+    product = get_product_by_id(product_id)
+    if not product:
+        whatsapp_client.send_text_message(phone, "Could not find that product. Please try again.")
+        return True
+
+    mrp = calculate_rent(product_id, duration) or 0
+    discounted = int(round(mrp * 0.70)) if mrp else 0
+    product_name = product.get("name", "Product")
+
+    new_item = {
+        "product_id": product_id,
+        "product_name": product_name,
+        "name": product_name,
+        "qty": 1,
+        "original_rent": mrp,
+        "rent": discounted,
+        "duration": duration,
+        "matched": True,
+    }
+
+    # Merge with existing browse cart
+    existing_quote = ctx.get("last_browse_quote", {})
+    existing_items = list(existing_quote.get("items", []))
+    existing_ids = {it.get("product_id") for it in existing_items if it.get("product_id")}
+
+    if product_id in existing_ids:
+        for ex in existing_items:
+            if ex.get("product_id") == product_id:
+                ex["qty"] = ex.get("qty", 1) + 1
+                break
+        added_msg = f"Added one more *{product_name}* to your cart."
+    else:
+        existing_items.append(new_item)
+        added_msg = f"*{product_name}* added to your cart."
+
+    # Log product interest to database
+    _save_browse_lead_data(normalized_phone, {
+        "last_item_added": product_name,
+        "lead_stage": "browse_item_selected",
+    })
+
+    # Per-item pricing confirmation
+    pricing_lines = [
+        added_msg,
+        "",
+        f"*{product_name}* | {duration} months",
+        f"MRP: Rs. {mrp:,}/mo",
+        f"After 30% discount: Rs. {discounted:,}/mo",
+    ]
+    if duration >= 12 and discounted:
+        upfront_price = int(round(discounted * 0.90))
+        upfront_save = (mrp - upfront_price) * duration
+        pricing_lines.append(f"Pay upfront: Rs. {upfront_price:,}/mo (extra 10% off, save Rs. {upfront_save:,} total)")
+
+    whatsapp_client.send_text_message(phone, "\n".join(pricing_lines), preview_url=False)
+    time.sleep(0.4)
+
+    # Send the full updated quote with checkout option
+    _send_browse_quote(phone, sender_name, product_name, existing_items, duration)
     return True
 
 
@@ -445,7 +568,8 @@ def _build_browse_cart_payload(items: List[dict], duration: int) -> List[dict]:
 
 def _build_browse_cart_link(items: List[dict], duration: int) -> str:
     payload = _build_browse_cart_payload(items, duration)
-    encoded_items = quote(json.dumps(payload, separators=(",", ":"), ensure_ascii=False), safe="")
+    # Keep brackets/braces/colons literal so the backend receives valid JSON array syntax
+    encoded_items = quote(json.dumps(payload, separators=(",", ":"), ensure_ascii=False), safe="[]{}:,")
     return f"{BROWSE_PRODUCTS_BASE_URL}?token={RENTBASKET_JWT}&referral_code={BROWSE_PRODUCTS_REFERRAL_CODE}&items={encoded_items}"
 
 
@@ -465,11 +589,31 @@ def _format_browse_estimate(items: List[dict], duration: int) -> Tuple[str, int,
         )
         return message, 0, 0, 0
 
-    message = (
-        f"Great news! Your {duration}-month rental comes to just Rs. {discounted_monthly:,} per month "
-        f"(Rs. {original_monthly:,} before our 30% flat discount). "
-        f"That is a total saving of Rs. {savings_total:,}!"
-    )
+    # Per-item breakdown
+    lines = [f"*Your Cart - {duration} Month Rental*", ""]
+    for item in matched_items:
+        name = item.get("product_name") or item.get("name") or "Product"
+        qty = int(item.get("qty", 1))
+        per_unit_mrp = int(item.get("original_rent") or item.get("rent") or 0)
+        per_unit_disc = int(round(per_unit_mrp * 0.70)) if per_unit_mrp else 0
+        if qty > 1:
+            line_total = per_unit_disc * qty
+            lines.append(f"- {name} x{qty}:  Rs. {per_unit_disc:,} x {qty} = Rs. {line_total:,}/mo")
+        else:
+            lines.append(f"- {name}:  Rs. {per_unit_disc:,}/mo  (was Rs. {per_unit_mrp:,})")
+
+    lines.append("")
+    monthly_saving = original_monthly - discounted_monthly
+    lines.append(f"Monthly Total: Rs. {discounted_monthly:,}  (saving Rs. {monthly_saving:,}/mo vs MRP)")
+    lines.append(f"Total saving over {duration} months: Rs. {savings_total:,}")
+
+    # Upfront option for 12+ month rentals
+    if duration >= 12:
+        upfront_monthly = int(round(discounted_monthly * 0.90))
+        upfront_total_saving = max(0, (original_monthly - upfront_monthly) * int(duration))
+        lines.append(f"\nPay upfront: Rs. {upfront_monthly:,}/mo  (extra 10% off — save Rs. {upfront_total_saving:,} total)")
+
+    message = "\n".join(lines)
     return message, original_monthly, discounted_monthly, savings_total
 
 
@@ -530,8 +674,9 @@ def _send_browse_quote(phone: str, sender_name: str, source_text: str, items: Li
     time.sleep(0.4)
 
     buttons = [
-        {"id": "BROWSE_SHOW_DETAILS", "title": "Show full details"},
-        {"id": "BROWSE_CUSTOMER_REVIEWS", "title": "Customer Reviews"},
+        {"id": "BROWSE_SHOW_DETAILS", "title": "View Cart & Checkout"},
+        {"id": "BROWSE_PRODUCTS", "title": "Browse More"},
+        {"id": "BROWSE_CUSTOMER_REVIEWS", "title": "Reviews"},
     ]
     whatsapp_client.send_interactive_buttons(
         to_phone=phone,
@@ -547,23 +692,50 @@ def _send_browse_full_details(phone: str, sender_name: str) -> bool:
     items = quote.get("items", [])
     duration = int(quote.get("duration") or 12)
     cart_link = quote.get("cart_link") or _build_browse_cart_link(items, duration)
+    normalized_phone = normalize_phone(phone)
 
     if not items:
         whatsapp_client.send_text_message(phone, "No browse quote found yet. Please share the product list again.")
         return True
 
+    original_monthly = int(quote.get("original_monthly") or 0)
+    discounted_monthly = int(quote.get("discounted_monthly") or 0)
+    savings_total = int(quote.get("savings_total") or 0)
+
     lines = ["*WhatsApp Message Cart*", f"Duration: {duration} months", ""]
+    item_names = []
     for idx, item in enumerate(items, 1):
         product_name = item.get("product_name") or item.get("name") or "Product"
         qty = int(item.get("qty", 1))
-        per_unit = int(item.get("rent") or 0)
-        total = per_unit * qty
-        lines.append(f"{idx}. {product_name}")
-        lines.append(f"   Qty: {qty} | Approx Rent: Rs. {total:,}/mo")
+        per_unit_mrp = int(item.get("original_rent") or item.get("rent") or 0)
+        per_unit_disc = int(item.get("rent") or int(round(per_unit_mrp * 0.70)) if per_unit_mrp else 0)
+        line_total = per_unit_disc * qty
+        lines.append(f"{idx}. {product_name} x{qty}")
+        lines.append(f"   Rs. {per_unit_disc:,}/mo  (was Rs. {per_unit_mrp:,}) = Rs. {line_total:,}/mo")
+        item_names.append(f"{product_name} x{qty}")
 
     lines.append("")
-    lines.append("Should I checkout, just check the link to gain 5% Additional discount for using our WhatsApp Bot to place order!")
+    if discounted_monthly:
+        lines.append(f"Monthly Total: Rs. {discounted_monthly:,}/mo")
+        lines.append(f"Total saving over {duration} months: Rs. {savings_total:,}")
+        if duration >= 12:
+            upfront_monthly = int(round(discounted_monthly * 0.90))
+            upfront_saving = max(0, (original_monthly - upfront_monthly) * duration)
+            lines.append(f"Pay upfront: Rs. {upfront_monthly:,}/mo  (extra 10% off — save Rs. {upfront_saving:,} total)")
+
+    lines.append("")
+    lines.append("Tap the link below to complete your order and get an additional 5% off for ordering via WhatsApp:")
     lines.append(cart_link)
+
+    # Log the full cart to database
+    _save_browse_lead_data(normalized_phone, {
+        "final_cart_items": ", ".join(item_names),
+        "final_cart_monthly": discounted_monthly,
+        "final_cart_duration": duration,
+        "final_cart_savings": savings_total,
+        "final_cart_link": cart_link,
+        "lead_stage": "checkout_link_sent",
+    })
 
     whatsapp_client.send_text_message(phone, "\n".join(lines), preview_url=True)
     return True
@@ -2427,7 +2599,7 @@ Thank you for choosing RentBasket!"""
                     "duration": int(duration),
                 })
 
-            encoded_items = quote(json.dumps(cart_payload, separators=(",", ":"), ensure_ascii=False), safe="")
+            encoded_items = quote(json.dumps(cart_payload, separators=(",", ":"), ensure_ascii=False), safe="[]{}:,")
             cart_link = f"{BROWSE_PRODUCTS_BASE_URL}?token={RENTBASKET_JWT}&referral_code={BROWSE_PRODUCTS_REFERRAL_CODE}&items={encoded_items}"
 
             whatsapp_client.send_text_message(
@@ -2459,6 +2631,20 @@ Thank you for choosing RentBasket!"""
         elif button_id.startswith("BROWSE_CAT_"):
             _send_category_products(phone, button_id, sender_name)
             return jsonify({"status": "ok", "action": "browse_category_selected"}), 200
+
+        elif button_id.startswith("BROWSE_ITEM_"):
+            # User tapped a product variant from the list — add to cart
+            try:
+                product_id = int(button_id.split("_")[-1])
+            except (ValueError, IndexError):
+                whatsapp_client.send_text_message(phone, "Could not identify that product. Please try again.")
+                return jsonify({"status": "ok", "action": "browse_item_invalid"}), 200
+            thread = threading.Thread(
+                target=_handle_browse_item_selection,
+                args=(phone, sender_name, product_id),
+            )
+            thread.start()
+            return jsonify({"status": "ok", "action": "browse_item_selected"}), 200
 
         elif button_id in ("BROWSE_SHOW_DETAILS", "SHOW_FULL_DETAILS"):
             _send_browse_full_details(phone, sender_name)
