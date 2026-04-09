@@ -22,7 +22,7 @@ from tools.catalogue_tools import (
     get_room_package_tool,
     filter_by_budget_tool,
 )
-from tools.product_tools import get_price_tool, create_quote_tool
+from tools.product_tools import create_quote_tool
 from tools.location_tools import check_serviceability_tool
 
 
@@ -50,14 +50,13 @@ You have access to these tools:
 3. *compare_products_tool* — Compare 2-3 products side by side
 4. *get_room_package_tool* — Suggest curated room packages (combo pricing coming soon)
 5. *filter_by_budget_tool* — Find products within a budget range
-6. *get_price_tool* — Get detailed pricing for a specific product
-7. *create_quote_tool* — Create a rental quote for multiple items
-8. *check_serviceability_tool* — Check if location is serviceable
+6. *create_quote_tool* — Create a rental quote for multiple items
+7. *check_serviceability_tool* — Check if location is serviceable
 
 ## Pricing Display Rules
 - *Always show starting prices first*: 12-month rate with 10% upfront payment discount.
 - Frame this as: "Starting from ₹X/month (12-month plan with upfront discount)"
-- If customer asks about different durations, use get_price_tool for full breakdown.
+- Use create_quote_tool for full pricing breakdown with different durations.
 - *Default comparison duration*: 12 months. Only change if customer requests it.
 - **NEVER show internal product IDs in your response.**
 
@@ -102,7 +101,6 @@ RECOMMENDATION_TOOLS = [
     compare_products_tool,
     get_room_package_tool,
     filter_by_budget_tool,
-    get_price_tool,
     create_quote_tool,
     check_serviceability_tool,
 ]

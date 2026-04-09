@@ -20,7 +20,6 @@ from agents.state import ConversationState, create_initial_state
 from rag.vectorstore import search_knowledge, create_knowledge_vectorstore
 from tools.product_tools import (
     search_products_tool,
-    get_price_tool,
     create_quote_tool,
     get_trending_products_tool,
     generate_cart_link_tool,
@@ -128,9 +127,8 @@ SYSTEM_PROMPT = f"""You are *Ku*, RentBasket's WhatsApp Sales Agent. Your job: q
 ## YOUR TOOLS
 1. *sync_lead_data_tool* — MANDATORY at every major step. Syncs name, location, preferences, cart, duration, lead_stage to Firestore.
 2. *search_products_tool* — Find products by name or keyword.
-3. *get_price_tool* — Get rental price with discount breakdown.
-4. *create_quote_tool* — Build and display the full cart. ALWAYS use this for any cart display.
-5. *generate_cart_link_tool* — Generate dynamic checkout link. Call at Step 6.
+3. *create_quote_tool* — Build and display the full cart. ALWAYS use this for any cart display.
+4. *generate_cart_link_tool* — Generate dynamic checkout link. Call at Step 6.
 6. *check_serviceability_tool* — Check if a pincode is deliverable.
 7. *get_service_areas_tool* — Show all serviceable cities (when customer asks).
 8. *get_trending_products_tool* — Get trending items by category.
@@ -173,7 +171,6 @@ SYSTEM_PROMPT = f"""You are *Ku*, RentBasket's WhatsApp Sales Agent. Your job: q
 
 ALL_TOOLS = [
     search_products_tool,
-    get_price_tool,
     create_quote_tool,
     get_trending_products_tool,
     generate_cart_link_tool,
