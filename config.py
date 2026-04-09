@@ -62,6 +62,12 @@ KU_REFERRAL_LINK = "https://qr.rentbasket.com/dealer?referral_code=AS1c2NzAy"
 CART_LINK_BASE_URL = os.getenv("CART_LINK_BASE_URL", "https://testqr.rentbasket.com/lead-shopping")
 CART_LINK_REFERRAL_CODE = os.getenv("CART_LINK_REFERRAL_CODE", "ATFU1NTg1")
 
+# RentBasket JWT — used for API authentication AND as the cart link token param
+RENTBASKET_JWT = os.getenv(
+    "RENTBASKET_JWT",
+    "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3NzUwNjExMDQsImV4cCI6MTE3NzUwNjExMDQsImRhdGEiOnsiaWQiOjEsImVtYWlsIjoidmlqYXltYWhlbkBnbWFpbC5jb20ifX0.WZBiCCK6R0MmubatJWpLerv5GXSSmFHC5-IjZw7jE4M",
+)
+
 # ========================================
 # LOGGING CONFIGURATION
 # ========================================

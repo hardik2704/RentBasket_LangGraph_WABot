@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 load_dotenv()
 
-from config import BOT_NAME, SALES_PHONE_GURGAON, SALES_PHONE_NOIDA, KU_REFERRAL_LINK
+from config import BOT_NAME, SALES_PHONE_GURGAON, SALES_PHONE_NOIDA, KU_REFERRAL_LINK, RENTBASKET_JWT
 from agents.orchestrator import route_and_run
 from agents.state import create_initial_state
 from whatsapp.client import WhatsAppClient
@@ -446,7 +446,7 @@ def _build_browse_cart_payload(items: List[dict], duration: int) -> List[dict]:
 def _build_browse_cart_link(items: List[dict], duration: int) -> str:
     payload = _build_browse_cart_payload(items, duration)
     encoded_items = quote(json.dumps(payload, separators=(",", ":"), ensure_ascii=False), safe="")
-    return f"{BROWSE_PRODUCTS_BASE_URL}?referral_code={BROWSE_PRODUCTS_REFERRAL_CODE}&items={encoded_items}"
+    return f"{BROWSE_PRODUCTS_BASE_URL}?token={RENTBASKET_JWT}&referral_code={BROWSE_PRODUCTS_REFERRAL_CODE}&items={encoded_items}"
 
 
 def _format_browse_estimate(items: List[dict], duration: int) -> Tuple[str, int, int, int]:
@@ -2428,7 +2428,7 @@ Thank you for choosing RentBasket!"""
                 })
 
             encoded_items = quote(json.dumps(cart_payload, separators=(",", ":"), ensure_ascii=False), safe="")
-            cart_link = f"{BROWSE_PRODUCTS_BASE_URL}?referral_code={BROWSE_PRODUCTS_REFERRAL_CODE}&items={encoded_items}"
+            cart_link = f"{BROWSE_PRODUCTS_BASE_URL}?token={RENTBASKET_JWT}&referral_code={BROWSE_PRODUCTS_REFERRAL_CODE}&items={encoded_items}"
 
             whatsapp_client.send_text_message(
                 phone,

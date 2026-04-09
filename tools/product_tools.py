@@ -22,7 +22,7 @@ from data.products import (
     TRENDING_PRODUCTS
 )
 
-from config import CART_LINK_BASE_URL, CART_LINK_REFERRAL_CODE
+from config import CART_LINK_BASE_URL, CART_LINK_REFERRAL_CODE, RENTBASKET_JWT
 
 
 @tool
@@ -288,5 +288,5 @@ def generate_cart_link_tool(product_ids: str, duration: int = 12) -> str:
         _json.dumps(items_payload, separators=(",", ":"), ensure_ascii=False),
         safe="",
     )
-    cart_link = f"{CART_LINK_BASE_URL}?referral_code={CART_LINK_REFERRAL_CODE}&items={encoded_items}"
+    cart_link = f"{CART_LINK_BASE_URL}?token={RENTBASKET_JWT}&referral_code={CART_LINK_REFERRAL_CODE}&items={encoded_items}"
     return cart_link
