@@ -99,10 +99,17 @@ category_to_id = {
     "study": [40, 41, 1058],
     "study table": [40],
     "study chair": [41, 1058],
+    "wfh": [40, 41, 1058],
+    "work from home": [40, 41, 1058],
+    "wfh setup": [40, 41, 1058],
+    "office": [40, 41, 1058],
+    "chair": [41, 1047, 1058],
     "shelf": [42],
     "bookshelf": [42],
     "chimney": [1015],
-    "sofa chair": [1047]
+    "sofa chair": [1047],
+    "dressing table": [1044],
+    "side table": [51, 1055],
 }
 
 # ========================================
@@ -314,6 +321,16 @@ PRODUCT_SYNONYMS = {
   "chimney": [
     "chimney", "kitchen chimney", "exhaust", "exhaust chimney",
     "chimni", "cooker hood", "range hood"
+  ],
+
+  "wfh": [
+    "wfh", "work from home", "wfh setup", "home office", "office setup",
+    "work from home setup", "remote work", "working from home",
+    "study setup", "study room"
+  ],
+
+  "chair": [
+    "chair", "seating", "sitting chair"
   ],
 
   "dressing table": [
@@ -859,36 +876,109 @@ def get_all_categories() -> List[str]:
     return main_categories
 
 
+def _normalize_query_word(word: str) -> str:
+    """Basic singularization / stemming for product search."""
+    w = word.lower().strip()
+    # Simple plural → singular
+    if w.endswith("resses"):  # mattresses → mattress
+        return w[:-2]
+    if w.endswith("ies"):  # batteries → battery (but not 'series')
+        if len(w) > 5:
+            return w[:-3] + "y"
+    if w.endswith("ses"):  # cases → case
+        return w[:-1]
+    if w.endswith("es") and not w.endswith("ches"):
+        return w[:-2] if len(w) > 4 else w[:-1]
+    if w.endswith("s") and not w.endswith("ss"):
+        return w[:-1]
+    # studying → study
+    if w.endswith("ing") and len(w) > 5:
+        base = w[:-3]
+        if base + "y" in ("study",):  # known mappings
+            return base + "y"
+        return base
+    return w
+
+
+def _words_match(query_words: set, target: str) -> bool:
+    """Check if query words match a target string, with basic normalization."""
+    target_lower = target.lower()
+    target_words = set(target_lower.split())
+    for qw in query_words:
+        if len(qw) <= 2:
+            continue
+        normalized = _normalize_query_word(qw)
+        # Check if normalized word is in target text or a target word starts with it
+        if normalized in target_lower:
+            continue
+        if any(tw.startswith(normalized) or normalized.startswith(tw) for tw in target_words if len(tw) > 2):
+            continue
+        return False
+    return True
+
+
 def search_products_by_name(query: str) -> List[Dict[str, Any]]:
-    """Search products by name (partial match) and PRODUCT_VARIANTS."""
+    """Search products by name (partial match) and PRODUCT_VARIANTS.
+    Handles basic plurals and word form variations."""
     query = query.lower().strip()
-    query_words = set(query.split())  # Sub-words for combined intent matching
-    
+    # Remove filler words that don't help matching
+    filler = {"of", "for", "the", "a", "an", "with", "in", "on", "to", "my", "also", "and"}
+    query_words = set(w for w in query.split() if w not in filler)
+    normalized_query = _normalize_query_word(query)
+
     results = []
     seen_ids = set()
-    
-    # 1. Match against product names
+
+    # 0. Try category_to_id first for exact category matches
+    for cat_key, cat_ids in category_to_id.items():
+        if query == cat_key or normalized_query == cat_key:
+            for pid in cat_ids:
+                if pid not in seen_ids:
+                    product = get_product_by_id(pid)
+                    if product:
+                        results.append(product)
+                        seen_ids.add(pid)
+
+    # 1. Match against PRODUCT_SYNONYMS to find the right category
+    for cat_name, synonyms in PRODUCT_SYNONYMS.items():
+        for syn in synonyms:
+            syn_lower = syn.lower()
+            if query in syn_lower or syn_lower in query or normalized_query in syn_lower:
+                # Found category via synonym — get products
+                if cat_name in category_to_id:
+                    for pid in category_to_id[cat_name]:
+                        if pid not in seen_ids:
+                            product = get_product_by_id(pid)
+                            if product:
+                                results.append(product)
+                                seen_ids.add(pid)
+                break
+
+    # 2. Match against product names
     for pid, name in id_to_name.items():
+        if pid in seen_ids:
+            continue
         name_lower = name.lower()
-        if query in name_lower or all(w in name_lower for w in query_words if len(w) > 2):
+        if query in name_lower or normalized_query in name_lower or _words_match(query_words, name_lower):
             product = get_product_by_id(pid)
             if product and pid not in seen_ids:
                 results.append(product)
                 seen_ids.add(pid)
-    
-    # 2. Match against PRODUCT_VARIANTS (e.g. "7 seater sofa" → IDs 1048, 1041, 1049)
-    # Also support searching for combined intents like "bed mattress" matching "mattress" and "bed" tags
+
+    # 3. Match against PRODUCT_VARIANTS
     for pid, variants in PRODUCT_VARIANTS.items():
         if pid not in seen_ids:
             for variant in variants:
                 var_lower = variant.lower()
-                if query in var_lower or var_lower in query or all(w in var_lower for w in query_words if len(w) > 2):
+                if (query in var_lower or var_lower in query
+                        or normalized_query in var_lower
+                        or _words_match(query_words, var_lower)):
                     product = get_product_by_id(pid)
                     if product:
                         results.append(product)
                         seen_ids.add(pid)
                     break
-    
+
     return results
 
 

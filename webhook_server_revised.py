@@ -113,8 +113,31 @@ PRICING_NEGOTIATION_KEYWORDS = [
 ]
 
 def is_pricing_negotiation(text: str) -> bool:
-    """Check if message indicates pricing negotiation intent."""
-    text_lower = text.lower()
+    """Check if message indicates pricing negotiation intent.
+
+    Excludes:
+    - Messages containing URLs (user pasting links)
+    - Messages that mention duration/tenure (user asking about longer rental periods)
+    - Very short messages (single words that happen to match)
+    """
+    text_lower = text.lower().strip()
+
+    # Skip URLs — user pasting a link should never trigger pricing negotiation
+    if "http" in text_lower or "://" in text_lower or "rentbasket.com" in text_lower:
+        return False
+
+    # Skip if the message is about duration/tenure — legitimate pricing question, not a complaint
+    duration_indicators = [
+        r"\d+\s*(?:months?|mo\b)",
+        r"\b(?:longer|shorter)\s+(?:tenure|duration|term|period)",
+        r"\b(?:how\s+(?:much|long)|what\s+if|will\s+there\s+be)",
+        r"\b(?:for\s+\d+|rent\s+for)",
+    ]
+    for pat in duration_indicators:
+        if re.search(pat, text_lower):
+            return False
+
+    # Require at least one pricing keyword
     return any(keyword in text_lower for keyword in PRICING_NEGOTIATION_KEYWORDS)
 
 # ========================================
@@ -407,27 +430,51 @@ def _build_browse_cart_link(items: List[dict], duration: int) -> str:
 
 
 def _format_browse_estimate(items: List[dict], duration: int) -> Tuple[str, int, int, int]:
+    # Only calculate on matched items with real prices
+    matched_items = [it for it in items if it.get("matched", True) and (it.get("original_rent") or it.get("rent"))]
     original_monthly = 0
-    for item in items:
+    for item in matched_items:
         original_monthly += int(item.get("original_rent") or item.get("rent") or 0) * int(item.get("qty", 1))
     discounted_monthly = int(round(original_monthly * 0.70))
     savings_total = max(0, (original_monthly - discounted_monthly) * int(duration))
+
+    if original_monthly == 0:
+        message = (
+            "I could not find exact matches for those items in our catalogue.\n\n"
+            "Could you try with more specific names? For example: Storage Bed, Single Door Fridge, Split AC, Study Chair."
+        )
+        return message, 0, 0, 0
+
     message = (
-        f"Perfect, Great timing!!! At other times, it would have costed you Rs. {original_monthly:,} per month, "
-        f"but as we are running heavy discount offers due to {BROWSE_PRODUCTS_OCCASION}, and today, it will cost you just Rs. {discounted_monthly:,} rent per month. "
-        f"Great Saving Rs. {savings_total:,} in total."
+        f"Great news! Your {duration}-month rental comes to just Rs. {discounted_monthly:,} per month "
+        f"(Rs. {original_monthly:,} before our 30% flat discount). "
+        f"That is a total saving of Rs. {savings_total:,}!"
     )
     return message, original_monthly, discounted_monthly, savings_total
 
 
 def _send_browse_quote(phone: str, sender_name: str, source_text: str, items: List[dict], duration: int) -> None:
     normalized_phone = normalize_phone(phone)
+
+    # Filter out unmatched / Rs.0 items before building cart link
+    matched_items = [it for it in items if it.get("matched", True) and it.get("product_id")]
+
     quote_text, original_monthly, discounted_monthly, savings_total = _format_browse_estimate(items, duration)
-    cart_link = _build_browse_cart_link(items, duration)
+
+    # If nothing matched, send the error message without cart buttons
+    if original_monthly == 0:
+        whatsapp_client.send_text_message(phone, quote_text, preview_url=False)
+        # Keep browse mode active so they can try again
+        session_context[phone] = session_context.get(phone, {})
+        session_context[phone]["browse_mode"] = True
+        session_context[phone]["browse_step"] = "await_items"
+        return
+
+    cart_link = _build_browse_cart_link(matched_items, duration)
 
     session_context[phone] = session_context.get(phone, {})
     session_context[phone]["last_browse_quote"] = {
-        "items": items,
+        "items": matched_items,
         "duration": duration,
         "original_monthly": original_monthly,
         "discounted_monthly": discounted_monthly,
@@ -447,6 +494,17 @@ def _send_browse_quote(phone: str, sender_name: str, source_text: str, items: Li
         "browse_cart_link": cart_link,
         "lead_stage": "browse_quote_ready",
     })
+
+    # Notify about unmatched items if any
+    unmatched = [it for it in items if not it.get("matched") or not it.get("product_id")]
+    if unmatched:
+        unmatched_names = ", ".join(it.get("name", "unknown") for it in unmatched)
+        whatsapp_client.send_text_message(
+            phone,
+            f"Note: I could not find a match for: {unmatched_names}. Showing the items I found.",
+            preview_url=False,
+        )
+        time.sleep(0.3)
 
     whatsapp_client.send_text_message(phone, quote_text, preview_url=False)
     time.sleep(0.4)
@@ -526,7 +584,24 @@ def _handle_browse_products_text(phone: str, sender_name: str, text: str, messag
 
     if step in ("await_items", "await_product_finalization", "quote_ready"):
         duration = int(ctx.get("browse_duration") or _parse_duration_from_text(raw_text) or 12)
-        items = parse_cart_items(raw_text)
+
+        # Strip additive prefixes ("also", "and a", "I also want") before parsing
+        cleaned_text = raw_text
+        additive_prefixes = [
+            r"^(?:i\s+)?also\s+(?:want\s+(?:to\s+)?(?:add\s+)?)?",
+            r"^(?:and\s+)?(?:also\s+)?(?:add|include)\s+",
+            r"^and\s+(?:a\s+)?",
+            r"^plus\s+",
+        ]
+        is_additive = False
+        for pat in additive_prefixes:
+            m = re.match(pat, cleaned_text.strip().lower())
+            if m:
+                cleaned_text = cleaned_text.strip()[m.end():].strip()
+                is_additive = True
+                break
+
+        items = parse_cart_items(cleaned_text)
         if not items:
             if step == "await_items":
                 _send_browse_categories(phone)
@@ -555,6 +630,25 @@ def _handle_browse_products_text(phone: str, sender_name: str, text: str, messag
                 item["rent"] = int(round(original_rent * 0.70)) if original_rent else 0
                 if isinstance(product, dict):
                     item["product_name"] = product.get("name") or item.get("product_name")
+
+        # If this is an additive request and we have an existing quote, merge items
+        existing_quote = ctx.get("last_browse_quote", {})
+        if (is_additive or step == "quote_ready") and existing_quote.get("items"):
+            # Only merge matched items (skip unmatched ones from the new request)
+            new_matched = [it for it in items if it.get("matched")]
+            if new_matched:
+                existing_items = list(existing_quote["items"])
+                existing_ids = {it.get("product_id") for it in existing_items if it.get("product_id")}
+                for item in new_matched:
+                    if item.get("product_id") in existing_ids:
+                        # Update qty for duplicate product
+                        for ex in existing_items:
+                            if ex.get("product_id") == item["product_id"]:
+                                ex["qty"] = ex.get("qty", 1) + item.get("qty", 1)
+                                break
+                    else:
+                        existing_items.append(item)
+                items = existing_items
 
         ctx["browse_requested_items"] = raw_text
         ctx["browse_step"] = "quote_ready"
@@ -638,17 +732,22 @@ def handle_greeting(phone: str, sender_name: str):
         import traceback; traceback.print_exc()
 
     # --- RESTORE LEAD DATA INTO CONVERSATION STATE ---
-    # When user re-greets, restore their persisted data (duration, name, location)
+    # When user re-greets, create a fresh state. Restore name and location but NOT duration,
+    # since the user is starting a new conversation and should be asked about duration again.
     try:
         with conversations_lock:
-            if phone not in conversations:
-                conversations[phone] = create_initial_state()
+            conversations[phone] = create_initial_state()
             conversations[phone] = restore_lead_to_state(normalized_phone, conversations[phone])
+            # Clear duration on re-greeting — user starts fresh, will be asked again
+            conversations[phone]["collected_info"].pop("duration_months", None)
             if sender_name:
                 conversations[phone]["collected_info"]["customer_name"] = sender_name
             conversations[phone]["collected_info"]["phone"] = normalized_phone
     except Exception as e:
         print(f"   Warning: State restoration failed (non-fatal): {e}")
+
+    # Also clear any stale browse/sales session context on re-greeting
+    session_context.pop(phone, None)
 
     # Log to DB + file (non-critical — failures here must never block lead creation)
     try:
@@ -832,8 +931,19 @@ def split_into_segments(text: str) -> List[str]:
     # Normalize separators common in speech-to-text
     t = t.replace(" plus ", ", ")
     t = t.replace(" also ", ", ")
-    t = t.replace(" and ", ", ")
     t = t.replace(" तथा ", ", ")  # harmless if transcript has mixed language
+
+    # Split "and" only when between distinct items (not inside product names like "bed and mattress")
+    # Use "and" as separator but keep known compound products together
+    compound_products = ["bed and mattress", "sofa and center table", "table and chair",
+                         "table and chairs", "bed and mattresses"]
+    for cp in compound_products:
+        placeholder = cp.replace(" and ", " & ")
+        t = t.replace(cp, placeholder)
+    t = t.replace(" and ", ", ")
+    for cp in compound_products:
+        placeholder = cp.replace(" and ", " & ")
+        t = t.replace(placeholder, cp)
 
     # Split by commas / newlines / semicolons
     raw_segments = re.split(r"[,\n;]+", t)
@@ -847,8 +957,23 @@ def clean_item_segment(segment: str) -> str:
     """
     seg = normalize_text(segment)
 
-    seg = re.sub(r"^\b(i want|need|want|please add|add|give me|get me|send me)\b\s*", "", seg)
+    # Remove leading filler phrases (more comprehensive for voice transcripts)
+    filler_prefixes = [
+        r"^(?:i\s+)?(?:need|want|would\s+like)\s+(?:to\s+(?:have|get|rent|add)\s+)?",
+        r"^(?:please\s+)?(?:add|give\s+me|get\s+me|send\s+me)\s+",
+        r"^(?:also\s+)?(?:include|put\s+in)\s+",
+        r"^(?:can\s+(?:i|you)\s+(?:get|add|have)\s+(?:me\s+)?)",
+    ]
+    for pat in filler_prefixes:
+        seg = re.sub(pat, "", seg)
+
+    # Remove trailing/embedded filler words
     seg = re.sub(r"\b(please|kindly)\b", "", seg)
+    # Remove "in quantity" and similar noise from transcripts
+    seg = re.sub(r"\bin\s+quantity\b", "", seg)
+    # Remove "one in" / "one for" when it's noise (not a number)
+    seg = re.sub(r"\bone\s+(?:in|for)\s*$", "", seg)
+
     seg = re.sub(r"\s+", " ", seg).strip()
     return seg
 
@@ -1000,33 +1125,52 @@ def transcribe_audio_bytes(audio_bytes: bytes, filename: str = "voice_note.ogg")
 def build_and_send_sales_cart(phone: str, sender_name: str, text: str, source: str = "text"):
     """
     Parse text, build cart, send it with action buttons.
+    Filters out unmatched items and warns the user about them.
     """
     items = parse_cart_items(text)
     duration = items[0]["duration"] if items else DEFAULT_DURATION
 
-    cart_text = format_sales_cart(items, duration)
+    # Separate matched from unmatched
+    matched = [it for it in items if it.get("matched")]
+    unmatched = [it for it in items if not it.get("matched")]
+
+    # Warn about unmatched items
+    if unmatched:
+        unmatched_names = ", ".join(it.get("name", "unknown") for it in unmatched)
+        whatsapp_client.send_text_message(
+            phone,
+            f"Could not find: {unmatched_names}. Try more specific names (e.g. 'single door fridge' instead of 'fridge').",
+        )
+        time.sleep(0.3)
+
+    # Build cart text with only matched items (or show "no matches" message)
+    cart_text = format_sales_cart(matched, duration)
 
     # Store cart in session for later actions like Upfront Payment / Modify Cart
-    session_context[phone] = session_context.get(phone, {})
-    session_context[phone]["last_cart"] = items
-    session_context[phone]["last_duration"] = duration
-    session_context[phone]["last_source"] = source
-    session_context[phone]["last_raw_text"] = text
+    ctx = session_context.get(phone, {})
+    ctx["last_cart"] = matched
+    ctx["last_duration"] = duration
+    ctx["last_source"] = source
+    ctx["last_raw_text"] = text
+    ctx["sales_mode"] = True
+    session_context[phone] = ctx
 
     whatsapp_client.send_text_message(phone, cart_text)
     time.sleep(0.5)
 
-    cart_buttons = [
-        {"id": "UPFRONT_PAYMENT", "title": "Upfront Payment"},
-        {"id": "MODIFY_CART", "title": "Modify Cart"},
-        {"id": "FINAL_LINK", "title": "Final Link"},
-    ]
+    # Only show action buttons if we have matched items
+    if matched:
+        cart_buttons = [
+            {"id": "UPFRONT_PAYMENT", "title": "Upfront Payment"},
+            {"id": "MODIFY_CART", "title": "Modify Cart"},
+            {"id": "FINAL_LINK", "title": "Final Link"},
+        ]
 
-    whatsapp_client.send_interactive_buttons(
-        to_phone=phone,
-        body_text="Choose an option:",
-        buttons=cart_buttons,
-    )
+        whatsapp_client.send_interactive_buttons(
+            to_phone=phone,
+            body_text="Choose an option:",
+            buttons=cart_buttons,
+        )
 
     normalized_phone = normalize_phone(phone)
     session_id = get_or_create_session(normalized_phone, sender_name)
@@ -1048,9 +1192,144 @@ def build_and_send_sales_cart(phone: str, sender_name: str, text: str, source: s
     )
 
 
+def _detect_cart_modify_intent(text: str) -> tuple:
+    """
+    Detect if text is a cart modification instruction (add/remove).
+    Returns: (intent, cleaned_text) where intent is 'remove', 'add', or None.
+    """
+    t = text.strip().lower()
+    # Remove patterns
+    remove_patterns = [
+        r"^remove\s+(?:the\s+)?",
+        r"^delete\s+(?:the\s+)?",
+        r"^take\s+out\s+(?:the\s+)?",
+        r"^drop\s+(?:the\s+)?",
+        r"^cancel\s+(?:the\s+)?",
+        r"^no\s+(?:need\s+(?:for\s+)?)?(?:the\s+)?",
+        r"^don'?t\s+(?:need|want)\s+(?:the\s+)?",
+        r"^hat(?:a|ao?)\s+(?:do|de)\s+",  # Hindi: hata do
+    ]
+    for pat in remove_patterns:
+        m = re.match(pat, t)
+        if m:
+            cleaned = t[m.end():].strip()
+            return ("remove", cleaned)
+
+    # Add patterns
+    add_patterns = [
+        r"^(?:also\s+)?add\s+",
+        r"^(?:also\s+)?include\s+",
+        r"^put\s+in\s+",
+        r"^(?:also\s+)?want\s+(?:to\s+add\s+)?",
+        r"^(?:also\s+)?need\s+",
+        r"^aur\s+",  # Hindi: aur (and more)
+    ]
+    for pat in add_patterns:
+        m = re.match(pat, t)
+        if m:
+            cleaned = t[m.end():].strip()
+            return ("add", cleaned)
+
+    return (None, t)
+
+
+def _apply_cart_modification(phone: str, text: str) -> bool:
+    """
+    Try to apply an add/remove modification to the existing SALES cart.
+    Returns True if a modification was applied, False if we should build a fresh cart.
+    """
+    ctx = session_context.get(phone, {})
+    last_cart = ctx.get("last_cart", [])
+    duration = ctx.get("last_duration", 12)
+
+    if not last_cart:
+        return False
+
+    intent, cleaned = _detect_cart_modify_intent(text)
+    if intent is None:
+        # Check if it looks like a full product list (has commas, 'and', multiple items)
+        # If so, replace the cart entirely. Otherwise, treat as add.
+        segments = split_into_segments(text)
+        if len(segments) >= 2:
+            return False  # Looks like a full new list — let build_and_send_sales_cart handle it
+        # Single item without explicit intent — treat as add
+        intent = "add"
+        cleaned = text.strip().lower()
+
+    if intent == "remove":
+        # Find and remove matching items from cart
+        cleaned_lower = cleaned.lower()
+        new_cart = []
+        removed = False
+        for item in last_cart:
+            item_name = (item.get("product_name") or item.get("name") or "").lower()
+            # Check if the remove text matches this item
+            if not removed and (cleaned_lower in item_name or item_name in cleaned_lower
+                    or any(w in item_name for w in cleaned_lower.split() if len(w) > 2)):
+                removed = True
+                continue  # Skip this item (remove it)
+            new_cart.append(item)
+
+        if not removed:
+            return False  # Didn't find anything to remove — let it rebuild
+
+        ctx["last_cart"] = new_cart
+        # Rebuild and resend the cart with remaining items
+        cart_text = format_sales_cart(new_cart, duration)
+        whatsapp_client.send_text_message(phone, cart_text)
+        time.sleep(0.5)
+
+        cart_buttons = [
+            {"id": "UPFRONT_PAYMENT", "title": "Upfront Payment"},
+            {"id": "MODIFY_CART", "title": "Modify Cart"},
+            {"id": "FINAL_LINK", "title": "Final Link"},
+        ]
+        whatsapp_client.send_interactive_buttons(
+            to_phone=phone,
+            body_text="Choose an option:",
+            buttons=cart_buttons,
+        )
+        ctx.pop("sales_modify_mode", None)
+        return True
+
+    elif intent == "add":
+        # Parse the new items and append to existing cart
+        new_items = parse_cart_items(cleaned)
+        matched_new = [it for it in new_items if it.get("matched")]
+        if not matched_new:
+            return False  # Couldn't find the product — let it rebuild
+
+        # Override duration from existing cart
+        for item in matched_new:
+            item["duration"] = duration
+
+        combined_cart = list(last_cart) + matched_new
+        ctx["last_cart"] = combined_cart
+
+        cart_text = format_sales_cart(combined_cart, duration)
+        whatsapp_client.send_text_message(phone, cart_text)
+        time.sleep(0.5)
+
+        cart_buttons = [
+            {"id": "UPFRONT_PAYMENT", "title": "Upfront Payment"},
+            {"id": "MODIFY_CART", "title": "Modify Cart"},
+            {"id": "FINAL_LINK", "title": "Final Link"},
+        ]
+        whatsapp_client.send_interactive_buttons(
+            to_phone=phone,
+            body_text="Choose an option:",
+            buttons=cart_buttons,
+        )
+        ctx.pop("sales_modify_mode", None)
+        return True
+
+    return False
+
+
 def process_sales_text_async(phone: str, sender_name: str, text: str, message_id: str):
     """
     Background thread: build cart from typed text in SALES mode.
+    If in modify mode, try to apply add/remove to existing cart first.
     """
     with per_phone_locks_lock:
         if phone not in per_phone_locks:
@@ -1059,6 +1338,14 @@ def process_sales_text_async(phone: str, sender_name: str, text: str, message_id
 
     with user_lock:
         try:
+            ctx = session_context.get(phone, {})
+            # If in modify mode, try to apply modification to existing cart
+            if ctx.get("sales_modify_mode") or ctx.get("last_cart"):
+                if _apply_cart_modification(phone, text):
+                    print(f"Sales cart modified for {phone}")
+                    return
+
+            # Otherwise build fresh cart
             build_and_send_sales_cart(phone, sender_name, text, source="text")
             print(f"Sales cart sent to {phone} from text")
         except Exception as e:
@@ -1171,8 +1458,10 @@ conversations = {}  # phone_number -> ConversationState
 session_context = {}  # phone_number -> {last_product, handoff_needed, intent, sales_mode, last_cart}
 
 # Cache for processed message IDs to prevent duplicates (Meta retries)
-processed_ids = set()
-MAX_CACHE_SIZE = 100
+# Using a dict with timestamps so we can expire old entries
+processed_ids_dict = {}  # message_id -> timestamp
+MAX_CACHE_SIZE = 500
+CACHE_EXPIRY_SECONDS = 300  # 5 minutes
 
 # THREAD SAFETY: Global lock for shared dictionaries and per-phone processing
 conversations_lock = threading.Lock()
@@ -1605,15 +1894,19 @@ def handle_webhook():
         
         # 1. Deduplication check (Thread-safe)
         with conversations_lock:
-            if message_id in processed_ids:
-                print(f"   ⏭️ Skipping duplicate message: {message_id}")
+            now = time.time()
+            if message_id in processed_ids_dict:
+                print(f"   Skipping duplicate message: {message_id}")
                 return jsonify({"status": "duplicate"}), 200
-            
-            # Add to cache and prune if needed
-            processed_ids.add(message_id)
-            if len(processed_ids) > MAX_CACHE_SIZE:
-                # Remove an old ID
-                processed_ids.remove(next(iter(processed_ids)))
+
+            # Add to cache
+            processed_ids_dict[message_id] = now
+
+            # Prune expired entries
+            if len(processed_ids_dict) > MAX_CACHE_SIZE:
+                expired = [k for k, v in processed_ids_dict.items() if now - v > CACHE_EXPIRY_SECONDS]
+                for k in expired:
+                    processed_ids_dict.pop(k, None)
 
         print(f"\n💬 Message from {sender_name} ({phone}):")
         print(f"   Type: {message_type}")
@@ -1803,83 +2096,125 @@ Thank you for choosing RentBasket!"""
             return jsonify({"status": "ok", "action": "try_again"}), 200
             
         elif button_id == "BUDGET_OPTIONS":
-            # Route back to agent
-            print(f"   💰 User requested budget options. Routing to agent.")
-            thread = threading.Thread(
-                target=process_webhook_async,
-                args=(phone, "Show me cheaper alternatives in my budget.", sender_name, message_id, "text", None)
-            )
+            # Route directly to agent — bypass pricing negotiation check
+            print(f"   User requested budget options. Routing to agent directly.")
+            _text = "Show me more affordable alternatives and budget-friendly options"
+
+            def _route_budget_options():
+                with per_phone_locks_lock:
+                    if phone not in per_phone_locks:
+                        per_phone_locks[phone] = threading.Lock()
+                    user_lock = per_phone_locks[phone]
+                with user_lock:
+                    try:
+                        normalized_phone = normalize_phone(phone)
+                        with conversations_lock:
+                            if phone not in conversations:
+                                conversations[phone] = create_initial_state()
+                                conversations[phone] = restore_lead_to_state(normalized_phone, conversations[phone])
+                            state = conversations[phone]
+                        state["collected_info"]["phone"] = normalized_phone
+                        if sender_name and not state["collected_info"].get("customer_name"):
+                            state["collected_info"]["customer_name"] = sender_name
+
+                        response, new_state = route_and_run(_text, state)
+                        new_state.pop("_routing_meta", None)
+                        with conversations_lock:
+                            conversations[phone] = new_state
+                        response = format_bot_response(response)
+                        for msg in response.split("|||"):
+                            msg = msg.strip()
+                            if msg:
+                                whatsapp_client.send_text_message(phone, msg, preview_url="http" in msg)
+                                time.sleep(0.3)
+                    except Exception as e:
+                        print(f"Error routing budget options for {phone}: {e}")
+                        whatsapp_client.send_text_message(phone, "Let me find budget-friendly options for you. What items are you looking for?")
+
+            thread = threading.Thread(target=_route_budget_options)
             thread.start()
-            return jsonify({"status": "ok", "action": "route_to_agent"}), 200
+            return jsonify({"status": "ok", "action": "route_to_agent_budget"}), 200
             
         elif button_id == "LONGER_TENURE":
-            # Route back to agent
-            print(f"   ⏳ User requested longer tenures. Routing to agent.")
-            thread = threading.Thread(
-                target=process_webhook_async,
-                args=(phone, "What discounts do I get if I rent for 12 months?", sender_name, message_id, "text", None)
-            )
-            thread.start()
-            return jsonify({"status": "ok", "action": "route_to_agent"}), 200
-            
-        elif button_id == "BROWSE_FURNITURE":
-            # List Message for Furniture
-            sections = [{
-                "title": "Furniture Categories",
-                "rows": [
-                    {"id": "CAT_BEDS", "title": "Beds & Mattresses"},
-                    {"id": "CAT_SOFAS", "title": "Sofas"},
-                    {"id": "CAT_DINING", "title": "Dining Tables"},
-                    {"id": "CAT_WFH", "title": "Work From Home Setup"},
-                    {"id": "CAT_ALL_FURNITURE", "title": "View All Furniture"}
-                ]
-            }]
-            whatsapp_client.send_list_message(
-                to_phone=phone,
-                body_text="Great choice!\nWhat type of furniture are you looking for?",
-                button_text="Select Category",
-                sections=sections
-            )
-            return jsonify({"status": "ok", "action": "list_furniture"}), 200
+            # Route directly to agent — bypass pricing negotiation check
+            print(f"   User requested longer tenures. Routing to agent directly.")
+            _text = "Show me prices for longer rental durations like 6 months and 12 months"
 
-        elif button_id == "BROWSE_APPLIANCES":
-            # List Message for Appliances
-            sections = [{
-                "title": "Appliance Categories",
-                "rows": [
-                    {"id": "CAT_FRIDGE", "title": "Refrigerators"},
-                    {"id": "CAT_WASHING", "title": "Washing Machines"},
-                    {"id": "CAT_AC", "title": "Air Conditioners"},
-                    {"id": "CAT_RO", "title": "RO Water Purifiers"},
-                    {"id": "CAT_ALL_APPLIANCES", "title": "View All Appliances"}
-                ]
-            }]
-            whatsapp_client.send_list_message(
-                to_phone=phone,
-                body_text="Perfect!\nWhich appliance do you need?",
-                button_text="Select Category",
-                sections=sections
+            def _route_longer_tenure():
+                with per_phone_locks_lock:
+                    if phone not in per_phone_locks:
+                        per_phone_locks[phone] = threading.Lock()
+                    user_lock = per_phone_locks[phone]
+                with user_lock:
+                    try:
+                        normalized_phone = normalize_phone(phone)
+                        with conversations_lock:
+                            if phone not in conversations:
+                                conversations[phone] = create_initial_state()
+                                conversations[phone] = restore_lead_to_state(normalized_phone, conversations[phone])
+                            state = conversations[phone]
+                        state["collected_info"]["phone"] = normalized_phone
+                        if sender_name and not state["collected_info"].get("customer_name"):
+                            state["collected_info"]["customer_name"] = sender_name
+
+                        response, new_state = route_and_run(_text, state)
+                        new_state.pop("_routing_meta", None)
+                        with conversations_lock:
+                            conversations[phone] = new_state
+                        response = format_bot_response(response)
+                        for msg in response.split("|||"):
+                            msg = msg.strip()
+                            if msg:
+                                whatsapp_client.send_text_message(phone, msg, preview_url="http" in msg)
+                                time.sleep(0.3)
+                    except Exception as e:
+                        print(f"Error routing longer tenure for {phone}: {e}")
+                        whatsapp_client.send_text_message(phone, "Let me check the best prices for longer durations. Please share how many months you need (e.g. 6 or 12 months).")
+
+            thread = threading.Thread(target=_route_longer_tenure)
+            thread.start()
+            return jsonify({"status": "ok", "action": "route_to_agent_tenure"}), 200
+            
+        elif button_id in ("BROWSE_FURNITURE", "BROWSE_APPLIANCES"):
+            # Legacy greeting buttons — route into the browse flow
+            _set_browse_context(phone, browse_mode=True, browse_step="await_duration")
+            normalized = normalize_phone(phone)
+            _save_browse_lead_data(normalized, {"lead_stage": "browse_started"})
+            whatsapp_client.send_text_message(
+                phone,
+                "Great Choice!!! Let me know the Duration of rental first( e.g. 6 or 12 months)",
+                preview_url=False,
             )
-            return jsonify({"status": "ok", "action": "list_appliances"}), 200
+            return jsonify({"status": "ok", "action": "browse_products_started"}), 200
 
         elif button_id == "COMPLETE_HOME_SETUP":
-            response = """Nice!
-I can help you set up a complete home in minutes.
-
-Please tell me:
-• City / Location
-• House Type (1RK / 1BHK / 2BHK)
-• Budget per month
-
-Example message:
-"1BHK setup under ₹3000" """
-            whatsapp_client.send_text_message(phone, response)
+            # Route into browse flow for complete setup
+            _set_browse_context(phone, browse_mode=True, browse_step="await_duration")
+            normalized = normalize_phone(phone)
+            _save_browse_lead_data(normalized, {"lead_stage": "browse_started"})
+            whatsapp_client.send_text_message(
+                phone,
+                "Great choice! Let me know the Duration of rental first (e.g. 6 or 12 months), then tell me what you need.",
+                preview_url=False,
+            )
             return jsonify({"status": "ok", "action": "complete_home_setup"}), 200
 
         elif button_id.startswith("CAT_"):
-            # Handle List Selection -> Route back to Agent as Text
-            category_text = f"Show me {button_title} options with prices"
-            print(f"   📋 List item selected: {button_title}. Routing to agent.")
+            # Map category button IDs to better search queries for the agent
+            cat_query_map = {
+                "CAT_BEDS": "Show me beds and mattresses options with prices",
+                "CAT_SOFAS": "Show me sofa options with prices",
+                "CAT_DINING": "Show me dining table options with prices",
+                "CAT_WFH": "Show me study table, study chair, and office desk options with prices",
+                "CAT_ALL_FURNITURE": "Show me all furniture options with prices",
+                "CAT_FRIDGE": "Show me refrigerator/fridge options with prices",
+                "CAT_WASHING": "Show me washing machine options with prices",
+                "CAT_AC": "Show me air conditioner/AC options with prices",
+                "CAT_RO": "Show me water purifier options with prices",
+                "CAT_ALL_APPLIANCES": "Show me all appliance options with prices",
+            }
+            category_text = cat_query_map.get(button_id, f"Show me {button_title} options with prices")
+            print(f"   List item selected: {button_title}. Routing to agent.")
 
             thread = threading.Thread(
                 target=process_webhook_async,
@@ -1915,15 +2250,37 @@ Example message:
             return jsonify({"status": "ok", "action": "reserved"}), 200
 
         elif button_id == "MODIFY_CART":
-            # ✏️  Handle objections — keep the lead warm
             normalized = normalize_phone(phone)
             try:
                 from utils.firebase_client import upsert_lead
                 upsert_lead(normalized, {"lead_stage": "cart_modification"})
             except Exception as e:
-                print(f"   ⚠️ Lead update failed (non-fatal): {e}")
+                print(f"   Lead update failed (non-fatal): {e}")
 
-            print(f"   ✏️ Cart modification requested by {phone}. Routing to sales agent.")
+            ctx = session_context.get(phone, {})
+            last_cart = ctx.get("last_cart", [])
+
+            # If we have a SALES-mode cart, stay in SALES modify mode
+            if last_cart:
+                ctx["sales_mode"] = True
+                ctx["sales_modify_mode"] = True
+                # Show current cart summary so user knows what to modify
+                item_names = [f"{it.get('qty', 1)}x {it.get('product_name', it.get('name', '?'))}" for it in last_cart if it.get("matched")]
+                summary = ", ".join(item_names) if item_names else "your current items"
+                whatsapp_client.send_text_message(
+                    phone,
+                    f"Your current cart: {summary}\n\n"
+                    f"Tell me what to change, for example:\n"
+                    f"- \"Remove the mattress\"\n"
+                    f"- \"Add 1 study chair\"\n"
+                    f"- \"Change bed to queen bed\"\n"
+                    f"Or send a completely new list to replace the cart."
+                )
+                print(f"   Cart modification requested by {phone}. Staying in SALES modify mode.")
+                return jsonify({"status": "ok", "action": "cart_modification_sales"}), 200
+
+            # No SALES cart — route to the agent
+            print(f"   Cart modification requested by {phone}. Routing to sales agent.")
             thread = threading.Thread(
                 target=process_webhook_async,
                 args=(
@@ -2013,6 +2370,60 @@ Example message:
             log_event(normalized, "upfront_payment_shown", {"duration": duration, "upfront_pct": upfront_pct}, session_id=session_id)
             return jsonify({"status": "ok", "action": "upfront_payment"}), 200
 
+        # ── Final Link (SALES mode) ───────────────────────────────
+        elif button_id == "FINAL_LINK":
+            ctx = session_context.get(phone, {})
+            last_cart = ctx.get("last_cart", [])
+            duration = ctx.get("last_duration", 12)
+
+            matched_items = [it for it in last_cart if it.get("matched") and it.get("product_id")]
+            if not matched_items:
+                whatsapp_client.send_text_message(
+                    phone,
+                    "No valid products in your cart to generate a link. Please send your product list again."
+                )
+                return jsonify({"status": "ok", "action": "no_cart_for_link"}), 200
+
+            # Build cart link using the same logic as browse flow
+            cart_payload = []
+            for item in matched_items:
+                product = None
+                try:
+                    product = get_product_by_id(item["product_id"])
+                except Exception:
+                    pass
+                amenity_type_id = item["product_id"]
+                if isinstance(product, dict):
+                    amenity_type_id = (
+                        product.get("amenity_type_id")
+                        or product.get("amenity_id")
+                        or product.get("type_id")
+                        or product.get("id")
+                        or item["product_id"]
+                    )
+                cart_payload.append({
+                    "amenity_type_id": int(amenity_type_id),
+                    "count": int(item.get("qty", 1)),
+                    "duration": int(duration),
+                })
+
+            encoded_items = quote(json.dumps(cart_payload, separators=(",", ":"), ensure_ascii=False), safe="")
+            cart_link = f"{BROWSE_PRODUCTS_BASE_URL}?referral_code={BROWSE_PRODUCTS_REFERRAL_CODE}&items={encoded_items}"
+
+            whatsapp_client.send_text_message(
+                phone,
+                f"Here is your cart link with 5% additional discount for using our WhatsApp Bot:\n{cart_link}",
+                preview_url=True,
+            )
+
+            normalized = normalize_phone(phone)
+            session_id = get_or_create_session(normalized, sender_name)
+            log_event(normalized, "final_link_sent", {"duration": duration, "items": len(matched_items)}, session_id=session_id)
+
+            # Clear sales mode after final link
+            ctx.pop("sales_mode", None)
+            return jsonify({"status": "ok", "action": "final_link_sent"}), 200
+
         # ── Informational Flow Buttons ─────────────────────────────────
         elif button_id == "BROWSE_PRODUCTS":
             _set_browse_context(phone, browse_mode=True, browse_step="await_duration")
@@ -2082,8 +2493,16 @@ Example message:
             return jsonify({"status": "ok", "action": "latest_reviews"}), 200
 
         else:
-            response = "I received your selection. How can I help you further?"
-            whatsapp_client.send_text_message(phone, response)
+            # Unknown button — route to the LLM agent with the button title as context
+            print(f"   Unknown button ID: {button_id}. Routing to agent with title: {button_title}")
+            if button_title:
+                thread = threading.Thread(
+                    target=process_webhook_async,
+                    args=(phone, button_title, sender_name, message_id, "text", None)
+                )
+                thread.start()
+            else:
+                whatsapp_client.send_text_message(phone, "How can I help you today? Tell me what you are looking to rent.")
             return jsonify({"status": "ok", "button": button_id}), 200
         
     except Exception as e:
