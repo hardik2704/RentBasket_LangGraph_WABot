@@ -241,61 +241,214 @@ BROWSE_PRODUCTS_BASE_URL = os.getenv(
 
 BROWSE_FLOW_HEADER = "Browse Products"
 
-BROWSE_CATEGORY_SECTIONS = [
-    {
-        "title": "Furniture",
-        "rows": [
-            {"id": "BROWSE_CAT_STORAGE_BED", "title": "Storage Bed"},
-            {"id": "BROWSE_CAT_SOFA", "title": "Sofa"},
-            {"id": "BROWSE_CAT_MATTRESS", "title": "Mattress"},
-            {"id": "BROWSE_CAT_DINING_TABLE", "title": "Dining Table"},
-            {"id": "BROWSE_CAT_WARDROBE", "title": "Wardrobe"},
-        ],
-    },
-    {
-        "title": "Appliances",
-        "rows": [
-            {"id": "BROWSE_CAT_SINGLE_DOOR_FRIDGE", "title": "Single Door Fridge"},
-            {"id": "BROWSE_CAT_DOUBLE_DOOR_FRIDGE", "title": "Double Door Fridge"},
-            {"id": "BROWSE_CAT_TOP_LOAD_WM", "title": "Top Load WM"},
-            {"id": "BROWSE_CAT_SPLIT_AC", "title": "Split AC"},
-            {"id": "BROWSE_CAT_WINDOW_AC", "title": "Window AC"},
-        ],
-    },
-    {
-        "title": "Storage & Work",
-        "rows": [
-            {"id": "BROWSE_CAT_STUDY_TABLE", "title": "Study Table"},
-            {"id": "BROWSE_CAT_OFFICE_CHAIR", "title": "Office Chair"},
-            {"id": "BROWSE_CAT_BOOKSHELF", "title": "Bookshelf"},
-            {"id": "BROWSE_CAT_SHOE_RACK", "title": "Shoe Rack"},
-            {"id": "BROWSE_CAT_STORAGE_CABINET", "title": "Storage Cabinet"},
-        ],
-    },
-]
+# ── Room-based browse hierarchy ──────────────────────────────────
+# Room → Subcategory → Variants  (product_id, display_name)
+# Prices are looked up dynamically via calculate_rent(pid, duration).
 
-BROWSE_CATEGORY_LOOKUP = {
-    row["id"]: row["title"]
-    for section in BROWSE_CATEGORY_SECTIONS
-    for row in section["rows"]
+ROOM_CATEGORIES = {
+    "ROOM_BEDROOM": {
+        "title": "Bedroom",
+        "description": "Beds, mattresses, storage",
+        "subcategories": {
+            "SUBCAT_BED_TYPE": {
+                "title": "Bed Type",
+                "variants": [
+                    (28,   "Single Bed 6x3"),
+                    (17,   "Double Bed King"),
+                    (1017, "Double Bed Queen"),
+                    (1023, "King Storage Bed"),
+                    (1005, "King Storage Premium"),
+                    (1027, "Queen Storage Bed"),
+                    (1031, "Single Upholstered"),
+                ],
+            },
+            "SUBCAT_MATTRESS": {
+                "title": "Mattress",
+                "variants": [
+                    (1057, "Single 4 Inch"),
+                    (21,   "4 Inch Pair"),
+                    (44,   "5 Inch Pair"),
+                    (1019, "6 Inch Pair (King)"),
+                    (1018, "QS Pair 6x5"),
+                    (1050, "QS One Piece 6 Inch"),
+                    (1051, "QS One Piece 5 Inch"),
+                ],
+            },
+            "SUBCAT_BEDROOM_STORAGE": {
+                "title": "Storage",
+                "variants": [
+                    (42,   "Book Shelf"),
+                    (1044, "Dressing Table"),
+                ],
+            },
+            "SUBCAT_BEDROOM_ADDONS": {
+                "title": "Add-ons",
+                "variants": [
+                    (51,   "Side Table Glass Top"),
+                    (1055, "Side Table"),
+                ],
+            },
+        },
+    },
+    "ROOM_LIVING": {
+        "title": "Living Room",
+        "description": "Sofas, TVs, tables, AC",
+        "subcategories": {
+            "SUBCAT_SOFA": {
+                "title": "Sofa",
+                "variants": [
+                    (1043, "2 Seater Sofa"),
+                    (1042, "3 Seater Sofa"),
+                    (1020, "4 Seater Canwood"),
+                    (18,   "5 Seater with CT"),
+                    (1039, "3+1+1 Fabric Sofa"),
+                    (1041, "7 Seater Green Set"),
+                    (1048, "7 Seater Grey Set"),
+                    (1047, "Sofa Chair"),
+                ],
+            },
+            "SUBCAT_TABLES": {
+                "title": "Tables",
+                "variants": [
+                    (29,   "Center Table"),
+                    (53,   "Coffee Table"),
+                    (51,   "Side Table Glass Top"),
+                    (1033, "6 Seater Dining"),
+                    (1034, "4 Seater Dining"),
+                ],
+            },
+            "SUBCAT_ELECTRONICS": {
+                "title": "TV / Electronics",
+                "variants": [
+                    (12,   "Smart LED 32 inch"),
+                    (50,   "Smart LED 40 inch"),
+                    (1008, "Smart LED 43 inch"),
+                    (1011, "Smart LED 48 inch"),
+                ],
+            },
+            "SUBCAT_COOLING": {
+                "title": "Cooling",
+                "variants": [
+                    (14,  "Window AC"),
+                    (60,  "Split AC 1.5 Ton"),
+                ],
+            },
+            "SUBCAT_POWER": {
+                "title": "Power Backup",
+                "variants": [
+                    (24,  "Inverter Single Batt"),
+                    (45,  "Inverter Double Batt"),
+                    (56,  "Inverter Battery"),
+                ],
+            },
+        },
+    },
+    "ROOM_KITCHEN": {
+        "title": "Kitchen",
+        "description": "Fridge, washing, cooking",
+        "subcategories": {
+            "SUBCAT_FRIDGE": {
+                "title": "Refrigerator",
+                "variants": [
+                    (11, "Fridge 190 Ltr"),
+                    (36, "Double Door Fridge"),
+                ],
+            },
+            "SUBCAT_WASHING": {
+                "title": "Washing Machine",
+                "variants": [
+                    (13, "Fully Automatic WM"),
+                    (37, "Semi Automatic WM"),
+                ],
+            },
+            "SUBCAT_COOKING": {
+                "title": "Cooking",
+                "variants": [
+                    (16,   "Microwave 20Ltr"),
+                    (34,   "Gas Stove 2 Burner"),
+                    (49,   "Gas Stove 3 Burner"),
+                    (1015, "Chimney"),
+                ],
+            },
+            "SUBCAT_WATER": {
+                "title": "Water Purifier",
+                "variants": [
+                    (15,   "Water Purifier"),
+                    (1046, "Water Purifier UTC"),
+                ],
+            },
+        },
+    },
+    "ROOM_WORKSTATION": {
+        "title": "Work Station",
+        "description": "Desk, chair, shelf",
+        "subcategories": {
+            "SUBCAT_WS_TABLES": {
+                "title": "Tables",
+                "variants": [
+                    (40, "Study Table"),
+                ],
+            },
+            "SUBCAT_WS_CHAIRS": {
+                "title": "Chairs",
+                "variants": [
+                    (41,   "Study Chair Premium"),
+                    (1058, "Study Chair"),
+                    (1047, "Sofa Chair"),
+                ],
+            },
+            "SUBCAT_WS_STORAGE": {
+                "title": "Storage",
+                "variants": [
+                    (42, "Book Shelf"),
+                ],
+            },
+        },
+    },
 }
 
-BROWSE_CATEGORY_SEARCH_TERMS = {
-    "BROWSE_CAT_STORAGE_BED": ["storage bed", "bed", "double bed", "cot"],
-    "BROWSE_CAT_SOFA": ["sofa", "3 seater sofa", "2 seater sofa"],
-    "BROWSE_CAT_MATTRESS": ["mattress", "bed mattress"],
-    "BROWSE_CAT_DINING_TABLE": ["dining table", "dining set"],
-    "BROWSE_CAT_WARDROBE": ["wardrobe", "almirah", "cupboard"],
-    "BROWSE_CAT_SINGLE_DOOR_FRIDGE": ["single door fridge", "fridge"],
-    "BROWSE_CAT_DOUBLE_DOOR_FRIDGE": ["double door fridge", "refrigerator"],
-    "BROWSE_CAT_TOP_LOAD_WM": ["top load washing machine", "washing machine"],
-    "BROWSE_CAT_SPLIT_AC": ["split ac", "air conditioner"],
-    "BROWSE_CAT_WINDOW_AC": ["window ac", "air conditioner"],
-    "BROWSE_CAT_STUDY_TABLE": ["study table", "study desk", "work table"],
-    "BROWSE_CAT_OFFICE_CHAIR": ["office chair", "chair"],
-    "BROWSE_CAT_BOOKSHELF": ["bookshelf", "book shelf"],
-    "BROWSE_CAT_SHOE_RACK": ["shoe rack", "rack"],
-    "BROWSE_CAT_STORAGE_CABINET": ["storage cabinet", "cabinet", "storage rack"],
+# Pre-built 1BHK packages  (product IDs auto-added to cart)
+COMPLETE_1BHK_PACKAGES = {
+    "PKG_BASIC": {
+        "title": "Basic 1BHK",
+        "description": "Single Bed, Mattress, Fridge, WM, Study Table, Chair",
+        "items": [28, 21, 11, 37, 40, 1058],
+    },
+    "PKG_COMFORT": {
+        "title": "Comfort 1BHK",
+        "description": "Double Bed, Mattress, LED TV, Sofa, Fridge",
+        "items": [17, 44, 12, 1043, 11],
+    },
+    "PKG_LUXURY": {
+        "title": "Luxury 1BHK",
+        "description": "King Bed, 6in Mattress, LED 43, 5-Seater Sofa, DD Fridge, WM, AC",
+        "items": [1005, 1019, 1008, 18, 36, 13, 60],
+    },
+}
+
+# Room selection list sections (sent as WhatsApp list message)
+ROOM_SELECTION_SECTIONS = [
+    {
+        "title": "Select a Room",
+        "rows": [
+            {"id": "ROOM_BEDROOM",     "title": "Bedroom",        "description": "Beds, mattresses, storage"},
+            {"id": "ROOM_LIVING",      "title": "Living Room",    "description": "Sofas, TVs, tables, AC"},
+            {"id": "ROOM_KITCHEN",     "title": "Kitchen",        "description": "Fridge, washing, cooking"},
+            {"id": "ROOM_WORKSTATION", "title": "Work Station",   "description": "Desk, chair, shelf"},
+            {"id": "ROOM_1BHK",       "title": "Complete 1BHK",  "description": "Ready-to-move packages"},
+        ],
+    }
+]
+
+# Fuzzy lookup: user-typed text → room ID
+ROOM_TEXT_MATCH = {
+    "bedroom": "ROOM_BEDROOM", "bed room": "ROOM_BEDROOM", "bed": "ROOM_BEDROOM",
+    "living": "ROOM_LIVING", "living room": "ROOM_LIVING", "hall": "ROOM_LIVING",
+    "kitchen": "ROOM_KITCHEN", "cooking": "ROOM_KITCHEN",
+    "work": "ROOM_WORKSTATION", "workstation": "ROOM_WORKSTATION", "work station": "ROOM_WORKSTATION",
+    "office": "ROOM_WORKSTATION", "study": "ROOM_WORKSTATION", "wfh": "ROOM_WORKSTATION",
+    "1bhk": "ROOM_1BHK", "1 bhk": "ROOM_1BHK", "complete": "ROOM_1BHK", "package": "ROOM_1BHK",
+    "combo": "ROOM_1BHK", "full house": "ROOM_1BHK",
 }
 
 
@@ -316,7 +469,9 @@ def _set_browse_context(phone: str, **updates) -> dict:
 
 def _clear_browse_context(phone: str) -> None:
     ctx = session_context.get(phone, {})
-    for key in ("browse_mode", "browse_step", "browse_duration", "browse_requested_items", "last_browse_quote", "last_browse_category"):
+    for key in ("browse_mode", "browse_step", "browse_duration", "browse_requested_items",
+                "last_browse_quote", "last_browse_category",
+                "browse_room", "browse_subcategory", "browse_variant_list"):
         ctx.pop(key, None)
     session_context[phone] = ctx
 
@@ -350,129 +505,214 @@ def _save_browse_lead_data(normalized_phone: str, payload: dict) -> None:
         print(f"   Warning: failed to save browse lead data for {normalized_phone}: {e}")
 
 
-def _send_browse_categories(phone: str) -> None:
+def _send_room_selection(phone: str) -> None:
+    """Send the room-category list (Bedroom, Living Room, Kitchen, Work Station, 1BHK)."""
+    ctx = _set_browse_context(phone, browse_step="await_room")
     try:
         whatsapp_client.send_list_message(
             to_phone=phone,
-            body_text="Great choice!!! Pick a category and I will narrow down the right products for you.",
-            button_text="View Categories",
-            sections=BROWSE_CATEGORY_SECTIONS,
+            body_text="Pick a room and I will show you exactly what we have.",
+            button_text="Select Room",
+            sections=ROOM_SELECTION_SECTIONS,
             header=BROWSE_FLOW_HEADER,
         )
     except Exception as e:
-        print(f"   Warning: category list failed for {phone}: {e}")
-        fallback = [
-            "Furniture: Storage Bed, Sofa, Mattress, Dining Table, Wardrobe",
-            "Appliances: Single Door Fridge, Double Door Fridge, Top Load WM, Split AC, Window AC",
-            "Storage & Work: Study Table, Office Chair, Bookshelf, Shoe Rack, Storage Cabinet",
-        ]
+        print(f"   Warning: room list failed for {phone}: {e}")
         whatsapp_client.send_text_message(
             phone,
-            "*Categories*\n" + "\n".join(fallback),
+            "*Select a room:*\n1. Bedroom\n2. Living Room\n3. Kitchen\n4. Work Station\n5. Complete 1BHK\n\nReply with the room name.",
             preview_url=False,
         )
 
 
-def _get_matching_products_for_category(category_id: str) -> List[dict]:
-    terms = BROWSE_CATEGORY_SEARCH_TERMS.get(category_id, [])
-    results: List[dict] = []
-    seen = set()
-    for term in terms:
-        try:
-            matches = search_products_by_name(term) or []
-        except Exception as e:
-            print(f"   Warning: search failed for {term}: {e}")
-            matches = []
-        for product in matches:
-            pid = product.get("id") or product.get("product_id")
-            key = pid or product.get("name")
-            if key in seen:
-                continue
-            seen.add(key)
-            results.append(product)
-            if len(results) >= 6:
-                return results
-    return results
+def _send_subcategory_selection(phone: str, room_id: str) -> None:
+    """Send subcategories for a room (as buttons if <=3, list if >3)."""
+    room = ROOM_CATEGORIES.get(room_id, {})
+    room_title = room.get("title", "Room")
+    subcats = room.get("subcategories", {})
+    ctx = _set_browse_context(phone, browse_step="await_subcategory", browse_room=room_id)
 
-
-def _send_category_products(phone: str, category_id: str, sender_name: str) -> bool:
-    category_title = BROWSE_CATEGORY_LOOKUP.get(category_id, "the selected category")
-    products = _get_matching_products_for_category(category_id)
-
-    context = _browse_context(phone)
-    context["browse_step"] = "await_product_finalization"
-    context["last_browse_category"] = category_id
-    context["last_browse_category_title"] = category_title
-
-    # Log category selection to database
-    normalized_phone = normalize_phone(phone)
-    _save_browse_lead_data(normalized_phone, {
-        "last_browsed_category": category_title,
-        "lead_stage": "browse_category_selected",
+    # Log room selection
+    _save_browse_lead_data(normalize_phone(phone), {
+        "last_browsed_room": room_title,
+        "lead_stage": "browse_room_selected",
     })
 
-    if not products:
-        whatsapp_client.send_text_message(
-            phone,
-            f"Could not fetch products for *{category_title}* right now. Please type the exact item names you want and I will prepare the quote.",
-            preview_url=False,
+    items_list = list(subcats.items())
+    if len(items_list) <= 3:
+        # Use interactive buttons
+        buttons = [{"id": sc_id, "title": sc["title"][:20]} for sc_id, sc in items_list]
+        whatsapp_client.send_interactive_buttons(
+            to_phone=phone,
+            body_text=f"*{room_title}* — what are you looking for?",
+            buttons=buttons,
+            header=BROWSE_FLOW_HEADER,
         )
-        return True
+    else:
+        # Use list message
+        rows = [{"id": sc_id, "title": sc["title"][:24]} for sc_id, sc in items_list]
+        sections = [{"title": room_title, "rows": rows}]
+        try:
+            whatsapp_client.send_list_message(
+                to_phone=phone,
+                body_text=f"*{room_title}* — pick a category below.",
+                button_text="Select Category",
+                sections=sections,
+                header=BROWSE_FLOW_HEADER,
+            )
+        except Exception as e:
+            print(f"   Warning: subcategory list failed for {phone}: {e}")
+            lines = [f"*{room_title} categories:*"]
+            for idx, (_, sc) in enumerate(items_list, 1):
+                lines.append(f"{idx}. {sc['title']}")
+            lines.append("\nReply with the category name.")
+            whatsapp_client.send_text_message(phone, "\n".join(lines), preview_url=False)
 
-    duration = int(context.get("browse_duration") or 6)
 
-    # Build interactive list rows with per-variant pricing
-    rows = []
-    for product in products[:9]:  # WhatsApp list allows max 10 rows per section
-        pid = product.get("id") or product.get("product_id")
-        if not pid:
+def _send_1bhk_package_buttons(phone: str) -> None:
+    """Show the three 1BHK packages as interactive buttons (exactly 3)."""
+    ctx = _set_browse_context(phone, browse_step="await_subcategory", browse_room="ROOM_1BHK")
+    buttons = [
+        {"id": pkg_id, "title": pkg["title"][:20]}
+        for pkg_id, pkg in COMPLETE_1BHK_PACKAGES.items()
+    ]
+    body_lines = ["*Complete 1BHK Packages*", ""]
+    for pkg_id, pkg in COMPLETE_1BHK_PACKAGES.items():
+        body_lines.append(f"*{pkg['title']}*: {pkg['description']}")
+    whatsapp_client.send_interactive_buttons(
+        to_phone=phone,
+        body_text="\n".join(body_lines),
+        buttons=buttons,
+        header=BROWSE_FLOW_HEADER,
+    )
+
+
+def _send_variant_list(phone: str, room_id: str, subcat_id: str) -> None:
+    """Show product variants for a subcategory as a text message with starting prices."""
+    room = ROOM_CATEGORIES.get(room_id, {})
+    room_title = room.get("title", "Room")
+    subcat = room.get("subcategories", {}).get(subcat_id, {})
+    subcat_title = subcat.get("title", "Category")
+    variants = subcat.get("variants", [])
+
+    ctx = _set_browse_context(phone, browse_step="await_variant_action",
+                              browse_subcategory=subcat_id)
+    duration = int(ctx.get("browse_duration") or 12)
+
+    # Log subcategory selection
+    _save_browse_lead_data(normalize_phone(phone), {
+        "last_browsed_subcategory": f"{room_title} > {subcat_title}",
+        "lead_stage": "browse_subcategory_selected",
+    })
+
+    # Store variant list for number-based selection
+    ctx["browse_variant_list"] = variants
+
+    # Build text with starting prices
+    lines = [f"*{subcat_title} — {room_title}*", f"Duration: {duration} months", ""]
+    for idx, (pid, name) in enumerate(variants, 1):
+        price = calculate_rent(pid, duration) or 0
+        discounted = int(round(price * 0.70)) if price else 0
+        if discounted:
+            lines.append(f"{idx}. {name} — from Rs. {discounted:,}/mo")
+        else:
+            lines.append(f"{idx}. {name}")
+
+    lines.append("")
+    lines.append("Reply with the item number or name to add to cart.")
+
+    whatsapp_client.send_text_message(phone, "\n".join(lines), preview_url=False)
+    time.sleep(0.3)
+
+    # Navigation buttons
+    has_cart = bool(ctx.get("last_browse_quote", {}).get("items"))
+    buttons = [
+        {"id": "BROWSE_BACK_ROOM", "title": "Back to Rooms"},
+    ]
+    # Add back-to-subcategories if room has >1 subcategory
+    if len(room.get("subcategories", {})) > 1:
+        buttons.append({"id": "BROWSE_BACK_SUBCAT", "title": f"Back to {room_title[:14]}"})
+    if has_cart:
+        buttons.append({"id": "BROWSE_SHOW_DETAILS", "title": "View Cart"})
+
+    whatsapp_client.send_interactive_buttons(
+        to_phone=phone,
+        body_text="Or navigate:",
+        buttons=buttons[:3],  # WhatsApp max 3 buttons
+        header=BROWSE_FLOW_HEADER,
+    )
+
+
+def _handle_1bhk_package_selection(phone: str, package_id: str, sender_name: str) -> None:
+    """Auto-add all items from a 1BHK package to the browse cart and show quote."""
+    pkg = COMPLETE_1BHK_PACKAGES.get(package_id)
+    if not pkg:
+        whatsapp_client.send_text_message(phone, "Could not find that package. Please try again.")
+        return
+
+    ctx = _browse_context(phone)
+    duration = int(ctx.get("browse_duration") or 12)
+    normalized_phone = normalize_phone(phone)
+
+    items = []
+    for pid in pkg["items"]:
+        product = get_product_by_id(pid)
+        if not product:
             continue
         mrp = calculate_rent(pid, duration) or 0
         discounted = int(round(mrp * 0.70)) if mrp else 0
-        name = product.get("name", "Product")
-        title = (name[:21] + "...") if len(name) > 24 else name
-        if discounted:
-            description = f"Rs. {discounted:,}/mo  (was Rs. {mrp:,})"
-        else:
-            description = "Tap to add"
-        rows.append({
-            "id": f"BROWSE_ITEM_{pid}",
-            "title": title,
-            "description": description,
+        items.append({
+            "product_id": pid,
+            "product_name": product.get("name", "Product"),
+            "name": product.get("name", "Product"),
+            "qty": 1,
+            "original_rent": mrp,
+            "rent": discounted,
+            "duration": duration,
+            "matched": True,
         })
 
-    if not rows:
-        whatsapp_client.send_text_message(
-            phone,
-            f"Showing *{category_title}* options. Type the item name with quantity, e.g.: 1 {category_title}",
-            preview_url=False,
-        )
-        return True
+    _save_browse_lead_data(normalized_phone, {
+        "package_selected": pkg["title"],
+        "lead_stage": "browse_package_selected",
+    })
 
-    upfront_note = ", pay upfront for extra 10% off" if duration >= 12 else ""
-    sections = [{"title": category_title, "rows": rows}]
+    whatsapp_client.send_text_message(
+        phone,
+        f"*{pkg['title']}* package selected.\n{pkg['description']}\n\nPreparing your quote...",
+        preview_url=False,
+    )
+    time.sleep(0.3)
+
+    _send_browse_quote(phone, sender_name, pkg["title"], items, duration)
+
+
+def _handle_variant_text_selection(phone: str, text: str, sender_name: str) -> bool:
+    """Match user text (number or name) against displayed variant list, add to cart."""
+    ctx = _browse_context(phone)
+    variants = ctx.get("browse_variant_list", [])
+    if not variants:
+        return False
+
+    cleaned = text.strip()
+
+    # Try number match first
     try:
-        whatsapp_client.send_list_message(
-            to_phone=phone,
-            body_text=(
-                f"*{category_title} - {duration} month rental*\n"
-                f"All prices shown after 30% discount{upfront_note}.\n"
-                f"Tap any variant to add it to your cart."
-            ),
-            button_text="Select Variant",
-            sections=sections,
-            header="Browse Products",
-            footer="You can select multiple items",
-        )
-    except Exception as e:
-        print(f"   Warning: list message failed for {phone}: {e}")
-        # Fallback to plain text
-        lines = [f"*{category_title} Options ({duration} months)*"]
-        for row in rows:
-            lines.append(f"- {row['title']}: {row['description']}")
-        lines.append("\nReply with the item name to add to cart.")
-        whatsapp_client.send_text_message(phone, "\n".join(lines), preview_url=False)
-    return True
+        idx = int(cleaned)
+        if 1 <= idx <= len(variants):
+            pid, _ = variants[idx - 1]
+            return _handle_browse_item_selection(phone, sender_name, pid)
+    except ValueError:
+        pass
+
+    # Try fuzzy name match
+    lower = cleaned.lower()
+    for pid, name in variants:
+        if lower in name.lower() or name.lower() in lower:
+            return _handle_browse_item_selection(phone, sender_name, pid)
+
+    # If no match in variant list, try the full product search pipeline
+    return False
 
 
 def _handle_browse_item_selection(phone: str, sender_name: str, product_id: int) -> bool:
@@ -758,23 +998,62 @@ def _handle_browse_products_text(phone: str, sender_name: str, text: str, messag
         if duration is None:
             whatsapp_client.send_text_message(
                 phone,
-                "Great Choice!!! Let me know the Duration of rental first( e.g. 6 or 12 months)",
+                "Let me know the duration of rental first (e.g. 6 or 12 months).",
                 preview_url=False,
             )
             return True
 
         ctx["browse_duration"] = duration
-        ctx["browse_step"] = "await_items"
+        ctx["browse_step"] = "await_room"
         _save_browse_lead_data(normalized_phone, {"duration_months": duration, "lead_stage": "browse_duration_set"})
         whatsapp_client.send_text_message(
             phone,
-            "Thanks!!! Also share the list of items with type e.g. Storage Bed, Single Door Fridge, Split AC, to help me quickly get your details of what your are looking for.",
+            f"Got it, {duration} months. Now pick a room to start browsing.",
             preview_url=False,
         )
-        _send_browse_categories(phone)
+        time.sleep(0.3)
+        _send_room_selection(phone)
         return True
 
-    if step in ("await_items", "await_product_finalization", "quote_ready"):
+    if step == "await_room":
+        # User typed a room name instead of tapping the list
+        matched_room = ROOM_TEXT_MATCH.get(raw_text.lower().strip())
+        if matched_room:
+            if matched_room == "ROOM_1BHK":
+                _send_1bhk_package_buttons(phone)
+            else:
+                _send_subcategory_selection(phone, matched_room)
+            return True
+        # Not a room — re-show list
+        _send_room_selection(phone)
+        return True
+
+    if step == "await_subcategory":
+        # User typed a subcategory name instead of tapping
+        room_id = ctx.get("browse_room", "")
+        room = ROOM_CATEGORIES.get(room_id, {})
+        subcats = room.get("subcategories", {})
+        lower = raw_text.lower().strip()
+        for sc_id, sc in subcats.items():
+            if lower in sc["title"].lower() or sc["title"].lower() in lower:
+                _send_variant_list(phone, room_id, sc_id)
+                return True
+        # Not matched — re-show subcategories
+        if room_id == "ROOM_1BHK":
+            _send_1bhk_package_buttons(phone)
+        elif room_id:
+            _send_subcategory_selection(phone, room_id)
+        else:
+            _send_room_selection(phone)
+        return True
+
+    if step == "await_variant_action":
+        # User typed an item number/name from the variant list
+        if _handle_variant_text_selection(phone, raw_text, sender_name):
+            return True
+        # Fall through to the free-text cart builder below
+
+    if step in ("await_items", "await_variant_action", "await_product_finalization", "quote_ready"):
         duration = int(ctx.get("browse_duration") or _parse_duration_from_text(raw_text) or 12)
 
         # Strip additive prefixes ("also", "and a", "I also want") before parsing
@@ -795,17 +1074,17 @@ def _handle_browse_products_text(phone: str, sender_name: str, text: str, messag
 
         items = parse_cart_items(cleaned_text)
         if not items:
-            if step == "await_items":
-                _send_browse_categories(phone)
+            if step in ("await_items", "await_variant_action"):
+                _send_room_selection(phone)
                 whatsapp_client.send_text_message(
                     phone,
-                    "Please type the items again in a little more detail, for example: Storage Bed, Single Door Fridge, Split AC.",
+                    "I could not match those items. Please pick a room above or type more specific names, e.g.: Storage Bed, Single Door Fridge, Split AC.",
                     preview_url=False,
                 )
             else:
                 whatsapp_client.send_text_message(
                     phone,
-                    "I could not finalize the product list from that message. Please share the exact items or pick a category above.",
+                    "I could not finalize the product list from that message. Please share the exact items or pick a room above.",
                     preview_url=False,
                 )
             return True
@@ -2618,19 +2897,57 @@ Thank you for choosing RentBasket!"""
 
         # ── Informational Flow Buttons ─────────────────────────────────
         elif button_id == "BROWSE_PRODUCTS":
-            _set_browse_context(phone, browse_mode=True, browse_step="await_duration")
-            normalized = normalize_phone(phone)
-            _save_browse_lead_data(normalized, {"lead_stage": "browse_started"})
-            whatsapp_client.send_text_message(
-                phone,
-                "Great Choice!!! Let me know the Duration of rental first( e.g. 6 or 12 months)",
-                preview_url=False,
-            )
+            ctx = _browse_context(phone)
+            existing_duration = ctx.get("browse_duration")
+            if existing_duration:
+                # Duration already set — go straight to room selection (Browse More flow)
+                _set_browse_context(phone, browse_mode=True)
+                _send_room_selection(phone)
+            else:
+                _set_browse_context(phone, browse_mode=True, browse_step="await_duration")
+                normalized = normalize_phone(phone)
+                _save_browse_lead_data(normalized, {"lead_stage": "browse_started"})
+                whatsapp_client.send_text_message(
+                    phone,
+                    "Let me know the duration of rental first (e.g. 6 or 12 months).",
+                    preview_url=False,
+                )
             return jsonify({"status": "ok", "action": "browse_products_started"}), 200
 
-        elif button_id.startswith("BROWSE_CAT_"):
-            _send_category_products(phone, button_id, sender_name)
-            return jsonify({"status": "ok", "action": "browse_category_selected"}), 200
+        # ── Room-based browse hierarchy ─────────────────────────────
+        elif button_id.startswith("ROOM_"):
+            if button_id == "ROOM_1BHK":
+                _send_1bhk_package_buttons(phone)
+            else:
+                _send_subcategory_selection(phone, button_id)
+            return jsonify({"status": "ok", "action": "room_selected"}), 200
+
+        elif button_id.startswith("SUBCAT_"):
+            room_id = _browse_context(phone).get("browse_room", "")
+            _send_variant_list(phone, room_id, button_id)
+            return jsonify({"status": "ok", "action": "subcategory_selected"}), 200
+
+        elif button_id.startswith("PKG_"):
+            thread = threading.Thread(
+                target=_handle_1bhk_package_selection,
+                args=(phone, button_id, sender_name),
+            )
+            thread.start()
+            return jsonify({"status": "ok", "action": "package_selected"}), 200
+
+        elif button_id == "BROWSE_BACK_ROOM":
+            _send_room_selection(phone)
+            return jsonify({"status": "ok", "action": "back_to_rooms"}), 200
+
+        elif button_id == "BROWSE_BACK_SUBCAT":
+            room_id = _browse_context(phone).get("browse_room", "")
+            if room_id == "ROOM_1BHK":
+                _send_1bhk_package_buttons(phone)
+            elif room_id:
+                _send_subcategory_selection(phone, room_id)
+            else:
+                _send_room_selection(phone)
+            return jsonify({"status": "ok", "action": "back_to_subcategories"}), 200
 
         elif button_id.startswith("BROWSE_ITEM_"):
             # User tapped a product variant from the list — add to cart
