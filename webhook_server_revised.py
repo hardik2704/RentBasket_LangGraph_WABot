@@ -452,7 +452,9 @@ def _clear_browse_context(phone: str) -> None:
     for key in ("browse_mode", "browse_step", "browse_duration", "browse_requested_items",
                 "last_browse_quote", "last_browse_category",
                 "browse_room", "browse_subcategory", "browse_variant_list",
-                "browse_checkout_location"):
+                "browse_checkout_location",
+                "direct_request", "direct_segments", "direct_option_list",
+                "browse_modify_mode"):
         ctx.pop(key, None)
     session_context[phone] = ctx
 
@@ -884,6 +886,321 @@ def _handle_browse_item_selection(phone: str, sender_name: str, product_id: int)
     return True
 
 
+# ── Direct Product Request Flow ──────────────────────────────────────
+# When user sends a free-text message like "Study Chair and table I want"
+# we detect the product intent, show matching variants with pricing,
+# and let them pick — skipping the full room-based browse hierarchy.
+
+def _try_direct_product_request(phone: str, sender_name: str, text: str) -> bool:
+    """
+    Detect if the user's free text contains product keywords.
+    If so, start a direct-request flow (skip browse hierarchy).
+    Returns True if we intercepted the message, False otherwise.
+    """
+    ctx = session_context.get(phone, {})
+    if ctx.get("browse_mode") or ctx.get("sales_mode"):
+        return False
+
+    # Split text into segments and search for product matches
+    text_wo_duration = remove_duration_phrases(text)
+    segments = split_into_segments(text_wo_duration)
+    if not segments:
+        return False
+
+    all_matches = []
+    for seg in segments:
+        seg = clean_item_segment(seg)
+        if not seg:
+            continue
+        qty, item_text = extract_qty_and_item(seg)
+        item_text = re.sub(r"\b(for|months?|mo)\b.*$", "", item_text).strip()
+        if not item_text or len(item_text) < 2:
+            continue
+        matches = search_products_by_name(item_text)
+        if matches:
+            all_matches.append({
+                "query": item_text,
+                "qty": qty,
+                "matches": matches,
+            })
+
+    if not all_matches:
+        return False
+
+    # Activate direct request flow
+    duration_from_text = extract_duration(text, None)
+
+    session_context[phone] = session_context.get(phone, {})
+    session_context[phone]["browse_mode"] = True
+    session_context[phone]["direct_request"] = True
+    session_context[phone]["direct_segments"] = all_matches
+    session_context[phone]["sender_name"] = sender_name
+
+    if duration_from_text:
+        session_context[phone]["browse_duration"] = duration_from_text
+        session_context[phone]["browse_step"] = "direct_await_selection"
+        _send_direct_request_options(phone)
+    else:
+        session_context[phone]["browse_step"] = "direct_await_duration"
+        # Acknowledge the request, then ask duration
+        segment_names = [seg["query"].title() for seg in all_matches]
+        whatsapp_client.send_text_message(
+            phone,
+            f"I found options for: {', '.join(segment_names)}.\nLet me show you the best options with pricing.",
+            preview_url=False,
+        )
+        time.sleep(0.3)
+        _send_duration_buttons(phone)
+
+    return True
+
+
+def _send_direct_request_options(phone: str) -> None:
+    """Show product options for each segment in the direct request, with pricing."""
+    ctx = session_context.get(phone, {})
+    segments = ctx.get("direct_segments", [])
+    duration = int(ctx.get("browse_duration") or 12)
+
+    lines = [f"*Available Options* ({duration} months rental)", ""]
+
+    option_list = []  # flat list of (product_id, product_name) for number selection
+
+    for seg in segments:
+        query_title = seg["query"].title()
+        matches = seg["matches"]
+
+        if len(matches) == 1:
+            p = matches[0]
+            mrp = calculate_rent(p["id"], duration) or 0
+            disc = int(round(mrp * 0.70)) if mrp else 0
+            idx = len(option_list) + 1
+            option_list.append((p["id"], p["name"]))
+            lines.append(f"{idx}. {p['name']} -- ~Rs. {mrp:,}~ Rs. {disc:,}/mo +GST")
+        else:
+            lines.append(f"*{query_title}:*")
+            for p in matches:
+                mrp = calculate_rent(p["id"], duration) or 0
+                disc = int(round(mrp * 0.70)) if mrp else 0
+                idx = len(option_list) + 1
+                option_list.append((p["id"], p["name"]))
+                lines.append(f"{idx}. {p['name']} -- ~Rs. {mrp:,}~ Rs. {disc:,}/mo +GST")
+            lines.append("")
+
+    lines.append("")
+    lines.append("Reply with the numbers you want to add to cart.")
+    lines.append("Example: 1, 3  or  1 and 3")
+
+    ctx["direct_option_list"] = option_list
+    ctx["browse_step"] = "direct_await_selection"
+
+    whatsapp_client.send_text_message(phone, "\n".join(lines), preview_url=False)
+
+
+def _handle_direct_selection(phone: str, text: str, sender_name: str) -> bool:
+    """
+    Parse the user's number selections (e.g. '1, 3' or '1 and 3') from the
+    direct-request options list.  Build cart items and send quote.
+    """
+    ctx = _browse_context(phone)
+    option_list = ctx.get("direct_option_list", [])
+    duration = int(ctx.get("browse_duration") or 12)
+
+    if not option_list:
+        return False
+
+    cleaned = text.strip()
+    # Extract numbers from text like "1, 3", "1 and 3", "1 3", "1,3"
+    numbers = re.findall(r"\d+", cleaned)
+    selected_ids = set()
+    for n in numbers:
+        idx = int(n)
+        if 1 <= idx <= len(option_list):
+            selected_ids.add(idx)
+
+    if not selected_ids:
+        # Maybe user typed a product name instead of numbers
+        lower = cleaned.lower()
+        for i, (pid, pname) in enumerate(option_list, 1):
+            if lower in pname.lower() or pname.lower() in lower:
+                selected_ids.add(i)
+
+    if not selected_ids:
+        whatsapp_client.send_text_message(
+            phone,
+            f"Could not match your selection. Reply with item numbers (1-{len(option_list)}) from the list above.",
+            preview_url=False,
+        )
+        return True
+
+    # Build cart items from selection
+    items = []
+    for idx in sorted(selected_ids):
+        pid, pname = option_list[idx - 1]
+        product = get_product_by_id(pid)
+        if not product:
+            continue
+        mrp = calculate_rent(pid, duration) or 0
+        discounted = int(round(mrp * 0.70)) if mrp else 0
+        items.append({
+            "product_id": pid,
+            "product_name": product.get("name", pname),
+            "name": product.get("name", pname),
+            "qty": 1,
+            "original_rent": mrp,
+            "rent": discounted,
+            "duration": duration,
+            "matched": True,
+        })
+
+    if not items:
+        whatsapp_client.send_text_message(phone, "Could not find those products. Please try again.", preview_url=False)
+        return True
+
+    # Merge with any existing browse cart
+    existing_quote = ctx.get("last_browse_quote", {})
+    existing_items = list(existing_quote.get("items", []))
+    existing_pids = {it.get("product_id") for it in existing_items if it.get("product_id")}
+    for item in items:
+        if item["product_id"] in existing_pids:
+            for ex in existing_items:
+                if ex.get("product_id") == item["product_id"]:
+                    ex["qty"] = ex.get("qty", 1) + 1
+                    break
+        else:
+            existing_items.append(item)
+
+    # Clear direct request state, keep browse mode for cart flow
+    ctx.pop("direct_request", None)
+    ctx.pop("direct_segments", None)
+    ctx.pop("direct_option_list", None)
+
+    names = ", ".join(it["product_name"] for it in items)
+    _send_browse_quote(phone, sender_name, names, existing_items, duration)
+    return True
+
+
+# ── Browse Cart Modification Flow ────────────────────────────────────
+
+def _apply_browse_cart_modification(phone: str, text: str, sender_name: str) -> bool:
+    """
+    Apply an add/remove modification to the browse cart.
+    Returns True if handled, False to fall through.
+    """
+    ctx = _browse_context(phone)
+    quote = ctx.get("last_browse_quote", {})
+    items = list(quote.get("items", []))
+    duration = int(quote.get("duration") or ctx.get("browse_duration") or 12)
+
+    if not items:
+        return False
+
+    intent, cleaned = _detect_cart_modify_intent(text)
+
+    if intent == "remove":
+        cleaned_lower = cleaned.lower()
+        new_items = []
+        removed_name = None
+        for item in items:
+            item_name = (item.get("product_name") or item.get("name") or "").lower()
+            if not removed_name and (cleaned_lower in item_name or item_name in cleaned_lower
+                    or any(w in item_name for w in cleaned_lower.split() if len(w) > 2)):
+                removed_name = item.get("product_name") or item.get("name")
+                continue  # skip/remove
+            new_items.append(item)
+
+        if not removed_name:
+            whatsapp_client.send_text_message(
+                phone,
+                f"Could not find that item in your cart. Try the exact name, e.g.: remove {items[0].get('product_name', 'Fridge')}",
+                preview_url=False,
+            )
+            return True
+
+        if not new_items:
+            # Cart is now empty
+            whatsapp_client.send_text_message(phone, f"Removed *{removed_name}*. Your cart is now empty.", preview_url=False)
+            ctx.pop("last_browse_quote", None)
+            ctx.pop("browse_modify_mode", None)
+            ctx["browse_step"] = "await_room"
+            time.sleep(0.3)
+            buttons = [
+                {"id": "BROWSE_PRODUCTS", "title": "Browse Products"},
+            ]
+            whatsapp_client.send_interactive_buttons(
+                to_phone=phone,
+                body_text="Would you like to start fresh?",
+                buttons=buttons,
+                header=BROWSE_FLOW_HEADER,
+            )
+            return True
+
+        whatsapp_client.send_text_message(phone, f"Removed *{removed_name}* from your cart.", preview_url=False)
+        time.sleep(0.3)
+        ctx.pop("browse_modify_mode", None)
+        _send_browse_quote(phone, sender_name, "modified cart", new_items, duration)
+        return True
+
+    elif intent == "add":
+        # Parse and add new items
+        new_items = parse_cart_items(cleaned)
+        matched_new = [it for it in new_items if it.get("matched")]
+        if not matched_new:
+            whatsapp_client.send_text_message(
+                phone,
+                "Could not find that product. Try typing the exact name, e.g.: add Study Table",
+                preview_url=False,
+            )
+            return True
+
+        for item in matched_new:
+            item["duration"] = duration
+            mrp = calculate_rent(item["product_id"], duration) or int(item.get("original_rent") or 0)
+            item["original_rent"] = mrp
+            item["rent"] = int(round(mrp * 0.70)) if mrp else 0
+
+        existing_pids = {it.get("product_id") for it in items if it.get("product_id")}
+        for item in matched_new:
+            if item["product_id"] in existing_pids:
+                for ex in items:
+                    if ex.get("product_id") == item["product_id"]:
+                        ex["qty"] = ex.get("qty", 1) + item.get("qty", 1)
+                        break
+            else:
+                items.append(item)
+
+        ctx.pop("browse_modify_mode", None)
+        _send_browse_quote(phone, sender_name, "modified cart", items, duration)
+        return True
+
+    # No clear intent — check if it's a number to remove by index
+    try:
+        idx = int(cleaned.strip())
+        if 1 <= idx <= len(items):
+            removed = items.pop(idx - 1)
+            removed_name = removed.get("product_name") or removed.get("name")
+            if not items:
+                whatsapp_client.send_text_message(phone, f"Removed *{removed_name}*. Your cart is now empty.", preview_url=False)
+                ctx.pop("last_browse_quote", None)
+                ctx.pop("browse_modify_mode", None)
+                ctx["browse_step"] = "await_room"
+                time.sleep(0.3)
+                buttons = [{"id": "BROWSE_PRODUCTS", "title": "Browse Products"}]
+                whatsapp_client.send_interactive_buttons(
+                    to_phone=phone, body_text="Would you like to start fresh?",
+                    buttons=buttons, header=BROWSE_FLOW_HEADER,
+                )
+                return True
+            whatsapp_client.send_text_message(phone, f"Removed *{removed_name}* from your cart.", preview_url=False)
+            time.sleep(0.3)
+            ctx.pop("browse_modify_mode", None)
+            _send_browse_quote(phone, sender_name, "modified cart", items, duration)
+            return True
+    except (ValueError, TypeError):
+        pass
+
+    return False
+
+
 def _build_browse_cart_payload(items: List[dict], duration: int) -> List[dict]:
     payload = []
     for item in items:
@@ -1146,6 +1463,40 @@ def _handle_browse_products_text(phone: str, sender_name: str, text: str, messag
         return True
 
     step = ctx.get("browse_step", "await_duration")
+
+    # ── Direct request flow: user picks from options list ─────────
+    if step == "direct_await_duration":
+        duration = _parse_duration_from_text(raw_text)
+        if duration is None:
+            _send_duration_buttons(phone)
+            return True
+        ctx["browse_duration"] = duration
+        _save_browse_lead_data(normalized_phone, {"duration_months": duration, "lead_stage": "direct_duration_set"})
+        _send_direct_request_options(phone)
+        return True
+
+    if step == "direct_await_selection":
+        if _handle_direct_selection(phone, raw_text, sender_name):
+            return True
+        # If direct selection failed, re-show options
+        _send_direct_request_options(phone)
+        return True
+
+    # ── Browse cart modify mode: add/remove items ─────────────────
+    if ctx.get("browse_modify_mode"):
+        if _apply_browse_cart_modification(phone, raw_text, sender_name):
+            return True
+        # If modification didn't work, show instructions again
+        quote = ctx.get("last_browse_quote", {})
+        items = quote.get("items", [])
+        item_list = "\n".join(f"{i}. {it.get('product_name', '?')}" for i, it in enumerate(items, 1))
+        whatsapp_client.send_text_message(
+            phone,
+            f"Could not understand that. Your current cart:\n{item_list}\n\n"
+            f"Try: 'remove fridge' or 'add study table' or reply with an item number to remove it.",
+            preview_url=False,
+        )
+        return True
 
     if step == "await_duration":
         duration = _parse_duration_from_text(raw_text)
@@ -2625,16 +2976,22 @@ def handle_webhook():
             thread.start()
             return jsonify({"status": "processing_sales_text"}), 200
 
+        # ── Direct product request interception ──────────────────
+        # If user sends "Study Chair and table I want" (product keywords detected),
+        # enter a direct-request flow instead of routing to the LLM agent.
+        if _try_direct_product_request(phone, sender_name, text):
+            return jsonify({"status": "processing_direct_request"}), 200
+
         thread = threading.Thread(
             target=process_webhook_async,
             args=(
-                phone, text, sender_name, message_id, message_type, 
-                interactive_response, message_data.get("quoted_message_id"), 
+                phone, text, sender_name, message_id, message_type,
+                interactive_response, message_data.get("quoted_message_id"),
                 message_data.get("reaction")
             )
         )
         thread.start()
-        
+
         return jsonify({"status": "processing"}), 200
         
     except Exception as e:
@@ -3064,8 +3421,16 @@ Thank you for choosing RentBasket!"""
         elif button_id in ("BROWSE_DUR_3", "BROWSE_DUR_6", "BROWSE_DUR_12"):
             dur_map = {"BROWSE_DUR_3": 3, "BROWSE_DUR_6": 6, "BROWSE_DUR_12": 12}
             duration = dur_map[button_id]
-            ctx = _set_browse_context(phone, browse_mode=True, browse_duration=duration, browse_step="await_room")
+            ctx = _set_browse_context(phone, browse_mode=True, browse_duration=duration)
             _save_browse_lead_data(normalize_phone(phone), {"duration_months": duration, "lead_stage": "browse_duration_set"})
+
+            # If this is a direct-request flow, show product options instead of room selection
+            if ctx.get("direct_request"):
+                ctx["browse_step"] = "direct_await_selection"
+                _send_direct_request_options(phone)
+                return jsonify({"status": "ok", "action": f"direct_duration_{duration}"}), 200
+
+            ctx["browse_step"] = "await_room"
             whatsapp_client.send_text_message(
                 phone,
                 f"Got it, {duration} months. Now pick a room to start browsing.",
@@ -3145,8 +3510,44 @@ Thank you for choosing RentBasket!"""
             return jsonify({"status": "ok", "action": "browse_checkout_ask_location"}), 200
 
         elif button_id == "BROWSE_MODIFY_CART":
-            # Go back to room selection keeping existing cart
-            _send_room_selection(phone)
+            ctx = _browse_context(phone)
+            quote = ctx.get("last_browse_quote", {})
+            items = quote.get("items", [])
+
+            if items:
+                # Show current cart with numbered items and modify instructions
+                ctx["browse_modify_mode"] = True
+                ctx["browse_step"] = "browse_modify"
+                item_lines = []
+                for i, it in enumerate(items, 1):
+                    name = it.get("product_name") or it.get("name") or "Product"
+                    qty = int(it.get("qty", 1))
+                    rent = int(it.get("rent") or 0)
+                    item_lines.append(f"{i}. {name} (x{qty}) - Rs. {rent:,}/mo")
+
+                whatsapp_client.send_text_message(
+                    phone,
+                    f"*Your current cart:*\n" + "\n".join(item_lines) + "\n\n"
+                    f"Tell me what to change:\n"
+                    f"- \"Remove the fridge\"\n"
+                    f"- \"Add a study table\"\n"
+                    f"- Or reply with an item number to remove it (e.g., 2)\n\n"
+                    f"Or browse more products to add:",
+                    preview_url=False,
+                )
+                time.sleep(0.3)
+                buttons = [
+                    {"id": "BROWSE_PRODUCTS", "title": "Browse More"},
+                    {"id": "BROWSE_SHOW_DETAILS", "title": "View Cart"},
+                ]
+                whatsapp_client.send_interactive_buttons(
+                    to_phone=phone,
+                    body_text="Or pick an option:",
+                    buttons=buttons,
+                    header=BROWSE_FLOW_HEADER,
+                )
+            else:
+                _send_room_selection(phone)
             return jsonify({"status": "ok", "action": "browse_modify_cart"}), 200
 
         elif button_id in ("BROWSE_CUSTOMER_REVIEWS", "CUSTOMER_REVIEWS"):
