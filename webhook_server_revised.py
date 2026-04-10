@@ -30,6 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 load_dotenv()
 
 from config import BOT_NAME, SALES_PHONE_GURGAON, SALES_PHONE_NOIDA, KU_REFERRAL_LINK, RENTBASKET_JWT
+from tools.location_tools import _extract_pincode, _identify_city_from_pincode, _call_distance_api
 from agents.orchestrator import route_and_run
 from agents.state import create_initial_state
 from whatsapp.client import WhatsAppClient
@@ -450,7 +451,8 @@ def _clear_browse_context(phone: str) -> None:
     ctx = session_context.get(phone, {})
     for key in ("browse_mode", "browse_step", "browse_duration", "browse_requested_items",
                 "last_browse_quote", "last_browse_category",
-                "browse_room", "browse_subcategory", "browse_variant_list"):
+                "browse_room", "browse_subcategory", "browse_variant_list",
+                "browse_checkout_location"):
         ctx.pop(key, None)
     session_context[phone] = ctx
 
@@ -482,6 +484,122 @@ def _save_browse_lead_data(normalized_phone: str, payload: dict) -> None:
         upsert_lead(normalized_phone, payload)
     except Exception as e:
         print(f"   Warning: failed to save browse lead data for {normalized_phone}: {e}")
+
+
+def _send_duration_buttons(phone: str) -> None:
+    """Show 3/6/12 month duration buttons."""
+    _set_browse_context(phone, browse_mode=True, browse_step="await_duration")
+    buttons = [
+        {"id": "BROWSE_DUR_3", "title": "3 Months"},
+        {"id": "BROWSE_DUR_6", "title": "6 Months"},
+        {"id": "BROWSE_DUR_12", "title": "12 Months"},
+    ]
+    whatsapp_client.send_interactive_buttons(
+        to_phone=phone,
+        body_text="First let me know the expected duration of rental (you can always extend the duration):",
+        buttons=buttons,
+        header=BROWSE_FLOW_HEADER,
+    )
+
+
+def _handle_checkout_location(phone: str, text: str, sender_name: str) -> bool:
+    """Extract pincode from user message, check serviceability, send cart link or rejection."""
+    ctx = _browse_context(phone)
+    quote = ctx.get("last_browse_quote", {})
+    cart_link = quote.get("cart_link")
+    normalized_phone = normalize_phone(phone)
+
+    pincode = _extract_pincode(text)
+    if not pincode:
+        whatsapp_client.send_text_message(
+            phone,
+            "I could not find a 6-digit pincode in your message. Please share your delivery pincode (e.g. 122001, 201301).",
+            preview_url=False,
+        )
+        return True
+
+    city = _identify_city_from_pincode(pincode)
+    distances = _call_distance_api(pincode)
+
+    if distances is None:
+        whatsapp_client.send_text_message(
+            phone,
+            f"Could not verify serviceability for pincode {pincode} right now. Please try again or contact our sales team:\n"
+            f"Gurgaon: {SALES_PHONE_GURGAON}\nNoida: {SALES_PHONE_NOIDA}",
+            preview_url=False,
+        )
+        return True
+
+    gurgaon_km = distances["gurgaon_km"]
+    noida_km = distances["noida_km"]
+    gurgaon_ok = gurgaon_km <= distances["gurgaon_max_km"]
+    noida_ok = noida_km <= distances["noida_max_km"]
+
+    _save_browse_lead_data(normalized_phone, {
+        "delivery_pincode": pincode,
+        "delivery_city": city,
+        "distance_gurgaon_km": gurgaon_km,
+        "distance_noida_km": noida_km,
+        "serviceable": gurgaon_ok or noida_ok,
+        "lead_stage": "checkout_serviceability_checked",
+    })
+
+    if gurgaon_ok or noida_ok:
+        if gurgaon_ok and noida_ok:
+            office = "Gurugram" if gurgaon_km <= noida_km else "Noida"
+            dist = min(gurgaon_km, noida_km)
+        elif gurgaon_ok:
+            office = "Gurugram"
+            dist = gurgaon_km
+        else:
+            office = "Noida"
+            dist = noida_km
+
+        if not cart_link:
+            items = quote.get("items", [])
+            duration = int(quote.get("duration") or 12)
+            if items:
+                cart_link = _build_browse_cart_link(items, duration)
+
+        _save_browse_lead_data(normalized_phone, {"lead_stage": "checkout_link_sent"})
+
+        whatsapp_client.send_text_message(
+            phone,
+            f"Pincode {pincode} ({city}) is serviceable.\n"
+            f"Delivery from our *{office} Office* — approximately {dist:.1f} km away.\n"
+            f"Standard delivery: 2-5 business days.\n\n"
+            f"Get an *additional 2% discount* by completing your order through this link:\n{cart_link}",
+            preview_url=True,
+        )
+        # Clear checkout step, keep browse mode for further browsing
+        ctx["browse_step"] = "quote_ready"
+    else:
+        closer_km = min(gurgaon_km, noida_km)
+        closer_office = "Gurugram" if gurgaon_km <= noida_km else "Noida"
+        whatsapp_client.send_text_message(
+            phone,
+            f"Sorry, pincode {pincode} ({city}) is outside our delivery range.\n\n"
+            f"Nearest office: *{closer_office}* — approximately {closer_km:.1f} km away.\n"
+            f"We currently serve within 20 km of our Gurgaon and Noida offices.\n\n"
+            f"For special arrangements, contact:\n"
+            f"Gurgaon: {SALES_PHONE_GURGAON}\nNoida: {SALES_PHONE_NOIDA}",
+            preview_url=False,
+        )
+        # Let them modify or browse more
+        time.sleep(0.3)
+        buttons = [
+            {"id": "BROWSE_MODIFY_CART", "title": "Modify Cart"},
+            {"id": "BROWSE_PRODUCTS", "title": "Browse More"},
+        ]
+        whatsapp_client.send_interactive_buttons(
+            to_phone=phone,
+            body_text="Would you like to do anything else?",
+            buttons=buttons,
+            header="Not Serviceable",
+        )
+        ctx["browse_step"] = "quote_ready"
+
+    return True
 
 
 def _send_room_selection(phone: str) -> None:
@@ -673,7 +791,8 @@ def _handle_variant_text_selection(phone: str, text: str, sender_name: str) -> b
     if not variants:
         return False
 
-    cleaned = text.strip()
+    # Strip trailing punctuation (user may type "1." or "2)")
+    cleaned = re.sub(r"[.\)\]\,;:!]+$", "", text.strip()).strip()
 
     # Try number match first
     try:
@@ -1028,11 +1147,8 @@ def _handle_browse_products_text(phone: str, sender_name: str, text: str, messag
     if step == "await_duration":
         duration = _parse_duration_from_text(raw_text)
         if duration is None:
-            whatsapp_client.send_text_message(
-                phone,
-                "Let me know the duration of rental first (e.g. 6 or 12 months).",
-                preview_url=False,
-            )
+            # Re-show the duration buttons
+            _send_duration_buttons(phone)
             return True
 
         ctx["browse_duration"] = duration
@@ -1046,6 +1162,9 @@ def _handle_browse_products_text(phone: str, sender_name: str, text: str, messag
         time.sleep(0.3)
         _send_room_selection(phone)
         return True
+
+    if step == "await_checkout_location":
+        return _handle_checkout_location(phone, raw_text, sender_name)
 
     if step == "await_room":
         # User typed a room name instead of tapping the list
@@ -1083,7 +1202,17 @@ def _handle_browse_products_text(phone: str, sender_name: str, text: str, messag
         # User typed an item number/name from the variant list
         if _handle_variant_text_selection(phone, raw_text, sender_name):
             return True
-        # Fall through to the free-text cart builder below
+        # Variant list exists but input didn't match — do NOT fall through
+        # to the free-text parser (which would replace the cart)
+        variants = ctx.get("browse_variant_list", [])
+        if variants:
+            whatsapp_client.send_text_message(
+                phone,
+                f"Could not match that. Reply with a number (1-{len(variants)}) or the exact item name from the list above.",
+                preview_url=False,
+            )
+            return True
+        # No variant list (edge case) — fall through to free-text
 
     if step in ("await_items", "await_variant_action", "await_product_finalization", "quote_ready"):
         duration = int(ctx.get("browse_duration") or _parse_duration_from_text(raw_text) or 12)
@@ -2680,26 +2809,14 @@ Thank you for choosing RentBasket!"""
             
         elif button_id in ("BROWSE_FURNITURE", "BROWSE_APPLIANCES"):
             # Legacy greeting buttons — route into the browse flow
-            _set_browse_context(phone, browse_mode=True, browse_step="await_duration")
-            normalized = normalize_phone(phone)
-            _save_browse_lead_data(normalized, {"lead_stage": "browse_started"})
-            whatsapp_client.send_text_message(
-                phone,
-                "Great Choice!!! Let me know the Duration of rental first( e.g. 6 or 12 months)",
-                preview_url=False,
-            )
+            _save_browse_lead_data(normalize_phone(phone), {"lead_stage": "browse_started"})
+            _send_duration_buttons(phone)
             return jsonify({"status": "ok", "action": "browse_products_started"}), 200
 
         elif button_id == "COMPLETE_HOME_SETUP":
             # Route into browse flow for complete setup
-            _set_browse_context(phone, browse_mode=True, browse_step="await_duration")
-            normalized = normalize_phone(phone)
-            _save_browse_lead_data(normalized, {"lead_stage": "browse_started"})
-            whatsapp_client.send_text_message(
-                phone,
-                "Great choice! Let me know the Duration of rental first (e.g. 6 or 12 months), then tell me what you need.",
-                preview_url=False,
-            )
+            _save_browse_lead_data(normalize_phone(phone), {"lead_stage": "browse_started"})
+            _send_duration_buttons(phone)
             return jsonify({"status": "ok", "action": "complete_home_setup"}), 200
 
         elif button_id.startswith("CAT_"):
@@ -2936,15 +3053,24 @@ Thank you for choosing RentBasket!"""
                 _set_browse_context(phone, browse_mode=True)
                 _send_room_selection(phone)
             else:
-                _set_browse_context(phone, browse_mode=True, browse_step="await_duration")
                 normalized = normalize_phone(phone)
                 _save_browse_lead_data(normalized, {"lead_stage": "browse_started"})
-                whatsapp_client.send_text_message(
-                    phone,
-                    "Let me know the duration of rental first (e.g. 6 or 12 months).",
-                    preview_url=False,
-                )
+                _send_duration_buttons(phone)
             return jsonify({"status": "ok", "action": "browse_products_started"}), 200
+
+        elif button_id in ("BROWSE_DUR_3", "BROWSE_DUR_6", "BROWSE_DUR_12"):
+            dur_map = {"BROWSE_DUR_3": 3, "BROWSE_DUR_6": 6, "BROWSE_DUR_12": 12}
+            duration = dur_map[button_id]
+            ctx = _set_browse_context(phone, browse_mode=True, browse_duration=duration, browse_step="await_room")
+            _save_browse_lead_data(normalize_phone(phone), {"duration_months": duration, "lead_stage": "browse_duration_set"})
+            whatsapp_client.send_text_message(
+                phone,
+                f"Got it, {duration} months. Now pick a room to start browsing.",
+                preview_url=False,
+            )
+            time.sleep(0.3)
+            _send_room_selection(phone)
+            return jsonify({"status": "ok", "action": f"browse_duration_{duration}"}), 200
 
         # ── Room-based browse hierarchy ─────────────────────────────
         elif button_id.startswith("ROOM_"):
@@ -3000,25 +3126,20 @@ Thank you for choosing RentBasket!"""
             return jsonify({"status": "ok", "action": "browse_show_details"}), 200
 
         elif button_id == "BROWSE_CHECKOUT":
-            # Send the checkout cart link
-            ctx = _browse_context(phone)
+            # Ask for delivery location before sending checkout link
+            ctx = _set_browse_context(phone, browse_step="await_checkout_location")
             quote = ctx.get("last_browse_quote", {})
-            cart_link = quote.get("cart_link")
-            if not cart_link:
-                items = quote.get("items", [])
-                duration = int(quote.get("duration") or 12)
-                if items:
-                    cart_link = _build_browse_cart_link(items, duration)
-            if cart_link:
-                _save_browse_lead_data(normalize_phone(phone), {"lead_stage": "checkout_link_sent"})
-                whatsapp_client.send_text_message(
-                    phone,
-                    f"Tap the link below to complete your order and get an additional 5% off for ordering via WhatsApp:\n{cart_link}",
-                    preview_url=True,
-                )
-            else:
+            if not quote.get("items"):
                 whatsapp_client.send_text_message(phone, "No items in your cart yet. Please browse and add items first.")
-            return jsonify({"status": "ok", "action": "browse_checkout"}), 200
+                return jsonify({"status": "ok", "action": "browse_checkout_empty"}), 200
+            whatsapp_client.send_text_message(
+                phone,
+                "Great, let us check if we can deliver to your location.\n\n"
+                "Please share your delivery location and make sure to include the *pincode (6-digit number)*.\n\n"
+                "Example: Sector 52, Gurugram 122003",
+                preview_url=False,
+            )
+            return jsonify({"status": "ok", "action": "browse_checkout_ask_location"}), 200
 
         elif button_id == "BROWSE_MODIFY_CART":
             # Go back to room selection keeping existing cart
