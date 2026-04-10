@@ -914,7 +914,7 @@ def _send_browse_quote(phone: str, sender_name: str, source_text: str, items: Li
     time.sleep(0.4)
 
     buttons = [
-        {"id": "BROWSE_SHOW_DETAILS", "title": "View Cart & Checkout"},
+        {"id": "BROWSE_SHOW_DETAILS", "title": "View Cart"},
         {"id": "BROWSE_PRODUCTS", "title": "Browse More"},
         {"id": "BROWSE_CUSTOMER_REVIEWS", "title": "Reviews"},
     ]
@@ -938,46 +938,99 @@ def _send_browse_full_details(phone: str, sender_name: str) -> bool:
         whatsapp_client.send_text_message(phone, "No browse quote found yet. Please share the product list again.")
         return True
 
-    original_monthly = int(quote.get("original_monthly") or 0)
-    discounted_monthly = int(quote.get("discounted_monthly") or 0)
-    savings_total = int(quote.get("savings_total") or 0)
+    # ── Build professional cart format ────────────────────────────
+    sep = "\u2501" * 20  # ━━━━━━━━━━━━━━━━━━━━
 
-    lines = ["*WhatsApp Message Cart*", f"Duration: {duration} months", ""]
+    lines = [
+        "Here are the details for your selected items:",
+        "",
+        "*Order Confirmation*",
+        f"Your Cart - {duration} Month Rental",
+        sep,
+        "",
+        "*Order Details*",
+    ]
+
+    total_rent = 0
+    total_mrp = 0
     item_names = []
-    for idx, item in enumerate(items, 1):
+    for item in items:
         product_name = item.get("product_name") or item.get("name") or "Product"
         qty = int(item.get("qty", 1))
         per_unit_mrp = int(item.get("original_rent") or item.get("rent") or 0)
         per_unit_disc = int(item.get("rent") or int(round(per_unit_mrp * 0.70)) if per_unit_mrp else 0)
-        line_total = per_unit_disc * qty
-        lines.append(f"{idx}. {product_name} x{qty}")
-        lines.append(f"   Rs. {per_unit_disc:,}/mo  (was Rs. {per_unit_mrp:,}) = Rs. {line_total:,}/mo")
+        line_rent = per_unit_disc * qty
+        line_mrp = per_unit_mrp * qty
+        total_rent += line_rent
+        total_mrp += line_mrp
         item_names.append(f"{product_name} x{qty}")
 
-    lines.append("")
-    if discounted_monthly:
-        lines.append(f"Monthly Total: Rs. {discounted_monthly:,}/mo")
-        lines.append(f"Total saving over {duration} months: Rs. {savings_total:,}")
-        if duration >= 12:
-            upfront_monthly = int(round(discounted_monthly * 0.90))
-            upfront_saving = max(0, (original_monthly - upfront_monthly) * duration)
-            lines.append(f"Pay upfront: Rs. {upfront_monthly:,}/mo  (extra 10% off — save Rs. {upfront_saving:,} total)")
+        lines.append(f"- {qty}x {product_name}")
+        lines.append(f"  ~Rs. {per_unit_mrp:,}/mo~ *Rs. {per_unit_disc:,}/mo* + GST")
+
+    # Monthly rent breakdown
+    gst = int(round(total_rent * 0.18))
+    net_monthly = total_rent + gst
 
     lines.append("")
-    lines.append("Tap the link below to complete your order and get an additional 5% off for ordering via WhatsApp:")
-    lines.append(cart_link)
+    lines.append(sep)
+    lines.append("*Monthly Rent*")
+    lines.append(f"- Rent: Rs. {total_rent:,}/mo")
+    lines.append(f"- GST (18%): Rs. {gst:,}/mo")
+    lines.append(f"- *Net Monthly: Rs. {net_monthly:,}/mo*")
+
+    # One-time charges
+    security_deposit = total_rent * 2
+    lines.append("")
+    lines.append(sep)
+    lines.append("*One Time Charges*")
+    lines.append(f"- Security Deposit: Rs. {security_deposit:,} _(refundable)_")
+    lines.append("- Delivery: ~Rs. 400~ Rs. 0")
+    lines.append("- Installation: ~Rs. 500~ Rs. 0")
+    net_first_month = net_monthly + security_deposit
+    lines.append(f"- *Net Payable (1st Month): Rs. {net_first_month:,}*")
+
+    # Savings
+    monthly_saving = total_mrp - total_rent
+    total_saving = monthly_saving * duration
+    lines.append("")
+    lines.append(sep)
+    lines.append(f"You save *Rs. {monthly_saving:,}/month* x {duration} months = *Rs. {total_saving:,}* on this cart!")
+
+    # Terms
+    lines.append("")
+    lines.append("*Terms & Conditions*")
+    lines.append("- Products are in mint condition")
+    lines.append("- Standard maintenance included")
+    lines.append("- Free shipping & standard installation")
+    lines.append("- Complete KYC before delivery")
 
     # Log the full cart to database
     _save_browse_lead_data(normalized_phone, {
         "final_cart_items": ", ".join(item_names),
-        "final_cart_monthly": discounted_monthly,
+        "final_cart_monthly": total_rent,
+        "final_cart_net_monthly": net_monthly,
         "final_cart_duration": duration,
-        "final_cart_savings": savings_total,
+        "final_cart_savings": total_saving,
         "final_cart_link": cart_link,
-        "lead_stage": "checkout_link_sent",
+        "lead_stage": "cart_viewed",
     })
 
-    whatsapp_client.send_text_message(phone, "\n".join(lines), preview_url=True)
+    whatsapp_client.send_text_message(phone, "\n".join(lines), preview_url=False)
+    time.sleep(0.4)
+
+    # Three action buttons
+    buttons = [
+        {"id": "BROWSE_MODIFY_CART", "title": "Modify Cart"},
+        {"id": "BROWSE_CUSTOMER_REVIEWS", "title": "Check Reviews"},
+        {"id": "BROWSE_CHECKOUT", "title": "Checkout"},
+    ]
+    whatsapp_client.send_interactive_buttons(
+        to_phone=phone,
+        body_text="What would you like to do?",
+        buttons=buttons,
+        header="Your Cart",
+    )
     return True
 
 
@@ -2967,14 +3020,49 @@ Thank you for choosing RentBasket!"""
             _send_browse_full_details(phone, sender_name)
             return jsonify({"status": "ok", "action": "browse_show_details"}), 200
 
+        elif button_id == "BROWSE_CHECKOUT":
+            # Send the checkout cart link
+            ctx = _browse_context(phone)
+            quote = ctx.get("last_browse_quote", {})
+            cart_link = quote.get("cart_link")
+            if not cart_link:
+                items = quote.get("items", [])
+                duration = int(quote.get("duration") or 12)
+                if items:
+                    cart_link = _build_browse_cart_link(items, duration)
+            if cart_link:
+                _save_browse_lead_data(normalize_phone(phone), {"lead_stage": "checkout_link_sent"})
+                whatsapp_client.send_text_message(
+                    phone,
+                    f"Tap the link below to complete your order and get an additional 5% off for ordering via WhatsApp:\n{cart_link}",
+                    preview_url=True,
+                )
+            else:
+                whatsapp_client.send_text_message(phone, "No items in your cart yet. Please browse and add items first.")
+            return jsonify({"status": "ok", "action": "browse_checkout"}), 200
+
+        elif button_id == "BROWSE_MODIFY_CART":
+            # Go back to room selection keeping existing cart
+            _send_room_selection(phone)
+            return jsonify({"status": "ok", "action": "browse_modify_cart"}), 200
+
         elif button_id in ("BROWSE_CUSTOMER_REVIEWS", "CUSTOMER_REVIEWS"):
-            follow_buttons = [
-                {"id": "BROWSE_SHOW_DETAILS", "title": "Show full details"},
-                {"id": "BROWSE_PRODUCTS", "title": "Browse Products"},
-            ]
+            # Send reviews as plain text (exceeds 1024 char interactive limit)
+            whatsapp_client.send_text_message(phone, LATEST_REVIEWS_TEXT, preview_url=True)
+            time.sleep(0.3)
+            has_cart = bool(_browse_context(phone).get("last_browse_quote", {}).get("items"))
+            if has_cart:
+                follow_buttons = [
+                    {"id": "BROWSE_SHOW_DETAILS", "title": "View Cart"},
+                    {"id": "BROWSE_PRODUCTS", "title": "Browse More"},
+                ]
+            else:
+                follow_buttons = [
+                    {"id": "BROWSE_PRODUCTS", "title": "Browse Products"},
+                ]
             whatsapp_client.send_interactive_buttons(
                 to_phone=phone,
-                body_text=LATEST_REVIEWS_TEXT,
+                body_text="What would you like to do next?",
                 buttons=follow_buttons,
                 header="Customer Reviews",
             )
@@ -3005,12 +3093,15 @@ Thank you for choosing RentBasket!"""
             return jsonify({"status": "ok", "action": "why_rentbasket"}), 200
 
         elif button_id == "LATEST_REVIEWS":
+            # Send reviews as plain text (exceeds 1024 char interactive limit)
+            whatsapp_client.send_text_message(phone, LATEST_REVIEWS_TEXT, preview_url=True)
+            time.sleep(0.3)
             follow_buttons = [
                 {"id": "BROWSE_PRODUCTS", "title": "Browse Products"},
             ]
             whatsapp_client.send_interactive_buttons(
                 to_phone=phone,
-                body_text=LATEST_REVIEWS_TEXT,
+                body_text="What would you like to do next?",
                 buttons=follow_buttons,
             )
             return jsonify({"status": "ok", "action": "latest_reviews"}), 200
