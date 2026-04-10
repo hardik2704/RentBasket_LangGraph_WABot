@@ -910,7 +910,7 @@ def _build_browse_cart_payload(items: List[dict], duration: int) -> List[dict]:
 def _build_browse_cart_link(items: List[dict], duration: int) -> str:
     payload = _build_browse_cart_payload(items, duration)
     # Keep brackets/braces/colons literal so the backend receives valid JSON array syntax
-    encoded_items = quote(json.dumps(payload, separators=(",", ":"), ensure_ascii=False), safe="[]{}:,")
+    encoded_items = quote(json.dumps(payload, separators=(",", ":"), ensure_ascii=False), safe="{}:,")
     return f"{BROWSE_PRODUCTS_BASE_URL}?token={RENTBASKET_JWT}&referral_code={BROWSE_PRODUCTS_REFERRAL_CODE}&items={encoded_items}"
 
 
@@ -3030,7 +3030,7 @@ Thank you for choosing RentBasket!"""
                     "duration": int(duration),
                 })
 
-            encoded_items = quote(json.dumps(cart_payload, separators=(",", ":"), ensure_ascii=False), safe="[]{}:,")
+            encoded_items = quote(json.dumps(cart_payload, separators=(",", ":"), ensure_ascii=False), safe="{}:,")
             cart_link = f"{BROWSE_PRODUCTS_BASE_URL}?token={RENTBASKET_JWT}&referral_code={BROWSE_PRODUCTS_REFERRAL_CODE}&items={encoded_items}"
 
             whatsapp_client.send_text_message(
