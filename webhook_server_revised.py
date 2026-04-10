@@ -568,9 +568,12 @@ def _handle_checkout_location(phone: str, text: str, sender_name: str) -> bool:
             f"Pincode {pincode} ({city}) is serviceable.\n"
             f"Delivery from our *{office} Office* — approximately {dist:.1f} km away.\n"
             f"Standard delivery: 2-5 business days.\n\n"
-            f"Get an *additional 2% discount* by completing your order through this link:\n{cart_link}",
-            preview_url=True,
+            f"Get an *additional 2% discount* by completing your order through this link:",
+            preview_url=False,
         )
+        time.sleep(0.3)
+        # Send cart link as a separate message so WhatsApp renders the preview
+        whatsapp_client.send_text_message(phone, cart_link, preview_url=True)
         # Clear checkout step, keep browse mode for further browsing
         ctx["browse_step"] = "quote_ready"
     else:
