@@ -492,13 +492,13 @@ def _send_duration_buttons(phone: str) -> None:
     """Show 3/6/12 month duration buttons."""
     _set_browse_context(phone, browse_mode=True, browse_step="await_duration")
     buttons = [
-        {"id": "BROWSE_DUR_3", "title": "3 : Short and Sweet)"},
-        {"id": "BROWSE_DUR_6", "title": "6 : Save More"},
-        {"id": "BROWSE_DUR_12", "title": "12 : Max Savings"},
+        {"id": "BROWSE_DUR_3", "title": "3-Short & Sweet"},
+        {"id": "BROWSE_DUR_6", "title": "6-Save More"},
+        {"id": "BROWSE_DUR_12", "title": "12-Max Savings"},
     ]
     whatsapp_client.send_interactive_buttons(
         to_phone=phone,
-        body_text="First let me know the expected duration of rental (you can always extend the duration):",
+        body_text="Your expected rental duration in months (you can always extend the duration):",
         buttons=buttons,
         header=BROWSE_FLOW_HEADER,
     )
@@ -569,7 +569,7 @@ def _handle_checkout_location(phone: str, text: str, sender_name: str) -> bool:
             phone,
             f"Pincode {pincode} ({city}) is serviceable.\n"
             f"Delivery from our *{office} Office* — approximately {dist:.1f} km away.\n"
-            f"Standard delivery: 2-5 business days.\n\n"
+            f"Standard delivery: within 72 hours.\n\n"
             f"Get an *additional 2% discount* by completing your order through this link:",
             preview_url=False,
         )
