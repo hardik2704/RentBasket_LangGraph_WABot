@@ -327,6 +327,55 @@ class WhatsAppClient:
         return self._make_request("messages", payload)
 
 
+    def send_image(
+        self,
+        to_phone: str,
+        image_url: str = None,
+        media_id: str = None,
+        caption: str = None,
+    ) -> Dict[str, Any]:
+        """
+        Send an image message via URL or pre-uploaded media ID.
+
+        Args:
+            to_phone: Recipient phone number
+            image_url: Publicly accessible URL of the image (JPEG/PNG)
+            media_id: WhatsApp media ID from a previous upload (alternative to URL)
+            caption: Optional caption text below the image
+
+        Returns:
+            API response dict
+        """
+        if self.demo_mode:
+            print(f"\n📤 To: {to_phone}")
+            print(f"{'─'*40}")
+            print(f"[IMAGE] {image_url or media_id}")
+            if caption:
+                print(f"Caption: {caption}")
+            print(f"{'─'*40}")
+            return {"success": True, "demo": True}
+
+        image_block: Dict[str, Any] = {}
+        if media_id:
+            image_block["id"] = media_id
+        elif image_url:
+            image_block["link"] = image_url
+        else:
+            return {"error": "Either image_url or media_id must be provided"}
+
+        if caption:
+            image_block["caption"] = caption
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": to_phone,
+            "type": "image",
+            "image": image_block,
+        }
+
+        return self._make_request("messages", payload)
+
     def send_template_message(
         self,
         to_phone: str,

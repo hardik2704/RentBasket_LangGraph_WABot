@@ -17,7 +17,7 @@ import tempfile
 import argparse
 import threading
 import time
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from dotenv import load_dotenv
 from typing import List, Dict, Tuple, Optional
 from openai import OpenAI
@@ -96,6 +96,11 @@ PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "12345")
 VERSION = os.getenv("VERSION", "v23.0")
+
+# Public server URL — used to build catalogue image link sent on WhatsApp
+SERVER_BASE_URL = os.getenv("RENDER_URL", "https://rentbasket-wabot.onrender.com").rstrip("/")
+CATALOGUE_IMAGE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "RentBasket_Catalogue.png")
+CATALOGUE_IMAGE_URL = f"{SERVER_BASE_URL}/catalogue"
 
 # Validate credentials (warn instead of exit – Render injects env vars at runtime)
 if not PHONE_NUMBER_ID or not ACCESS_TOKEN:
@@ -2779,6 +2784,14 @@ except Exception as e:
     print(f"CRITICAL: Firebase startup check failed: {e}")
 
 
+@app.route("/catalogue", methods=["GET"])
+def serve_catalogue():
+    """Serve the RentBasket product catalogue image publicly (used in WhatsApp messages)."""
+    if not os.path.exists(CATALOGUE_IMAGE_PATH):
+        return jsonify({"error": "Catalogue image not found"}), 404
+    return send_file(CATALOGUE_IMAGE_PATH, mimetype="image/png")
+
+
 @app.route("/", methods=["GET"])
 def home():
     """Health check endpoint."""
@@ -3717,14 +3730,21 @@ Thank you for choosing RentBasket!"""
         elif button_id == "BROWSE_PRODUCTS":
             ctx = _browse_context(phone)
             existing_duration = ctx.get("browse_duration")
-            if existing_duration:
-                # Duration already set — go straight to room selection (Browse More flow)
-                _set_browse_context(phone, browse_mode=True)
-                _send_room_selection(phone)
-            else:
+            # Always send catalogue image first on fresh Browse Products entry
+            if not existing_duration:
+                whatsapp_client.send_image(
+                    to_phone=phone,
+                    image_url=CATALOGUE_IMAGE_URL,
+                    caption="Here's our full product catalogue. Browse below to add items to your cart!",
+                )
+                time.sleep(0.5)
                 normalized = normalize_phone(phone)
                 _save_browse_lead_data(normalized, {"lead_stage": "browse_started"})
                 _send_duration_buttons(phone)
+            else:
+                # Duration already set — go straight to room selection (Browse More flow)
+                _set_browse_context(phone, browse_mode=True)
+                _send_room_selection(phone)
             return jsonify({"status": "ok", "action": "browse_products_started"}), 200
 
         elif button_id in ("BROWSE_DUR_3", "BROWSE_DUR_6", "BROWSE_DUR_12"):
