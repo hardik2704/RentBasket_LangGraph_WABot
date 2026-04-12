@@ -1965,6 +1965,129 @@ def is_greeting(text: str) -> bool:
     """Return True if the message is a greeting word."""
     return text.strip().lower() in GREETING_WORDS
 
+
+# ── Bye / Exit Detection ──────────────────────────────────────────────
+
+BYE_WORDS = {
+    "bye", "byee", "byeee", "goodbye", "good bye", "ok bye",
+    "will talk later", "talk later", "later", "ttyl",
+    "not now", "not interested", "no thanks", "no thank you",
+    "baad me", "baad mein", "bad me", "phir baat karte hain",
+    "phir baat karenge", "alvida", "chalo bye",
+    "ok thanks", "ok thank you", "thanks bye", "thank you bye",
+    "tata", "ta ta", "see you", "see ya",
+}
+
+# Longer phrases that might appear as substrings
+BYE_PHRASES = [
+    "will talk later", "talk later", "not interested",
+    "no thanks", "not now", "baad me", "phir baat",
+    "see you later", "catch you later", "let me think",
+    "i'll get back", "will get back", "need to think",
+    "not right now", "maybe later", "some other time",
+]
+
+
+def is_bye(text: str) -> bool:
+    """Return True if the message indicates the user wants to end the conversation."""
+    cleaned = text.strip().lower()
+    if cleaned in BYE_WORDS:
+        return True
+    return any(phrase in cleaned for phrase in BYE_PHRASES)
+
+
+# ── Ghost Timer & 19-Hour Follow-up System ────────────────────────────
+# Track last message timestamp per user.  Two timers per user:
+#   1) 30-min ghost timer  — if user goes silent for 30 min, send a farewell
+#   2) 19-hour follow-up   — gentle nudge the next day
+#
+# Both are cancelled whenever the user sends a new message.
+
+_user_timers = {}        # phone -> {"ghost": Timer, "followup": Timer}
+_user_timers_lock = threading.Lock()
+GHOST_TIMEOUT_SECONDS = 30 * 60       # 30 minutes
+FOLLOWUP_DELAY_SECONDS = 19 * 60 * 60  # 19 hours
+
+
+def _send_ghost_message(phone: str):
+    """Sent 30 minutes after the user's last message if they went silent."""
+    try:
+        print(f"   Ghost timer fired for {phone}")
+        ghost_text = (
+            "Looks like you stepped away. No worries at all!\n\n"
+            f"If you'd like to continue anytime, just say Hi.\n\n"
+            f"Or reach out to our sales team directly:\n"
+            f"Call/WhatsApp: {SALES_PHONE_GURGAON}\n\n"
+            f"You can also browse at rentbasket.com"
+        )
+        whatsapp_client.send_text_message(phone, ghost_text, preview_url=False)
+
+        # Log event
+        normalized = normalize_phone(phone)
+        session_id = get_or_create_session(normalized, "")
+        log_event(normalized, "ghost_farewell_sent", {}, session_id=session_id)
+
+        # Clear browse/sales mode so a fresh start is clean
+        session_context.pop(phone, None)
+
+    except Exception as e:
+        print(f"   Error sending ghost message to {phone}: {e}")
+
+
+def _send_followup_message(phone: str):
+    """Sent 19 hours after the user's last message — a gentle nudge."""
+    try:
+        print(f"   19-hour follow-up fired for {phone}")
+        followup_text = (
+            "Hi! Just checking in.\n\n"
+            "Were you still looking for furniture or appliances on rent?\n\n"
+            "If timing or budget is a concern, we're happy to work something out. "
+            "Many of our customers start with just 2-3 essentials and add more later.\n\n"
+            "Just say Hi whenever you're ready, I'm here to help!"
+        )
+        whatsapp_client.send_text_message(phone, followup_text, preview_url=False)
+
+        # Log event
+        normalized = normalize_phone(phone)
+        session_id = get_or_create_session(normalized, "")
+        log_event(normalized, "followup_19hr_sent", {}, session_id=session_id)
+
+    except Exception as e:
+        print(f"   Error sending 19hr follow-up to {phone}: {e}")
+
+
+def _reset_user_timers(phone: str):
+    """Cancel existing timers and start fresh ghost + follow-up timers for this user."""
+    with _user_timers_lock:
+        existing = _user_timers.get(phone, {})
+        # Cancel any running timers
+        for key in ("ghost", "followup"):
+            timer = existing.get(key)
+            if timer:
+                timer.cancel()
+
+        # Start new ghost timer (30 min)
+        ghost_timer = threading.Timer(GHOST_TIMEOUT_SECONDS, _send_ghost_message, args=(phone,))
+        ghost_timer.daemon = True
+        ghost_timer.start()
+
+        # Start new follow-up timer (19 hours)
+        followup_timer = threading.Timer(FOLLOWUP_DELAY_SECONDS, _send_followup_message, args=(phone,))
+        followup_timer.daemon = True
+        followup_timer.start()
+
+        _user_timers[phone] = {"ghost": ghost_timer, "followup": followup_timer}
+
+
+def _cancel_user_timers(phone: str):
+    """Cancel all timers for this user (called on bye/exit)."""
+    with _user_timers_lock:
+        existing = _user_timers.pop(phone, {})
+        for key in ("ghost", "followup"):
+            timer = existing.get(key)
+            if timer:
+                timer.cancel()
+
 # ========================================
 # SPECIAL CUSTOMER HANDLER
 # ========================================
@@ -2043,6 +2166,8 @@ def handle_greeting(phone: str, sender_name: str):
 
     # Also clear any stale browse/sales session context on re-greeting
     session_context.pop(phone, None)
+    # Cancel any pending ghost/follow-up timers from previous session
+    _cancel_user_timers(phone)
 
     # Log to DB + file (non-critical — failures here must never block lead creation)
     try:
@@ -2056,6 +2181,50 @@ def handle_greeting(phone: str, sender_name: str):
 
     print(f"   Greeting + interactive buttons sent to {phone}")
     return jsonify({"status": "ok", "action": action_type}), 200
+
+
+def handle_bye(phone: str, sender_name: str):
+    """
+    Handle bye/exit messages. Send farewell with sales contact info.
+    Cancels ghost and follow-up timers. Starts a 19hr follow-up only.
+    """
+    normalized_phone = normalize_phone(phone)
+    name = sender_name if sender_name and sender_name.strip() else "there"
+
+    farewell_text = (
+        f"Thanks for chatting, {name}! No rush at all.\n\n"
+        f"Whenever you're ready, just say Hi and I'll pick up right where we left off.\n\n"
+        f"You can also reach our sales team directly:\n"
+        f"Call/WhatsApp: {SALES_PHONE_GURGAON}\n"
+        f"Website: rentbasket.com"
+    )
+
+    whatsapp_client.send_text_message(phone, farewell_text, preview_url=False)
+
+    # Clear all active modes
+    session_context.pop(phone, None)
+
+    # Cancel ghost timer but keep 19hr follow-up
+    _cancel_user_timers(phone)
+
+    # Start ONLY the 19hr follow-up (no ghost timer — they said bye explicitly)
+    followup_timer = threading.Timer(FOLLOWUP_DELAY_SECONDS, _send_followup_message, args=(phone,))
+    followup_timer.daemon = True
+    followup_timer.start()
+    with _user_timers_lock:
+        _user_timers[phone] = {"ghost": None, "followup": followup_timer}
+
+    # Log
+    try:
+        session_id = get_or_create_session(normalized_phone, sender_name)
+        log_conversation_turn(normalized_phone, sender_name, "[Bye]", farewell_text,
+                              session_id=session_id, agent_used="system")
+        log_event(normalized_phone, "user_bye", {}, session_id=session_id)
+    except Exception as e:
+        print(f"   Logging error (non-fatal): {e}")
+
+    print(f"   Bye handled for {phone}, 19hr follow-up scheduled")
+    return jsonify({"status": "ok", "action": "bye"}), 200
 
 
 FALLBACK_EXAMPLES = [
@@ -3435,7 +3604,10 @@ def handle_webhook():
         # Send read receipt first (marks message with blue ticks)
         if message_id:
             whatsapp_client.send_read_and_typing_indicator(message_id)
-        
+
+        # Reset ghost & follow-up timers on every incoming message
+        _reset_user_timers(phone)
+
         # Handle simple interactive button responses synchronously if quick
         if message_type == "interactive" and interactive_response:
             return handle_interactive_response(phone, sender_name, interactive_response, message_id)
@@ -3482,6 +3654,10 @@ def handle_webhook():
         # Check for Greeting — send interactive buttons directly, skip the LLM
         if is_greeting(text):
             return handle_greeting(phone, sender_name)
+
+        # Check for Bye / Exit — send farewell with sales contact
+        if is_bye(text):
+            return handle_bye(phone, sender_name)
 
         # Check for SALES keyword — activate sales team cart-building mode
         if text.strip().upper() == "SALES":
