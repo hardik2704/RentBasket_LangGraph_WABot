@@ -1753,7 +1753,7 @@ def _handle_browse_products_text(phone: str, sender_name: str, text: str, messag
 
     # ── Share Item List flow: user sends their item list ──────────
     if step == "share_await_items":
-        return _handle_share_item_list_input(phone, sender_name, raw_text)
+        return _handle_share_item_list_input_llm(phone, sender_name, raw_text)
 
     if step == "share_await_duration":
         duration = _parse_duration_from_text(raw_text)
@@ -2411,6 +2411,222 @@ def transcribe_audio_bytes(audio_bytes: bytes, filename: str = "voice_note.ogg")
 
     text = getattr(transcript, "text", "") or ""
     return text.strip()
+
+
+# ---------------------------
+# LLM-BASED PRODUCT EXTRACTION (for voice notes & free-text item lists)
+# ---------------------------
+# Instead of relying on regex splitting of messy Whisper transcripts, we send
+# the raw transcript to GPT-4o with our complete product catalogue.  The model
+# returns a structured JSON array of {product_id, product_name, qty}.
+#
+# WHY THIS IS BETTER:
+#   1. Handles Hindi/Hinglish/mixed speech ("ek bed chahiye, WM bhi dedo")
+#   2. Resolves ambiguity using context ("big fridge" -> Double Door Fridge)
+#   3. Understands quantity words in any language ("do bed" -> qty:2)
+#   4. Ignores filler/greetings/non-product speech
+#   5. Deterministic output format -- always returns valid JSON
+#
+# PRODUCT RESOLUTION LOGIC:
+#   The system prompt contains the FULL product catalogue (id -> name mapping)
+#   plus a DEFAULTS table.  The model is instructed to:
+#     a) Map vague terms to the best specific product (e.g. "sofa" -> 5 Seater)
+#     b) Use the defaults table when the user doesn't specify a variant
+#     c) Return the exact product_id from our catalogue
+#     d) Never hallucinate product IDs that don't exist
+
+# Build the product catalogue string once at import time
+_PRODUCT_CATALOGUE_STR = "\n".join(
+    f"  {pid}: {pname}" for pid, pname in sorted(id_to_name.items())
+)
+
+_DEFAULTS_TABLE_STR = """
+DEFAULTS (use these when the user says a generic term without specifying variant):
+  "washing machine" / "WM"          -> 13  (Fully Automatic WM)
+  "fridge"                           -> 11  (Single Door 190 Ltr)
+  "big fridge" / "family fridge"     -> 36  (Double Door Fridge)
+  "AC" / "air conditioner"           -> 60  (Split AC 1.5 Ton)
+  "water purifier" / "RO"            -> 15  (Water Purifier standard)
+  "geyser"                           -> 10  (Geyser 20 Ltr)
+  "small geyser" / "kitchen geyser"  -> 1010 (Geyser 6 Ltr)
+  "microwave"                        -> 16  (Microwave Solo 20 Ltr)
+  "gas stove"                        -> 34  (Gas Stove 2 Burner)
+  "chimney"                          -> 1015
+  "bed" / "double bed"               -> 17  (Double Bed King Non-Storage Basic)
+  "single bed"                       -> 28  (Single Bed 6x3 Basic)
+  "storage bed"                      -> 1023 (King Storage Bed)
+  "mattress"                         -> 44  (Mattress Pair 5 Inches)
+  "single mattress"                  -> 1057 (Mattress Single 4 Inches)
+  "sofa"                             -> 18  (5 Seater Fabric Sofa with CT)
+  "2 seater sofa"                    -> 1043
+  "3 seater sofa"                    -> 1042
+  "4 seater sofa"                    -> 1020 (4 Seater Canwood)
+  "7 seater sofa"                    -> 1048 (7 Seater Grey Set)
+  "sofa chair"                       -> 1047
+  "TV" / "LED"                       -> 1008 (Smart LED 43")
+  "small TV"                         -> 12   (Smart LED 32")
+  "big TV"                           -> 1011 (Smart LED 48")
+  "center table"                     -> 29
+  "coffee table"                     -> 53
+  "dining table"                     -> 1034 (4 Seater Dining Sheesham)
+  "6 seater dining"                  -> 1033
+  "inverter"                         -> 24  (Inverter Single Battery)
+  "study table"                      -> 40
+  "study chair" / "office chair"     -> 41  (Study Chair Premium)
+  "bookshelf"                        -> 42
+  "dressing table"                   -> 1044
+  "side table"                       -> 1055
+"""
+
+_EXTRACTION_SYSTEM_PROMPT = (
+    "You are a product extraction engine for RentBasket, a furniture and appliance rental company.\n\n"
+    "TASK: Extract product items and quantities from user messages (text or voice transcripts).\n"
+    "Users may speak in English, Hindi, Hinglish, or mixed languages.\n\n"
+    "PRODUCT CATALOGUE (product_id: product_name):\n"
+    f"{_PRODUCT_CATALOGUE_STR}\n\n"
+    f"{_DEFAULTS_TABLE_STR}\n\n"
+    "RULES:\n"
+    "1. Return ONLY a JSON array. No markdown, no explanation, no extra text.\n"
+    '2. Each element: {"product_id": <int>, "product_name": "<exact name from catalogue>", "qty": <int>}\n'
+    "3. ONLY use product_ids from the catalogue above. Never invent IDs.\n"
+    "4. If user says a generic term (e.g. \"bed\"), use the DEFAULTS table above.\n"
+    '5. Understand quantity in any form: "2x", "do" (Hindi for 2), "teen" (3), "ek" (1), "pair" etc.\n'
+    "6. If no quantity is mentioned, default to 1.\n"
+    "7. Ignore greetings, filler words, duration mentions, and non-product speech.\n"
+    '8. If the user says "bed and mattress" treat them as TWO separate items.\n'
+    '9. "WM" = washing machine, "AC" = air conditioner, "LED" / "TV" = Smart LED TV.\n'
+    "10. If nothing product-related is found, return an empty array: []\n"
+    '11. "wfh setup" or "work from home" = study table (40) + study chair (41)\n'
+    "12. Combine duplicates: if user says \"bed\" twice, increase qty instead of adding two entries.\n\n"
+    "EXAMPLES:\n"
+    'User: "2 bed chahiye, ek washing machine, fridge bhi"\n'
+    'Output: [{"product_id": 17, "product_name": "Double Bed King Non-Storage Basic", "qty": 2}, '
+    '{"product_id": 13, "product_name": "Fully Automatic Washing M/c", "qty": 1}, '
+    '{"product_id": 11, "product_name": "Fridge 190 Ltr", "qty": 1}]\n\n'
+    'User: "I need a sofa, TV, and study table for 6 months"\n'
+    'Output: [{"product_id": 18, "product_name": "5 Seater Fabric Sofa with Center table", "qty": 1}, '
+    '{"product_id": 1008, "product_name": "SMART LED 43\\"", "qty": 1}, '
+    '{"product_id": 40, "product_name": "Study Table", "qty": 1}]\n\n'
+    'User: "mujhe ek single bed, ek mattress aur AC chahiye"\n'
+    'Output: [{"product_id": 28, "product_name": "Wooden Single Bed 6x3 Basic", "qty": 1}, '
+    '{"product_id": 44, "product_name": "Mattress Pair 5 Inches", "qty": 1}, '
+    '{"product_id": 60, "product_name": "Split AC 1.5 Ton", "qty": 1}]\n\n'
+    'User: "full setup - big fridge, split AC, king storage bed with 6 inch mattress, 5 seater sofa, 43 inch TV, study table and premium chair"\n'
+    'Output: [{"product_id": 36, "product_name": "Double Door Fridge", "qty": 1}, '
+    '{"product_id": 60, "product_name": "Split AC 1.5 Ton", "qty": 1}, '
+    '{"product_id": 1023, "product_name": "Std Double Bed Kings 6X6 Storage", "qty": 1}, '
+    '{"product_id": 1019, "product_name": "Mattress Pair 6 Inches ( 6X6X6 )", "qty": 1}, '
+    '{"product_id": 18, "product_name": "5 Seater Fabric Sofa with Center table", "qty": 1}, '
+    '{"product_id": 1008, "product_name": "SMART LED 43\\"", "qty": 1}, '
+    '{"product_id": 40, "product_name": "Study Table", "qty": 1}, '
+    '{"product_id": 41, "product_name": "Study Chair Premium", "qty": 1}]'
+)
+
+
+def extract_items_with_llm(user_text: str) -> List[dict]:
+    """
+    Use GPT-4o to extract structured product items from free-text or voice transcript.
+
+    Returns list of dicts: [{product_id, product_name, qty}, ...]
+    Falls back to empty list on failure.
+    """
+    if not user_text or not user_text.strip():
+        return []
+
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            temperature=0.0,
+            max_tokens=1000,
+            messages=[
+                {"role": "system", "content": _EXTRACTION_SYSTEM_PROMPT},
+                {"role": "user", "content": user_text.strip()},
+            ],
+        )
+        raw = (response.choices[0].message.content or "").strip()
+
+        # Clean markdown fencing if present
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[-1]  # remove first ``` line
+            if raw.endswith("```"):
+                raw = raw[:-3]
+            raw = raw.strip()
+
+        items = json.loads(raw)
+        if not isinstance(items, list):
+            print(f"   LLM extraction: expected list, got {type(items)}")
+            return []
+
+        # Validate each item has required fields and product_id exists
+        valid_items = []
+        for item in items:
+            pid = item.get("product_id")
+            if pid and pid in id_to_name:
+                valid_items.append({
+                    "product_id": int(pid),
+                    "product_name": id_to_name[int(pid)],  # use canonical name
+                    "qty": max(1, int(item.get("qty", 1))),
+                })
+            else:
+                print(f"   LLM extraction: invalid product_id {pid}, skipping")
+
+        print(f"   LLM extraction: {len(valid_items)} items from text: {user_text[:80]!r}")
+        return valid_items
+
+    except json.JSONDecodeError as e:
+        print(f"   LLM extraction JSON error: {e}")
+        return []
+    except Exception as e:
+        print(f"   LLM extraction error: {e}")
+        return []
+
+
+def _handle_share_item_list_input_llm(phone: str, sender_name: str, text: str) -> bool:
+    """
+    LLM-powered version of share-item-list input parsing.
+    Uses GPT-4o to extract products from any text (typed or voice transcript).
+    Falls back to the regex-based parser if LLM fails.
+    """
+    ctx = _browse_context(phone)
+
+    # Step 1: Try LLM extraction first
+    llm_items = extract_items_with_llm(text)
+
+    if llm_items:
+        # Save LLM-resolved items in context for after duration selection
+        ctx["share_resolved_items"] = llm_items
+        ctx["share_unmatched"] = []
+
+        # Check if duration was mentioned in the text
+        duration_from_text = extract_duration(text, None)
+        if duration_from_text:
+            ctx["browse_duration"] = duration_from_text
+            _build_share_item_list_cart(phone, sender_name)
+        else:
+            # Acknowledge, then ask duration
+            item_names = [f"{it['qty']}x {it['product_name']}" for it in llm_items]
+            ack = f"Got it! I found: {', '.join(item_names)}."
+            whatsapp_client.send_text_message(phone, ack, preview_url=False)
+            time.sleep(0.3)
+
+            # Ask duration
+            ctx["browse_step"] = "share_await_duration"
+            buttons = [
+                {"id": "BROWSE_DUR_3", "title": "3-Short & Sweet"},
+                {"id": "BROWSE_DUR_6", "title": "6-Save More"},
+                {"id": "BROWSE_DUR_12", "title": "12-Max Savings"},
+            ]
+            whatsapp_client.send_interactive_buttons(
+                to_phone=phone,
+                body_text="Your expected rental duration in months (you can always extend the duration):",
+                buttons=buttons,
+                header="Share Item List",
+            )
+        return True
+
+    # Step 2: Fallback to original regex-based parser
+    print(f"   LLM extraction returned nothing, falling back to regex parser")
+    return _handle_share_item_list_input(phone, sender_name, text)
 
 
 # ---------------------------
