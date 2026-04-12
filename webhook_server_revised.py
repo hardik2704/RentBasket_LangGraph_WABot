@@ -156,20 +156,20 @@ GREETING_BUTTONS = [
 
 HOW_RENTING_WORKS_TEXT = (
     "Let's get you settled! Here is your 4-step journey with RentBasket: \u26a1\n\n"
-    "1\ufe0f\u20e3 Select & Onboard (3 mins) \U0001f4f1\n"
-    "Pick your items on our app and finish onboarding in minutes. It's that fast!\n\n"
+    "1\ufe0f\u20e3 Select Products(2 mins) \U0001f4f1\n"
+    "Pick your items.\n\n"
     "2\ufe0f\u20e3 Secure & Relax \U0001f6e1\ufe0f\n"
     "Pay a one-time refundable deposit. We're proud to say 95% of our customers get their full deposit back!\n\n"
-    "3\ufe0f\u20e3 Free Setup (72 hrs) \U0001f69a\n"
+    "3\ufe0f\u20e3 Free Installation (72 hrs) \U0001f69a\n"
     "We deliver and install everything for FREE within 72 hours. No need to hunt for help; we handle it all.\n\n"
     "4\ufe0f\u20e3 Enjoy & Live \U0001f4b3\n"
-    "Pay low monthly rent and leave the maintenance to us. If you move, we'll relocate your items for zero extra cost! \U0001f3e0\n\n"
+    "Pay monthly rent and leave the maintenance to us. If you move, we'll relocate your items for zero extra cost! \U0001f3e0\n\n"
     "Ready to upgrade your space?"
 )
 
 WHY_RENTBASKET_TEXT = (
     "Why RentBasket Specifically? \u2b50\n\n"
-    "We're not just a rental service - we're your furniture partners:\n\n"
+    "We're not just a rental service - we're your comfort partners:\n\n"
     "\U0001f31f 4.9 Google Star Rating\n"
     "Check out real reviews from our happy customers!\n\n"
     "\U0001f3af Hyper-Localization\n"
@@ -492,9 +492,9 @@ def _send_duration_buttons(phone: str) -> None:
     """Show 3/6/12 month duration buttons."""
     _set_browse_context(phone, browse_mode=True, browse_step="await_duration")
     buttons = [
-        {"id": "BROWSE_DUR_3", "title": "3 Months"},
-        {"id": "BROWSE_DUR_6", "title": "6 Months"},
-        {"id": "BROWSE_DUR_12", "title": "12 Months"},
+        {"id": "BROWSE_DUR_3", "title": "3 : Short and Sweet)"},
+        {"id": "BROWSE_DUR_6", "title": "6 : Save More"},
+        {"id": "BROWSE_DUR_12", "title": "12 : Max Savings"},
     ]
     whatsapp_client.send_interactive_buttons(
         to_phone=phone,
@@ -1671,11 +1671,8 @@ def handle_greeting(phone: str, sender_name: str):
         f"Hi {name}\n"
         f"I'm Ku from RentBasket, your personal rental assistant.\n"
         f"\n"
-        f"We offer quality furniture and appliances on rent at affordable prices, "
+        f"We offer quality furniture and appliances on rent at competitive prices,"
         f"powered by customer service which is best in the market.\n"
-        f"\n"
-        f"Check out our website for more details:\n"
-        f"https://rentbasket.com"
     )
     buttons = GREETING_BUTTONS
     action_type = "greeting"
