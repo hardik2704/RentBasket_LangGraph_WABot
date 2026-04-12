@@ -2091,6 +2091,7 @@ from data.products import (
     calculate_rent,
     apply_discount,
     get_product_by_id,
+    id_to_name,
 )
 
 # ---------------------------
