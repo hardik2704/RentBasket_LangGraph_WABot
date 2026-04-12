@@ -1,0 +1,771 @@
+{
+  "timestamp": "2026-04-11 12:09:01",
+  "total": 109,
+  "passed": 109,
+  "failed": 0,
+  "results": [
+    {
+      "nodeid": "tests/test_ai_quality.py::TestToolUsage::test_search_tool_for_product_query",
+      "outcome": "passed",
+      "duration": 0.1907,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_ai_quality.py::TestToolUsage::test_quote_tool_for_pricing",
+      "outcome": "passed",
+      "duration": 0.0107,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_ai_quality.py::TestToolUsage::test_state_captures_pincode",
+      "outcome": "passed",
+      "duration": 0.0199,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_ai_quality.py::TestNoHallucination::test_no_fake_products",
+      "outcome": "passed",
+      "duration": 0.0103,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_ai_quality.py::TestNoHallucination::test_no_competitor_mentions",
+      "outcome": "passed",
+      "duration": 0.01,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_ai_quality.py::TestNoHallucination::test_no_fabricated_policies",
+      "outcome": "passed",
+      "duration": 1.9122,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_ai_quality.py::TestFallbackQuality::test_out_of_scope_redirected",
+      "outcome": "passed",
+      "duration": 0.0149,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_ai_quality.py::TestFallbackQuality::test_gibberish_gets_clarification",
+      "outcome": "passed",
+      "duration": 0.0129,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_ai_quality.py::TestToneQuality::test_friendly_general_tone",
+      "outcome": "passed",
+      "duration": 0.0113,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_ai_quality.py::TestToneQuality::test_empathetic_support_tone",
+      "outcome": "passed",
+      "duration": 1.7817,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_ai_quality.py::TestUpsellBehavior::test_upsell_after_single_product",
+      "outcome": "passed",
+      "duration": 0.0176,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_conversion_flows.py::TestConversionFunnelUnit::test_full_5_turn_funnel",
+      "outcome": "passed",
+      "duration": 0.0021,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_conversion_flows.py::TestConversionFunnelUnit::test_pincode_extraction_in_webhook",
+      "outcome": "passed",
+      "duration": 0.0007,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_conversion_flows.py::TestConversionFunnelUnit::test_duration_extraction_in_webhook",
+      "outcome": "passed",
+      "duration": 0.0007,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_conversion_flows.py::TestConversionFunnelUnit::test_duration_extraction_various_formats",
+      "outcome": "passed",
+      "duration": 0.0014,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_conversion_flows.py::TestPricingNegotiationDetection::test_pricing_negotiation_detected",
+      "outcome": "passed",
+      "duration": 0.0001,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_conversion_flows.py::TestPricingNegotiationDetection::test_url_not_flagged_as_negotiation",
+      "outcome": "passed",
+      "duration": 0.0001,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_conversion_flows.py::TestPricingNegotiationDetection::test_duration_question_not_flagged",
+      "outcome": "passed",
+      "duration": 0.0001,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_conversion_flows.py::TestPricingNegotiationDetection::test_normal_messages_not_flagged",
+      "outcome": "passed",
+      "duration": 0.0001,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_conversion_flows.py::TestConversionFunnelE2E::test_e2e_full_sales_journey",
+      "outcome": "passed",
+      "duration": 0.0324,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_conversion_flows.py::TestConversionFunnelE2E::test_e2e_upsell_behavior",
+      "outcome": "passed",
+      "duration": 0.01,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsUnit::test_first_time_greeting",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsUnit::test_product_search_sofa",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsUnit::test_product_search_fridge_with_location",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsUnit::test_category_search_beds",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsUnit::test_pricing_query_hinglish",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsUnit::test_vague_query",
+      "outcome": "passed",
+      "duration": 0.0011,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsUnit::test_typo_query",
+      "outcome": "passed",
+      "duration": 0.0006,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsUnit::test_comparison_query",
+      "outcome": "passed",
+      "duration": 0.0006,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsUnit::test_hindi_devanagari_script",
+      "outcome": "passed",
+      "duration": 0.0006,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsUnit::test_hinglish_mixed",
+      "outcome": "passed",
+      "duration": 0.0006,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsUnit::test_read_receipt_sent_on_message",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsUnit::test_sender_name_captured",
+      "outcome": "passed",
+      "duration": 0.0013,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsUnit::test_urgency_message",
+      "outcome": "passed",
+      "duration": 0.0006,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsUnit::test_budget_query",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsUnit::test_multiple_products_single_message",
+      "outcome": "passed",
+      "duration": 0.0006,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsE2E::test_e2e_sofa_routes_to_sales",
+      "outcome": "passed",
+      "duration": 0.0111,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsE2E::test_e2e_hindi_routes_correctly",
+      "outcome": "passed",
+      "duration": 0.0107,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_customer_flows.py::TestCustomerIntentsE2E::test_e2e_catalogue_browse",
+      "outcome": "passed",
+      "duration": 0.0483,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestPayloadEdgeCases::test_empty_payload",
+      "outcome": "passed",
+      "duration": 0.0003,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestPayloadEdgeCases::test_no_entry_field",
+      "outcome": "passed",
+      "duration": 0.0006,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestPayloadEdgeCases::test_empty_messages_array",
+      "outcome": "passed",
+      "duration": 0.0002,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestPayloadEdgeCases::test_status_update_payload",
+      "outcome": "passed",
+      "duration": 0.0002,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestPayloadEdgeCases::test_non_json_body",
+      "outcome": "passed",
+      "duration": 0.0031,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestPayloadEdgeCases::test_interactive_button_payload",
+      "outcome": "passed",
+      "duration": 0.0003,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestPayloadEdgeCases::test_interactive_callback_button",
+      "outcome": "passed",
+      "duration": 0.0003,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestMessageContentEdgeCases::test_empty_text_message",
+      "outcome": "passed",
+      "duration": 0.0003,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestMessageContentEdgeCases::test_very_long_message",
+      "outcome": "passed",
+      "duration": 0.001,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestMessageContentEdgeCases::test_gibberish_message",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestMessageContentEdgeCases::test_emoji_only_message",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestMessageContentEdgeCases::test_xss_attempt",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestMessageContentEdgeCases::test_sql_injection_attempt",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestMessageContentEdgeCases::test_multiple_questions_one_message",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestMessageContentEdgeCases::test_special_characters",
+      "outcome": "passed",
+      "duration": 0.0004,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestConcurrencyEdgeCases::test_deduplication_same_msg_id",
+      "outcome": "passed",
+      "duration": 0.0012,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestConcurrencyEdgeCases::test_state_isolation_between_phones",
+      "outcome": "passed",
+      "duration": 0.0007,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestConcurrencyEdgeCases::test_rapid_sequential_same_phone",
+      "outcome": "passed",
+      "duration": 0.001,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestConcurrencyEdgeCases::test_agent_exception_handled_gracefully",
+      "outcome": "passed",
+      "duration": 0.0016,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestConcurrencyEdgeCases::test_conversation_auto_created_for_new_phone",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_edge_cases.py::TestConcurrencyEdgeCases::test_none_text_does_not_crash",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_formatting.py::test_catalogue_labels",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_formatting.py::test_product_id_hiding",
+      "outcome": "passed",
+      "duration": 0.0012,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestBrowseLivingRoomJourney::test_complete_sofa_journey_to_cart_link",
+      "outcome": "passed",
+      "duration": 0.0029,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestBrowseLivingRoomJourney::test_sofa_journey_button_states_at_each_step",
+      "outcome": "passed",
+      "duration": 0.0025,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestBrowseWorkstationJourney::test_study_table_journey_to_cart_link",
+      "outcome": "passed",
+      "duration": 0.0024,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestBrowseWorkstationJourney::test_study_chair_journey",
+      "outcome": "passed",
+      "duration": 0.0026,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestBrowseKitchenJourney::test_fridge_journey_to_cart_link",
+      "outcome": "passed",
+      "duration": 0.0024,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestBrowseKitchenJourney::test_washing_machine_journey",
+      "outcome": "passed",
+      "duration": 0.0024,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestBrowse1BHKJourney::test_1bhk_comfort_package_to_cart_link",
+      "outcome": "passed",
+      "duration": 0.0023,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestBrowse1BHKJourney::test_1bhk_luxury_package",
+      "outcome": "passed",
+      "duration": 0.0019,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestBrowseErrorRecovery::test_invalid_pincode_then_valid",
+      "outcome": "passed",
+      "duration": 0.0023,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestBrowseErrorRecovery::test_unserviceable_pincode_message",
+      "outcome": "passed",
+      "duration": 0.0022,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestBrowseErrorRecovery::test_checkout_empty_cart_is_rejected",
+      "outcome": "passed",
+      "duration": 0.0011,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestBrowseMultiItemJourney::test_add_item_view_full_cart_checkout",
+      "outcome": "passed",
+      "duration": 0.0024,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestBrowseMultiItemJourney::test_modify_cart_add_second_item_checkout",
+      "outcome": "passed",
+      "duration": 0.0065,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestSalesModeJourney::test_sofa_fridge_to_final_link",
+      "outcome": "passed",
+      "duration": 0.0035,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestSalesModeJourney::test_upfront_payment_breakdown",
+      "outcome": "passed",
+      "duration": 0.003,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestSalesModeJourney::test_unmatched_items_get_warning",
+      "outcome": "passed",
+      "duration": 0.003,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestSalesModeJourney::test_final_link_without_cart_shows_error",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestSalesModeJourney::test_modify_cart_in_sales_mode",
+      "outcome": "passed",
+      "duration": 0.0034,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestHinglishJourney::test_hinglish_greeting_navigates_flow",
+      "outcome": "passed",
+      "duration": 0.0027,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestHinglishJourney::test_hinglish_variant_selection_by_name",
+      "outcome": "passed",
+      "duration": 0.0015,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestJourneyRegressions::test_browse_context_survives_mid_flow_greeting",
+      "outcome": "passed",
+      "duration": 0.0018,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestJourneyRegressions::test_sales_mode_cleared_after_final_link",
+      "outcome": "passed",
+      "duration": 0.0019,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestJourneyRegressions::test_quote_variable_not_shadowing_url_encoder",
+      "outcome": "passed",
+      "duration": 0.0019,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_full_journey.py::TestJourneyRegressions::test_separate_phones_have_isolated_carts",
+      "outcome": "passed",
+      "duration": 0.0033,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_regression_suite.py::TestRegressionSuite::test_regression_deduplication_works",
+      "outcome": "passed",
+      "duration": 0.0007,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_regression_suite.py::TestRegressionSuite::test_regression_url_no_pricing_negotiation",
+      "outcome": "passed",
+      "duration": 0.0001,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_regression_suite.py::TestRegressionSuite::test_regression_duration_no_pricing_negotiation",
+      "outcome": "passed",
+      "duration": 0.0001,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_regression_suite.py::TestRegressionSuite::test_regression_is_escalated_field_spelling",
+      "outcome": "passed",
+      "duration": 0.0,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_regression_suite.py::TestRegressionSuite::test_regression_empty_payload_no_crash",
+      "outcome": "passed",
+      "duration": 0.0002,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_regression_suite.py::TestRegressionSuite::test_regression_greeting_creates_state",
+      "outcome": "passed",
+      "duration": 0.0004,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_support_flows.py::TestSupportDirectAgent::test_maintenance_happy_path",
+      "outcome": "passed",
+      "duration": 0.0018,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_support_flows.py::TestSupportDirectAgent::test_escalation_talk_to_team",
+      "outcome": "passed",
+      "duration": 0.0002,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_support_flows.py::TestSupportDirectAgent::test_free_text_fallback_mid_flow",
+      "outcome": "passed",
+      "duration": 0.001,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_support_flows.py::TestSupportDirectAgent::test_billing_flow",
+      "outcome": "passed",
+      "duration": 0.0002,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_support_flows.py::TestSupportWebhook::test_webhook_fridge_broken",
+      "outcome": "passed",
+      "duration": 0.0008,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_support_flows.py::TestSupportWebhook::test_webhook_delivery_delayed",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_support_flows.py::TestSupportWebhook::test_webhook_refund_request",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_support_flows.py::TestSupportWebhook::test_webhook_cancel_request",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_support_flows.py::TestSupportWebhook::test_webhook_human_handoff",
+      "outcome": "passed",
+      "duration": 0.0006,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_support_flows.py::TestSupportWebhook::test_frustrated_customer",
+      "outcome": "passed",
+      "duration": 0.0005,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_support_flows.py::TestSupportE2E::test_e2e_empathetic_tone",
+      "outcome": "passed",
+      "duration": 0.0099,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_support_flows.py::TestSupportE2E::test_e2e_policy_retrieval",
+      "outcome": "passed",
+      "duration": 0.6823,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_support_scenarios.py::TestSupportScenarios::test_escalation_path",
+      "outcome": "passed",
+      "duration": 0.0004,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_support_scenarios.py::TestSupportScenarios::test_fallback_free_text",
+      "outcome": "passed",
+      "duration": 0.0017,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_support_scenarios.py::TestSupportScenarios::test_maintenance_happy_path",
+      "outcome": "passed",
+      "duration": 0.0017,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_webhook.py::test_webhook_read_receipt",
+      "outcome": "passed",
+      "duration": 0.0008,
+      "markers": [],
+      "longrepr": null
+    },
+    {
+      "nodeid": "tests/test_webhook.py::test_webhook_deduplication",
+      "outcome": "passed",
+      "duration": 0.0011,
+      "markers": [],
+      "longrepr": null
+    }
+  ]
+}

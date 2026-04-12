@@ -71,7 +71,7 @@ def run_support_agent(user_message: str, state: ConversationState = None) -> tup
         
     elif msg in ("SUP_TALK_TEAM", "ESCALATION"):
         state["collected_info"]["workflow_stage"] = "escalated"
-        state["support_context"]["is_escataled"] = True
+        state["support_context"]["is_escalated"] = True
         return process_escalation(state, "Customer explicitly requested human agent.")
 
     # Maintenance Flow Actions

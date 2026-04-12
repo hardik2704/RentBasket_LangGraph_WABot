@@ -11,7 +11,7 @@ def test_catalogue_labels():
     
     # Test browse category
     category_list = browse_category_tool.invoke({"category": "sofa"})
-    assert "Starting Price:" in category_list
+    assert "Starting from" in category_list   # bot uses "Starting from Rs. X/mo" format
     assert "Best Price:" not in category_list
 
 def test_product_id_hiding():

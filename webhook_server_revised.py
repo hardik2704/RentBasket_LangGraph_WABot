@@ -3496,8 +3496,8 @@ Thank you for choosing RentBasket!"""
         elif button_id == "BROWSE_CHECKOUT":
             # Ask for delivery location before sending checkout link
             ctx = _set_browse_context(phone, browse_step="await_checkout_location")
-            quote = ctx.get("last_browse_quote", {})
-            if not quote.get("items"):
+            browse_quote = ctx.get("last_browse_quote", {})
+            if not browse_quote.get("items"):
                 whatsapp_client.send_text_message(phone, "No items in your cart yet. Please browse and add items first.")
                 return jsonify({"status": "ok", "action": "browse_checkout_empty"}), 200
             whatsapp_client.send_text_message(
@@ -3511,8 +3511,8 @@ Thank you for choosing RentBasket!"""
 
         elif button_id == "BROWSE_MODIFY_CART":
             ctx = _browse_context(phone)
-            quote = ctx.get("last_browse_quote", {})
-            items = quote.get("items", [])
+            browse_quote = ctx.get("last_browse_quote", {})
+            items = browse_quote.get("items", [])
 
             if items:
                 # Show current cart with numbered items and modify instructions

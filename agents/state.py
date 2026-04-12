@@ -37,7 +37,7 @@ class SupportContext(TypedDict, total=False):
     ticket_id: Optional[str]      # Assigned ticket ID if logged
     product_context: Optional[str] # The specific item the issue is about
     issue_description: str        # Summary of the problem
-    is_escataled: bool            # True if user requested human or agent failed
+    is_escalated: bool            # True if user requested human or agent failed
 
 
 class ConversationState(TypedDict):
@@ -77,7 +77,7 @@ def create_initial_state() -> ConversationState:
         "conversation_stage": "greeting",
         "active_agent": "sales",
         "support_context": {
-            "is_escataled": False,
+            "is_escalated": False,
             "issue_description": "",
         },
     }

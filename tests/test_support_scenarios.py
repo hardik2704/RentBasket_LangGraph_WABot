@@ -79,7 +79,7 @@ class TestSupportScenarios(unittest.TestCase):
         resp, self.state = run_support_agent("SUP_TALK_TEAM", self.state)
         
         self.assertEqual(self.state["collected_info"]["workflow_stage"], "escalated")
-        self.assertTrue(self.state["support_context"]["is_escataled"])
+        self.assertTrue(self.state["support_context"]["is_escalated"])
         mock_escalate.invoke.assert_called_once()
 
     @patch('agents.support_agent.ChatOpenAI.invoke')

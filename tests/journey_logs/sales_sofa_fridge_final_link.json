@@ -1,0 +1,49 @@
+{
+  "phone": "919935528603",
+  "sender_name": "Rahul Sharma",
+  "total_steps": 7,
+  "log": [
+    {
+      "step": 1,
+      "direction": "user",
+      "type": "text",
+      "content": "SALES"
+    },
+    {
+      "step": 2,
+      "direction": "bot",
+      "type": "text",
+      "content": "Share me the cart on voice message or just type it, I will create a tentative cart message for you!"
+    },
+    {
+      "step": 3,
+      "direction": "user",
+      "type": "text",
+      "content": "1 sofa and 1 fridge for 12 months"
+    },
+    {
+      "step": 4,
+      "direction": "bot",
+      "type": "text",
+      "content": "*Tentative Cart*\nDuration: 12 months\n\n1. 5 Seater Fabric Sofa with Center table #18\n   Qty: 1 | ₹1,175/mo + GST\n2. Fridge 190 Ltr #11\n   Qty: 1 | ₹891/mo + GST\n\n*Monthly Rent: ₹2,066 + GST (₹372) = ₹2,438/mo*\n\n_Note: Security deposit & one-time charges may apply at the time of order._"
+    },
+    {
+      "step": 5,
+      "direction": "bot",
+      "type": "buttons",
+      "content": "Choose an option: => [Upfront Payment] | [Modify Cart] | [Final Link]"
+    },
+    {
+      "step": 6,
+      "direction": "user",
+      "type": "button",
+      "content": "[Final Link]"
+    },
+    {
+      "step": 7,
+      "direction": "bot",
+      "type": "text",
+      "content": "Here is your cart link with 5% additional discount for using our WhatsApp Bot:\nhttps://testqr.rentbasket.com/lead-shopping?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3NzUwNjExMDQsImV4cCI6MTE3NzUwNjExMDQsImRhdGEiOnsiaWQiOjEsImVtYWlsIjoidmlqYXltYWhlbkBnbWFpbC5jb20ifX0.WZBiCCK6R0MmubatJWpLerv5GXSSmFHC5-IjZw7jE4M&referral_code=ATFU1NTg1&items=%5B%7B%22amenity_type_id%22:18,%22count%22:1,%22duration%22:12%7D,%7B%22amenity_type_id%22:11,%22count%22:1,%22duration%22:12%7D%5D"
+    }
+  ]
+}

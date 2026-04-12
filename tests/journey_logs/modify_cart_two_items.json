@@ -1,0 +1,205 @@
+{
+  "phone": "919966153527",
+  "sender_name": "Rahul Sharma",
+  "total_steps": 33,
+  "log": [
+    {
+      "step": 1,
+      "direction": "user",
+      "type": "text",
+      "content": "Hi"
+    },
+    {
+      "step": 2,
+      "direction": "bot",
+      "type": "buttons",
+      "content": "Hi Rahul Sharma\nI'm Ku from RentBasket, your personal rental assistant.\n\nWe offe => [Browse Products] | [How Renting Works?]"
+    },
+    {
+      "step": 3,
+      "direction": "user",
+      "type": "button",
+      "content": "[BROWSE_PRODUCTS]"
+    },
+    {
+      "step": 4,
+      "direction": "bot",
+      "type": "buttons",
+      "content": "First let me know the expected duration of rental (you can always extend the dur => [3 Months] | [6 Months] | [12 Months]"
+    },
+    {
+      "step": 5,
+      "direction": "user",
+      "type": "button",
+      "content": "[12 Months]"
+    },
+    {
+      "step": 6,
+      "direction": "bot",
+      "type": "text",
+      "content": "Got it, 12 months. Now pick a room to start browsing."
+    },
+    {
+      "step": 7,
+      "direction": "bot",
+      "type": "list_msg",
+      "content": "Pick a room and I will show you exactly what we have. => ROOM_BEDROOM, ROOM_LIVING, ROOM_KITCHEN, ROOM_WORKSTATION, ROOM_1BHK"
+    },
+    {
+      "step": 8,
+      "direction": "user",
+      "type": "list_select",
+      "content": "[Living Room]"
+    },
+    {
+      "step": 9,
+      "direction": "bot",
+      "type": "list_msg",
+      "content": "*Living Room* — pick a category below. => SUBCAT_SOFA, SUBCAT_TABLES, SUBCAT_ELECTRONICS, SUBCAT_COOLING, SUBCAT_POWER"
+    },
+    {
+      "step": 10,
+      "direction": "user",
+      "type": "list_select",
+      "content": "[Sofa]"
+    },
+    {
+      "step": 11,
+      "direction": "bot",
+      "type": "text",
+      "content": "*Sofa — Living Room*\nDuration: 12 months\n\n1. 2 Seater Sofa — from Rs. 587/mo\n2. 3 Seater Sofa — from Rs. 685/mo\n3. 4 Seater Canwood — from Rs. 489/mo\n4. 5 Seater with CT — from Rs. 1,175/mo\n5. 3+1+1 Fabric Sofa — from Rs. 1,225/mo\n6. 7 Seater Green Set — from Rs. 1,371/mo\n7. 7 Seater Grey Set — from Rs. 1,371/mo\n8. Sofa Chair — from Rs. 225/mo\n\nReply with the item number or name to add to cart."
+    },
+    {
+      "step": 12,
+      "direction": "bot",
+      "type": "buttons",
+      "content": "Or navigate: => [Back to Rooms] | [Back to Living Room]"
+    },
+    {
+      "step": 13,
+      "direction": "user",
+      "type": "text",
+      "content": "1"
+    },
+    {
+      "step": 14,
+      "direction": "bot",
+      "type": "text",
+      "content": "*2 Seater Fabric Sofa* added to your cart.\n\n*2 Seater Fabric Sofa* | 12 months\nMRP: Rs. 839/mo\nAfter 30% discount: Rs. 587/mo\nPay upfront: Rs. 528/mo (extra 10% off, save Rs. 3,732 total)"
+    },
+    {
+      "step": 15,
+      "direction": "bot",
+      "type": "text",
+      "content": "*Your Cart - 12 Month Rental*\n\n- 2 Seater Fabric Sofa:  Rs. 587/mo  (was Rs. 839)\n\nMonthly Total: Rs. 587  (saving Rs. 252/mo vs MRP)\nTotal saving over 12 months: Rs. 3,024\n\nPay upfront: Rs. 528/mo  (extra 10% off — save Rs. 3,732 total)"
+    },
+    {
+      "step": 16,
+      "direction": "bot",
+      "type": "buttons",
+      "content": "What would you like to do next? => [View Cart] | [Browse More] | [Reviews]"
+    },
+    {
+      "step": 17,
+      "direction": "user",
+      "type": "button",
+      "content": "[View Cart]"
+    },
+    {
+      "step": 18,
+      "direction": "bot",
+      "type": "text",
+      "content": "Here are the details for your selected items:\n\n*Order Confirmation*\nYour Cart - 12 Month Rental\n━━━━━━━━━━━━━━━━━━━━\n\n*Order Details*\n- 1x 2 Seater Fabric Sofa\n  ~Rs. 839/mo~ *Rs. 587/mo* + GST\n\n━━━━━━━━━━━━━━━━━━━━\n*Monthly Rent*\n- Rent: Rs. 587/mo\n- GST (18%): Rs. 106/mo\n- *Net Monthly: Rs. 693/mo*\n\n━━━━━━━━━━━━━━━━━━━━\n*One Time Charges*\n- Security Deposit: Rs. 1,174 _(refundable)_\n- Delivery: ~Rs. 400~ Rs. 0\n- Installation: ~Rs. 500~ Rs. 0\n- *Net Payable (1st Month): Rs. 1,867*\n\n━━━━━━━━━━━━━━━━━━━━\nYou save *Rs. 252/month* x 12 months = *Rs. 3,024* on this cart!\n\n*Terms & Conditions*\n- Products are in mint condition\n- Standard maintenance included\n- Free shipping & standard installation\n- Complete KYC before delivery"
+    },
+    {
+      "step": 19,
+      "direction": "bot",
+      "type": "buttons",
+      "content": "What would you like to do? => [Modify Cart] | [Check Reviews] | [Checkout]"
+    },
+    {
+      "step": 20,
+      "direction": "user",
+      "type": "button",
+      "content": "[Modify Cart]"
+    },
+    {
+      "step": 21,
+      "direction": "bot",
+      "type": "text",
+      "content": "*Your current cart:*\n1. 2 Seater Fabric Sofa (x1) - Rs. 587/mo\n\nTell me what to change:\n- \"Remove the fridge\"\n- \"Add a study table\"\n- Or reply with an item number to remove it (e.g., 2)\n\nOr browse more products to add:"
+    },
+    {
+      "step": 22,
+      "direction": "bot",
+      "type": "buttons",
+      "content": "Or pick an option: => [Browse More] | [View Cart]"
+    },
+    {
+      "step": 23,
+      "direction": "user",
+      "type": "text",
+      "content": "add study table"
+    },
+    {
+      "step": 24,
+      "direction": "bot",
+      "type": "text",
+      "content": "*Your Cart - 12 Month Rental*\n\n- 2 Seater Fabric Sofa:  Rs. 587/mo  (was Rs. 839)\n- Study Table:  Rs. 244/mo  (was Rs. 349)\n\nMonthly Total: Rs. 832  (saving Rs. 356/mo vs MRP)\nTotal saving over 12 months: Rs. 4,272\n\nPay upfront: Rs. 749/mo  (extra 10% off — save Rs. 5,268 total)"
+    },
+    {
+      "step": 25,
+      "direction": "bot",
+      "type": "buttons",
+      "content": "What would you like to do next? => [View Cart] | [Browse More] | [Reviews]"
+    },
+    {
+      "step": 26,
+      "direction": "user",
+      "type": "button",
+      "content": "[View Cart]"
+    },
+    {
+      "step": 27,
+      "direction": "bot",
+      "type": "text",
+      "content": "Here are the details for your selected items:\n\n*Order Confirmation*\nYour Cart - 12 Month Rental\n━━━━━━━━━━━━━━━━━━━━\n\n*Order Details*\n- 1x 2 Seater Fabric Sofa\n  ~Rs. 839/mo~ *Rs. 587/mo* + GST\n- 1x Study Table\n  ~Rs. 349/mo~ *Rs. 244/mo* + GST\n\n━━━━━━━━━━━━━━━━━━━━\n*Monthly Rent*\n- Rent: Rs. 831/mo\n- GST (18%): Rs. 150/mo\n- *Net Monthly: Rs. 981/mo*\n\n━━━━━━━━━━━━━━━━━━━━\n*One Time Charges*\n- Security Deposit: Rs. 1,662 _(refundable)_\n- Delivery: ~Rs. 400~ Rs. 0\n- Installation: ~Rs. 500~ Rs. 0\n- *Net Payable (1st Month): Rs. 2,643*\n\n━━━━━━━━━━━━━━━━━━━━\nYou save *Rs. 357/month* x 12 months = *Rs. 4,284* on this cart!\n\n*Terms & Conditions*\n- Products are in mint condition\n- Standard maintenance included\n- Free shipping & standard installation\n- Complete KYC before delivery"
+    },
+    {
+      "step": 28,
+      "direction": "bot",
+      "type": "buttons",
+      "content": "What would you like to do? => [Modify Cart] | [Check Reviews] | [Checkout]"
+    },
+    {
+      "step": 29,
+      "direction": "user",
+      "type": "button",
+      "content": "[Checkout]"
+    },
+    {
+      "step": 30,
+      "direction": "bot",
+      "type": "text",
+      "content": "Great, let us check if we can deliver to your location.\n\nPlease share your delivery location and make sure to include the *pincode (6-digit number)*.\n\nExample: Sector 52, Gurugram 122003"
+    },
+    {
+      "step": 31,
+      "direction": "user",
+      "type": "text",
+      "content": "Gurugram DLF Phase 3 122002"
+    },
+    {
+      "step": 32,
+      "direction": "bot",
+      "type": "text",
+      "content": "Pincode 122002 (Gurgaon) is serviceable.\nDelivery from our *Gurugram Office* — approximately 4.5 km away.\nStandard delivery: 2-5 business days.\n\nGet an *additional 2% discount* by completing your order through this link:"
+    },
+    {
+      "step": 33,
+      "direction": "bot",
+      "type": "text",
+      "content": "https://testqr.rentbasket.com/lead-shopping?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3NzUwNjExMDQsImV4cCI6MTE3NzUwNjExMDQsImRhdGEiOnsiaWQiOjEsImVtYWlsIjoidmlqYXltYWhlbkBnbWFpbC5jb20ifX0.WZBiCCK6R0MmubatJWpLerv5GXSSmFHC5-IjZw7jE4M&referral_code=ATFU1NTg1&items=%5B%7B%22amenity_type_id%22:1043,%22count%22:1,%22duration%22:12%7D,%7B%22amenity_type_id%22:40,%22count%22:1,%22duration%22:12%7D%5D"
+    }
+  ]
+}
