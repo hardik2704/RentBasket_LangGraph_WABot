@@ -417,11 +417,10 @@ ROOM_SELECTION_SECTIONS = [
     {
         "title": "Select a Room",
         "rows": [
-            {"id": "ROOM_BEDROOM",     "title": "Bedroom",        "description": "Beds, mattresses, storage"},
+            {"id": "ROOM_WORKSTATION", "title": "Study Room",     "description": "Desk, chair, shelf"},
             {"id": "ROOM_LIVING",      "title": "Living Room",    "description": "Sofas, TVs, tables, AC"},
+            {"id": "ROOM_BEDROOM",     "title": "Bedroom",        "description": "Beds, mattresses, storage"},
             {"id": "ROOM_KITCHEN",     "title": "Kitchen",        "description": "Fridge, washing, cooking"},
-            {"id": "ROOM_WORKSTATION", "title": "Work Station",   "description": "Desk, chair, shelf"},
-            {"id": "ROOM_1BHK",       "title": "Complete 1BHK",  "description": "Ready-to-move packages"},
         ],
     }
 ]
