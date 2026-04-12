@@ -146,8 +146,9 @@ def is_pricing_negotiation(text: str) -> bool:
 # ========================================
 
 GREETING_BUTTONS = [
-    {"id": "BROWSE_PRODUCTS", "title": "Browse Products"},
+    {"id": "SHARE_ITEM_LIST", "title": "Share Item List"},
     {"id": "HOW_RENTING_WORKS", "title": "How Renting Works?"},
+    {"id": "BROWSE_PRODUCTS", "title": "Browse Products"},
 ]
 
 # ========================================
@@ -454,7 +455,8 @@ def _clear_browse_context(phone: str) -> None:
                 "browse_room", "browse_subcategory", "browse_variant_list",
                 "browse_checkout_location",
                 "direct_request", "direct_segments", "direct_option_list",
-                "browse_modify_mode"):
+                "browse_modify_mode",
+                "share_item_list_flow", "share_resolved_items", "share_unmatched"):
         ctx.pop(key, None)
     session_context[phone] = ctx
 
@@ -1079,6 +1081,287 @@ def _handle_direct_selection(phone: str, text: str, sender_name: str) -> bool:
     return True
 
 
+# ── Share Item List Flow ───────────────────────────────────────────────
+# When user clicks "Share Item List" from the greeting, they send a free-text
+# list of items.  We auto-resolve ambiguous products using sensible defaults
+# (e.g. "washing machine" → Fully Automatic), ask duration, then build a
+# draft cart immediately — no option-picking required.
+
+# Default product ID to use when a category search returns multiple matches.
+# Key = category keyword (lowercase), Value = product_id
+CATEGORY_DEFAULTS = {
+    # Kitchen / Appliances
+    "washing machine": 13,   # Fully Automatic WM
+    "fridge": 11,            # Single Door Fridge 190 Ltr
+    "ac": 60,                # Split AC 1.5 Ton
+    "air conditioner": 60,
+    "water purifier": 15,    # Water Purifier (standard)
+    "geyser": 10,            # Geyser 20 Ltr
+    "microwave": 16,         # Microwave Solo 20 Ltr
+    "gas stove": 34,         # Gas Stove 2 Burner
+    "chimney": 1015,
+
+    # Bedroom
+    "bed": 17,               # Double Bed King Non-Storage Basic
+    "double bed": 17,
+    "single bed": 28,        # Single Bed 6x3 Basic
+    "mattress": 44,          # Mattress Pair 5 Inches
+    "single mattress": 1057, # Mattress Single 4 Inches
+    "dressing table": 1044,
+    "side table": 1055,      # Side Table (standard)
+
+    # Living Room
+    "sofa": 18,              # 5 Seater Fabric Sofa with Center Table
+    "2 seater sofa": 1043,
+    "3 seater sofa": 1042,
+    "4 seater sofa": 1020,
+    "5 seater sofa": 18,
+    "7 seater sofa": 1048,   # 7 Seater Grey Set
+    "sofa chair": 1047,
+    "tv": 1008,              # Smart LED 43"
+    "led": 1008,
+    "center table": 29,
+    "coffee table": 53,
+    "dining table": 1034,    # 4 Seater Dining Sheesham
+    "inverter": 24,          # Inverter Single Battery
+
+    # Work Station
+    "study table": 40,
+    "study chair": 41,       # Study Chair Premium
+    "bookshelf": 42,
+    "book shelf": 42,
+}
+
+
+def _resolve_to_default(query: str, matches: List[dict]) -> dict:
+    """
+    Given a user query and its search matches, pick the best default product.
+    If CATEGORY_DEFAULTS has a mapping for the query, use that product.
+    Otherwise pick the first match.
+    """
+    query_lower = query.lower().strip()
+
+    # Try exact match in defaults
+    if query_lower in CATEGORY_DEFAULTS:
+        default_pid = CATEGORY_DEFAULTS[query_lower]
+        for m in matches:
+            if m["id"] == default_pid:
+                return m
+
+    # Try partial: check if any default key is contained in query or vice-versa
+    for key, default_pid in CATEGORY_DEFAULTS.items():
+        if key in query_lower or query_lower in key:
+            for m in matches:
+                if m["id"] == default_pid:
+                    return m
+
+    # Fallback: first match
+    return matches[0]
+
+
+def _handle_share_item_list_button(phone: str) -> None:
+    """Send the item-list prompt after user clicks Share Item List."""
+    ctx = _set_browse_context(phone, browse_mode=True, browse_step="share_await_items")
+    ctx["share_item_list_flow"] = True
+    whatsapp_client.send_text_message(
+        phone,
+        (
+            "Please share the items you're looking for.\n\n"
+            "*Example* : 2x Double Beds, 1x Washing Machine, 1x 5 Seater Sofa\n\n"
+            "You can also send a voice note.\n"
+            "I'll share price estimates right away."
+        ),
+        preview_url=False,
+    )
+
+
+def _handle_share_item_list_input(phone: str, sender_name: str, text: str) -> bool:
+    """
+    Parse the user's item list, auto-resolve defaults, then ask duration.
+    Called when browse_step == 'share_await_items'.
+    """
+    ctx = _browse_context(phone)
+
+    text_wo_duration = remove_duration_phrases(text)
+    segments = split_into_segments(text_wo_duration)
+    if not segments:
+        whatsapp_client.send_text_message(
+            phone,
+            "I could not identify any products in your message. Please try again.\n\n"
+            "*Example* : 2x Double Beds, 1x Washing Machine, 1x 5 Seater Sofa",
+            preview_url=False,
+        )
+        return True
+
+    resolved_items = []
+    unmatched_names = []
+
+    for seg in segments:
+        seg = clean_item_segment(seg)
+        if not seg:
+            continue
+        qty, item_text = extract_qty_and_item(seg)
+        item_text = re.sub(r"\b(for|months?|mo)\b.*$", "", item_text).strip()
+        if not item_text or len(item_text) < 2:
+            continue
+        matches = search_products_by_name(item_text)
+        if not matches:
+            unmatched_names.append(item_text)
+            continue
+
+        # Auto-pick default when multiple matches
+        chosen = _resolve_to_default(item_text, matches)
+        resolved_items.append({
+            "query": item_text,
+            "qty": qty,
+            "product_id": chosen["id"],
+            "product_name": chosen["name"],
+        })
+
+    if not resolved_items:
+        whatsapp_client.send_text_message(
+            phone,
+            "I could not find matches for those items in our catalogue.\n"
+            "Could you try with more specific names? For example: Double Bed, Fridge, Sofa, Study Chair.",
+            preview_url=False,
+        )
+        return True
+
+    # Save resolved items in context for after duration selection
+    ctx["share_resolved_items"] = resolved_items
+    ctx["share_unmatched"] = unmatched_names
+
+    # Check if duration was included in the text
+    duration_from_text = extract_duration(text, None)
+    if duration_from_text:
+        ctx["browse_duration"] = duration_from_text
+        _build_share_item_list_cart(phone, sender_name)
+    else:
+        # Acknowledge, then ask duration
+        item_names = [f"{it['qty']}x {it['product_name']}" for it in resolved_items]
+        ack = f"Got it! I found: {', '.join(item_names)}."
+        if unmatched_names:
+            ack += f"\n(Could not match: {', '.join(unmatched_names)})"
+        whatsapp_client.send_text_message(phone, ack, preview_url=False)
+        time.sleep(0.3)
+
+        # Ask duration using same buttons as Browse Products
+        ctx["browse_step"] = "share_await_duration"
+        buttons = [
+            {"id": "BROWSE_DUR_3", "title": "3-Short & Sweet"},
+            {"id": "BROWSE_DUR_6", "title": "6-Save More"},
+            {"id": "BROWSE_DUR_12", "title": "12-Max Savings"},
+        ]
+        whatsapp_client.send_interactive_buttons(
+            to_phone=phone,
+            body_text="Your expected rental duration in months (you can always extend the duration):",
+            buttons=buttons,
+            header="Share Item List",
+        )
+
+    return True
+
+
+def _build_share_item_list_cart(phone: str, sender_name: str) -> None:
+    """
+    Build the draft cart from share_resolved_items and send the quote
+    in the same format as Browse Products, with 3 action buttons.
+    """
+    ctx = _browse_context(phone)
+    resolved_items = ctx.get("share_resolved_items", [])
+    unmatched_names = ctx.get("share_unmatched", [])
+    duration = int(ctx.get("browse_duration") or 12)
+    normalized_phone = normalize_phone(phone)
+
+    if not resolved_items:
+        whatsapp_client.send_text_message(phone, "No items to build a cart from. Please share your list again.")
+        return
+
+    # Build cart items with pricing
+    cart_items = []
+    for it in resolved_items:
+        pid = it["product_id"]
+        product = get_product_by_id(pid)
+        if not product:
+            continue
+        mrp = calculate_rent(pid, duration) or 0
+        discounted = int(round(mrp * 0.70)) if mrp else 0
+        cart_items.append({
+            "product_id": pid,
+            "product_name": product.get("name", it["product_name"]),
+            "name": product.get("name", it["product_name"]),
+            "qty": it["qty"],
+            "original_rent": mrp,
+            "rent": discounted,
+            "duration": duration,
+            "matched": True,
+        })
+
+    if not cart_items:
+        whatsapp_client.send_text_message(phone, "Could not build cart. Please try again.", preview_url=False)
+        return
+
+    # Notify about unmatched items
+    if unmatched_names:
+        whatsapp_client.send_text_message(
+            phone,
+            f"Note: I could not find a match for: {', '.join(unmatched_names)}. Showing the items I found.",
+            preview_url=False,
+        )
+        time.sleep(0.3)
+
+    # Build cart link
+    cart_link = _build_browse_cart_link(cart_items, duration)
+
+    # Save quote in context (same structure as Browse Products)
+    original_monthly = sum(int(it.get("original_rent", 0)) * int(it.get("qty", 1)) for it in cart_items)
+    discounted_monthly = int(round(original_monthly * 0.70))
+    savings_total = max(0, (original_monthly - discounted_monthly) * duration)
+
+    ctx["last_browse_quote"] = {
+        "items": cart_items,
+        "duration": duration,
+        "original_monthly": original_monthly,
+        "discounted_monthly": discounted_monthly,
+        "savings_total": savings_total,
+        "cart_link": cart_link,
+        "source_text": ", ".join(it["product_name"] for it in cart_items),
+    }
+    ctx["browse_mode"] = True
+    ctx["browse_step"] = "quote_ready"
+    ctx.pop("share_item_list_flow", None)
+    ctx.pop("share_resolved_items", None)
+    ctx.pop("share_unmatched", None)
+
+    _save_browse_lead_data(normalized_phone, {
+        "duration_months": duration,
+        "browse_requested_items": ", ".join(f"{it['qty']}x {it['product_name']}" for it in cart_items),
+        "browse_quote_original_monthly": original_monthly,
+        "browse_quote_discounted_monthly": discounted_monthly,
+        "browse_quote_savings_total": savings_total,
+        "browse_cart_link": cart_link,
+        "lead_stage": "share_list_quote_ready",
+    })
+
+    # Send the cart estimate (same format as Browse Products)
+    quote_text, _, _, _ = _format_browse_estimate(cart_items, duration)
+    whatsapp_client.send_text_message(phone, quote_text, preview_url=False)
+    time.sleep(0.4)
+
+    # 3 action buttons (same as Browse Products quote)
+    buttons = [
+        {"id": "BROWSE_SHOW_DETAILS", "title": "View Cart"},
+        {"id": "BROWSE_PRODUCTS", "title": "Browse More"},
+        {"id": "BROWSE_CUSTOMER_REVIEWS", "title": "Reviews"},
+    ]
+    whatsapp_client.send_interactive_buttons(
+        to_phone=phone,
+        body_text="What would you like to do next?",
+        buttons=buttons,
+        header="Your Draft Cart",
+    )
+
+
 # ── Browse Cart Modification Flow ────────────────────────────────────
 
 def _apply_browse_cart_modification(phone: str, text: str, sender_name: str) -> bool:
@@ -1463,6 +1746,31 @@ def _handle_browse_products_text(phone: str, sender_name: str, text: str, messag
         return True
 
     step = ctx.get("browse_step", "await_duration")
+
+    # ── Share Item List flow: user sends their item list ──────────
+    if step == "share_await_items":
+        return _handle_share_item_list_input(phone, sender_name, raw_text)
+
+    if step == "share_await_duration":
+        duration = _parse_duration_from_text(raw_text)
+        if duration is None:
+            # Re-show duration buttons
+            buttons = [
+                {"id": "BROWSE_DUR_3", "title": "3-Short & Sweet"},
+                {"id": "BROWSE_DUR_6", "title": "6-Save More"},
+                {"id": "BROWSE_DUR_12", "title": "12-Max Savings"},
+            ]
+            whatsapp_client.send_interactive_buttons(
+                to_phone=phone,
+                body_text="Your expected rental duration in months (you can always extend the duration):",
+                buttons=buttons,
+                header="Share Item List",
+            )
+            return True
+        ctx["browse_duration"] = duration
+        _save_browse_lead_data(normalized_phone, {"duration_months": duration, "lead_stage": "share_list_duration_set"})
+        _build_share_item_list_cart(phone, sender_name)
+        return True
 
     # ── Direct request flow: user picks from options list ─────────
     if step == "direct_await_duration":
@@ -3402,6 +3710,10 @@ Thank you for choosing RentBasket!"""
             return jsonify({"status": "ok", "action": "final_link_sent"}), 200
 
         # ── Informational Flow Buttons ─────────────────────────────────
+        elif button_id == "SHARE_ITEM_LIST":
+            _handle_share_item_list_button(phone)
+            return jsonify({"status": "ok", "action": "share_item_list_started"}), 200
+
         elif button_id == "BROWSE_PRODUCTS":
             ctx = _browse_context(phone)
             existing_duration = ctx.get("browse_duration")
@@ -3420,6 +3732,11 @@ Thank you for choosing RentBasket!"""
             duration = dur_map[button_id]
             ctx = _set_browse_context(phone, browse_mode=True, browse_duration=duration)
             _save_browse_lead_data(normalize_phone(phone), {"duration_months": duration, "lead_stage": "browse_duration_set"})
+
+            # If this is a share-item-list flow, build the cart directly
+            if ctx.get("share_item_list_flow") or ctx.get("browse_step") == "share_await_duration":
+                _build_share_item_list_cart(phone, sender_name)
+                return jsonify({"status": "ok", "action": f"share_list_duration_{duration}"}), 200
 
             # If this is a direct-request flow, show product options instead of room selection
             if ctx.get("direct_request"):
