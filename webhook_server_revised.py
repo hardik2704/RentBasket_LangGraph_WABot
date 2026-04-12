@@ -576,7 +576,7 @@ def _handle_checkout_location(phone: str, text: str, sender_name: str) -> bool:
             f"Pincode {pincode} ({city}) is serviceable.\n"
             f"Delivery from our *{office} Office* — approximately {dist:.1f} km away.\n"
             f"Standard delivery: within 72 hours.\n\n"
-            f"Get an *additional 2% discount* by completing your order through this link:",
+            f"Get an *additional 10% discount* by completing your order through this link:",
             preview_url=False,
         )
         time.sleep(0.3)
