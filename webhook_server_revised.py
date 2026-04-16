@@ -1961,9 +1961,23 @@ GREETING_WORDS = {"hi", "hello", "hey", "hii", "hiii", "helo", "heloo", "helloo"
                   "hola", "yo", "sup", "start", "hai", "hlw", "hlo", "hy",
                   "ho", "hoo", "h", "ji", "hellow", "helo"}
 
+# Phrases from website WhatsApp link that should be treated as a greeting
+GREETING_PHRASES = [
+    "hi! i'm interested in your services.",
+    "hi! i'm interested in your services",
+    "i'm interested in your services",
+    "interested in your services",
+]
+
 def is_greeting(text: str) -> bool:
-    """Return True if the message is a greeting word."""
-    return text.strip().lower() in GREETING_WORDS
+    """Return True if the message is a greeting word or a website link phrase."""
+    normalized = text.strip().lower()
+    if normalized in GREETING_WORDS:
+        return True
+    for phrase in GREETING_PHRASES:
+        if phrase in normalized:
+            return True
+    return False
 
 
 # ── Bye / Exit Detection ──────────────────────────────────────────────

@@ -65,7 +65,7 @@ CART_LINK_REFERRAL_CODE = os.getenv("CART_LINK_REFERRAL_CODE", "ATFU1NTg1")
 # RentBasket JWT — used for API authentication AND as the cart link token param
 RENTBASKET_JWT = os.getenv(
     "RENTBASKET_JWT",
-    "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3NzUwNjExMDQsImV4cCI6MTE3NzUwNjExMDQsImRhdGEiOnsiaWQiOjEsImVtYWlsIjoidmlqYXltYWhlbkBnbWFpbC5jb20ifX0.WZBiCCK6R0MmubatJWpLerv5GXSSmFHC5-IjZw7jE4M",
+    "7QX2M9A4L5Z8R1T6C3K0H2F9D8P7B4",
 )
 
 # ========================================
