@@ -1,264 +1,362 @@
-# 🤖 RentBasket WhatsApp Bot "Ku"
+# RentBasket WhatsApp Bot — Ku
 
-AI-powered WhatsApp sales assistant for RentBasket built with **LangGraph**, **LangChain**, and **OpenAI**.
+**Version: V1.1** | Production-Ready AI Rental Assistant
+
+Ku is RentBasket's AI-powered WhatsApp sales & support bot, built on **LangGraph + GPT-4o + WhatsApp Cloud API**. Customers can browse furniture and appliance rentals, get instant pricing, share item lists via text or voice note, and complete checkout — entirely within WhatsApp.
 
 ---
 
-## 🚀 Quick Start
+## What Ku Can Do
 
-### 1. Clone & Setup Environment
+### For Customers (Sales Flow)
+| Feature | How It Works |
+|---|---|
+| **Instant Greeting** | Smart welcome with 3 action buttons |
+| **Share Item List** | Type or voice-note your items — Ku builds a cart instantly |
+| **Browse by Room** | Navigate Study → Living → Bedroom → Kitchen with subcategories |
+| **Voice Note Support** | Whisper transcribes, GPT-4o extracts products (Hindi/English/Hinglish) |
+| **Smart Pricing** | 30% off MRP shown instantly; 10% extra for 12+ month upfront |
+| **Checkout Link** | Personalized cart URL generated with JWT + referral code |
+| **Serviceability Check** | Pincode validated against Gurgaon & Noida service areas |
+| **Catalogue Image** | Product catalogue image sent at Browse Products entry |
 
+### For Customers (Support Flow)
+| Feature | How It Works |
+|---|---|
+| **Maintenance Requests** | Severity-based routing with ticket creation |
+| **Billing Queries** | Interactive sub-menu for billing types |
+| **Refund Tracking** | Closure date + refund status lookup |
+| **Relocation Requests** | Address capture + new pincode check |
+| **Human Handoff** | Escalates to sales team with phone numbers |
+
+### Conversation Intelligence
+| Feature | How It Works |
+|---|---|
+| **Bye Detection** | 30+ bye phrases (English + Hindi) → farewell + sales contact |
+| **Ghost Timer** | 30 min silence → sends farewell message automatically |
+| **19-Hour Follow-up** | Re-engagement nudge 19 hrs after last message |
+| **Pricing Negotiation** | Detects "too costly" / "discount" → escalation flow |
+| **Lead Persistence** | Firestore saves name, duration, location, cart stage across sessions |
+| **Re-greeting Restore** | On "Hi" again → restores name/location but re-asks duration fresh |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **AI Orchestration** | LangGraph + LangChain |
+| **Language Model** | GPT-4o (extraction) + GPT-4o-mini (agents) |
+| **Voice Transcription** | OpenAI Whisper |
+| **WhatsApp API** | Meta WhatsApp Cloud API v23.0 |
+| **Web Server** | Flask + Gunicorn |
+| **Database** | Firebase Firestore |
+| **Deployment** | Render |
+| **Knowledge Base** | ChromaDB (RAG for policies) |
+
+---
+
+## Product Catalogue
+
+- **60+ products** across furniture and appliances
+- **25+ categories**: Beds, Sofas, Fridges, Washing Machines, ACs, TVs, Study Furniture, and more
+- **Dynamic pricing** by duration: 3 / 6 / 9 / 12+ months
+- **Smart defaults**: "washing machine" → Fully Automatic; "TV" → Smart LED 43"; "sofa" → 5 Seater with CT
+
+### Service Cities
+| City | Sales Phone |
+|---|---|
+| Gurgaon (Gurugram) | +91 9958187021 |
+| Noida | +91 9958440038 |
+
+---
+
+## Agent Architecture
+
+```
+User Message
+     │
+     ▼
+Orchestrator (Intent Classifier)
+     │
+     ├──► Sales Agent        ← New leads, pricing, cart creation
+     ├──► Recommendation Agent  ← Browse, compare, package suggestions
+     ├──► Support Agent      ← Maintenance, billing, refund, relocation
+     └──► Support Intake     ← Identity verification for unknown users
+```
+
+Each agent has its own LangGraph state machine, tool set, and system prompt.
+
+---
+
+## Browse Products Flow
+
+```
+[Browse Products Button]
+     │
+     ▼
+RentBasket Catalogue Image  ← NEW in V1.1
+     │
+     ▼
+Select Duration (3 / 6 / 12 months)
+     │
+     ▼
+Select Room
+  ├─ Study Room    (Desk, Chair, Shelf)
+  ├─ Living Room   (Sofas, TVs, Tables, AC)
+  ├─ Bedroom       (Beds, Mattresses, Storage)
+  └─ Kitchen       (Fridge, Washing Machine, Cooking)
+     │
+     ▼
+Select Subcategory → Select Variant
+     │
+     ▼
+Cart Quote (MRP → 30% off → Savings shown)
+     │
+     ▼
+[View Cart] [Browse More] [Reviews]
+     │
+     ▼
+Full Cart Details + Checkout Button
+     │
+     ▼
+Enter Pincode → Serviceability Check → Cart Link
+```
+
+---
+
+## Share Item List Flow (V1.1)
+
+```
+[Share Item List Button]  ← First button in greeting
+     │
+     ▼
+"Please share the items you're looking for..."
+     │
+     ▼  (text or voice note)
+GPT-4o Extraction
+  - Understands English / Hindi / Hinglish
+  - Maps vague terms to exact product IDs
+  - Handles quantities ("do bed" = 2 beds)
+  - Falls back to regex parser if needed
+     │
+     ▼
+"Got it! I found: 2x Double Bed, 1x Washing Machine..."
+     │
+     ▼
+Select Duration (3 / 6 / 12 months)
+     │
+     ▼
+Draft Cart with 3 buttons: [View Cart] [Browse More] [Reviews]
+```
+
+---
+
+## Conversation Lifecycle
+
+```
+User Sends "Hi"
+     │ Greeting + 3 buttons
+     │ Timers reset
+     ▼
+User Browses / Shares Items / Talks to Agent
+     │ Every message resets 30-min ghost timer + 19-hr follow-up timer
+     ▼
+User Says "Bye" / Goes Quiet
+     │
+     ├─ Explicit Bye → Farewell message + sales phone + website
+     │                 19-hr follow-up scheduled
+     │
+     └─ Silent 30 min → Ghost message + sales phone + website
+                        (19-hr follow-up still running)
+     ▼
+19 Hours Later → "Hi! Just checking in. Were you still looking?..."
+```
+
+---
+
+## Quick Start (Local)
+
+### 1. Clone & Install
 ```bash
+git clone https://github.com/hardik2704/RentBasket_LangGraph_WABot.git
 cd RentBasket_LangGraph_WABot
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment Variables
-
-Create a `.env` file with your credentials:
-
+### 2. Configure Environment
+Copy `.env.example` to `.env` and fill in:
 ```env
-# Required - OpenAI API Key
-OPENAI_API_KEY=your_openai_api_key
-
-# Required for WhatsApp - From Meta Business Dashboard
-ACCESS_TOKEN=your_whatsapp_access_token
+# WhatsApp Cloud API
 PHONE_NUMBER_ID=your_phone_number_id
-APP_ID=your_app_id
-APP_SECRET=your_app_secret
+ACCESS_TOKEN=your_meta_access_token
+VERIFY_TOKEN=your_webhook_verify_token
 VERSION=v23.0
-VERIFY_TOKEN=12345  # Your custom verify token for webhook
 
-# Firebase Configuration (Paste the entire Service Account JSON string)
-FIREBASE_CONFIG='{"type": "service_account", "project_id": "...", ...}'
+# OpenAI
+OPENAI_API_KEY=your_openai_key
+
+# Firebase
+FIREBASE_CONFIG={"type":"service_account",...}   # Full JSON as string
+
+# Server
+RENDER_URL=https://your-app.onrender.com
+PORT=8000
 ```
 
-### 3. Run the Bot
-
+### 3. Run Server
 ```bash
-# Demo Mode (Terminal Chat)
-python main.py
-
-# Test Scenarios
-python main.py --test
-
-# WhatsApp Webhook Server
-python webhook_server.py --port 8000
+source venv/bin/activate
+python3 webhook_server_revised.py
 ```
 
----
-
-## 📱 WhatsApp Business API Integration
-
-### Step 1️⃣: Get Your Meta Credentials
-
-> **Where:** [developers.facebook.com](https://developers.facebook.com/) → Your App → WhatsApp → API Setup
-
-| Find This | Copy to `.env` as |
-|-----------|-------------------|
-| Phone Number ID | `PHONE_NUMBER_ID` |
-| Temporary Access Token | `ACCESS_TOKEN` |
-
----
-
-### Step 2️⃣: Start Your Webhook Server
-
-**Open Terminal 1:**
-```
-python3 webhook_server.py
-```
-
-✅ You should see: `🤖 Ku - WhatsApp Webhook Server` running on port 8000
-
----
-
-### Step 3️⃣: Start ngrok Tunnel
-
-**Open Terminal 2:**
-```
+### 4. Expose with ngrok (for local testing)
+```bash
 ngrok http 8000
-```
-
-✅ Copy the **https** URL → Example: `https://abc123.ngrok-free.app`
-
----
-
-### Step 4️⃣: Connect Webhook to Meta
-
-> **Where:** Meta Developer Dashboard → WhatsApp → Configuration
-
-| Field | What to Enter |
-|-------|---------------|
-| **Callback URL** | `https://YOUR-NGROK-URL/webhook` |
-| **Verify Token** | `12345` |
-
-**Then click:** ✅ Verify and Save
-
-**Subscribe to these webhook fields:**
-- ☑️ `messages`  
-- ☑️ `messaging_postbacks`
-
----
-
-### Step 5️⃣: Send a Test Message
-
-📲 Open WhatsApp → Message your connected number → Bot replies! 🎉
-
-**What happens:**
-1. ✓✓ Blue ticks (read receipt)
-2. ⌨️ Typing indicator appears  
-3. 💬 Bot sends AI response
-
----
-
-## 📁 Project Structure
-
-```text
-RentBasket_LangGraph_WABot/
-├── 🤖 main.py               # Main entry point for local interactive demo & testing
-├── 📡 webhook_server.py     # Production Flask server for WhatsApp Business API integration
-├── ⚙️ config.py             # Global configurations, credentials, and business rules
-├── 🧠 agents/               # Core AI logic using LangGraph
-│   ├── orchestrator.py      # Intent classification & dynamic agent routing
-│   ├── sales_agent.py       # Handles pricing, quotes, and sales-focused queries
-│   ├── recommendation_agent.py # Product discovery and browsing assistant
-│   └── state.py             # Conversation memory and shared state schema
-├── 🛠️ tools/                # Specialized functions used by agents
-│   ├── product_tools.py     # Real-time pricing and availability retrieval
-│   ├── catalogue_tools.py   # Product category and specification lookups
-│   ├── location_tools.py    # Serviceability validation (API-based pincode checks)
-│   └── human_handoff.py     # Logic for escalating to human sales agents
-├── 💬 whatsapp/             # WhatsApp Cloud API wrappers
-│   ├── client.py            # Handles sending text, buttons, and list messages
-│   └── indicators.py        # Typing & read receipt simulations
-├── 📝 utils/                # Shared helpers
-│   ├── firebase_client.py   # [NEW] Firestore initialization & SDK wrapper
-│   ├── db_logger.py         # [UPDATED] Advanced logging to Google Firestore
-│   └── logger.py            # Local file-based logging for debugging
-├── 📜 scripts/              # Dev & ops automation
-│   ├── pull_analytics.py    # [UPDATED] Pulls pilot metrics from Firestore
-│   ├── seed_customers.py    # [UPDATED] Populates Firestore with test data
-│   └── sync_logs.py         # Sync production file-based logs locally
-├── 📦 data/                 # Static assets and knowledge base
-│   ├── products.py          # Product catalog definitions
-│   └── knowledge_base.py    # RAG source data for policies
-└── 📂 logs/                 # Local archive of WhatsApp conversation transcripts
+# Set the ngrok HTTPS URL as your webhook in Meta Developer Console
 ```
 
 ---
 
-## 🔧 Key Commands
+## Deployment (Render)
 
-| Command | Description |
-|---------|-------------|
-| `python main.py` | Interactive demo mode |
-| `python main.py --test` | Run test scenarios |
-| `python webhook_server.py` | Start WhatsApp webhook server |
-| `python webhook_server.py --port 8000` | Custom port |
-| `ngrok http 5000` | Expose server to internet |
-| `python3 scripts/sync_logs.py` | Sync production logs locally |
-| `python3 scripts/sync_logs.py --watch` | Keep logs synced in real-time |
+1. Push to GitHub (`main` branch)
+2. Render auto-deploys on push
+3. Set all env vars in Render → Environment
+4. Webhook URL: `https://your-app.onrender.com/webhook`
+5. Set in Meta Developer Console: Webhook URL + Verify Token
 
 ---
 
-## 💡 Bot Capabilities
-
-- **Product Search**: "I need a dining table for 6 months"
-- **Bundle Pricing**: "Need bed, sofa, fridge for 3 months"
-- **Serviceability Check**: Validates delivery by pincode
-- **RAG-based Q&A**: Answers policy questions from knowledge base
-- **Pricing Negotiation**: Detects negotiation intent → shows interactive buttons
-- **Human Handoff**: Escalates to sales team when needed
-
----
-
-## 🔑 Environment Variables Reference
+## Environment Variables Reference
 
 | Variable | Required | Description |
-|----------|----------|-------------|
-| `OPENAI_API_KEY` | Yes | OpenAI API key for GPT |
-| `ACCESS_TOKEN` | Yes* | WhatsApp Cloud API access token |
-| `PHONE_NUMBER_ID` | Yes* | Your WhatsApp Business phone number ID |
-| `APP_ID` | No | Meta App ID |
-| `APP_SECRET` | No | Meta App Secret |
-| `VERSION` | No | Graph API version (default: v23.0) |
-| `VERIFY_TOKEN` | No | Webhook verification token (default: 12345) |
-| `FIREBASE_CONFIG` | Yes** | Full Service Account JSON string for Firestore |
-
-*Required for WhatsApp integration
-**If not set, falls back to local file-based logging
+|---|---|---|
+| `PHONE_NUMBER_ID` | Yes | WhatsApp Business phone number ID |
+| `ACCESS_TOKEN` | Yes | Meta long-lived access token |
+| `VERIFY_TOKEN` | Yes | Webhook verification token |
+| `OPENAI_API_KEY` | Yes | OpenAI API key |
+| `FIREBASE_CONFIG` | Yes | Firebase Admin SDK JSON (as string) |
+| `RENDER_URL` | Yes | Your Render deployment URL |
+| `PORT` | No | Server port (default: 8000) |
+| `DATABASE_URL` | No | PostgreSQL URL (optional analytics DB) |
 
 ---
 
-## 📊 Logs & Persistence
+## Key Endpoints
 
-Conversation logs are stored in **Google Firebase (Firestore)** for high-availability persistence and support analytics, with automatic file-based fallback.
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/` | GET | Health check |
+| `/webhook` | GET | WhatsApp webhook verification |
+| `/webhook` | POST | Receive WhatsApp messages |
+| `/catalogue` | GET | Serves `RentBasket_Catalogue.png` |
+| `/logs` | GET | List conversation log files |
 
-### 🔥 Firebase/Firestore Setup (Recommended)
+---
 
-1. **Create Firebase Project**:
-   - Go to [Firebase Console](https://console.firebase.google.com/) and create a new project.
-   - Enable **Cloud Firestore** in test mode or production mode.
-2. **Generate Service Account**:
-   - Go to **Project Settings → Service Accounts**.
-   - Click **Generate New Private Key**.
-3. **Environment Configuration**:
-   - Add the **Entire JSON content** of the downloaded file to your `.env` or Render environment:
-     ```env
-     FIREBASE_CONFIG='{"type": "service_account", "project_id": "...", ...}'
-     ```
-4. **Seed Test Data**:
-   - Run the seeding script to populate your new database:
-     ```bash
-     python3 scripts/seed_customers.py
-     ```
+## Firestore Data Model
 
-### 🗂️ Firestore Schema Structure
-| Collection | Description | Usage Tip |
-| :--- | :--- | :--- |
-| `sessions` | Session meta & **Live Transcript** | 💡 Read the `live_transcript` field for instant chat history! |
-| `sessions/{id}/messages` | Full audit trail (Sub-collection) | Best for deep data analysis & audit |
-| `analytics` | Business events (negotiations, handoffs) | Event-driven pilot metrics |
-| `customers` | Core profiles indexed by Phone | Integrated CRM-style lookups |
-| `tickets` | [NEW] Support tickets for human ops | Operational dashboard fuel |
-
-### 🔄 Migrating Local Logs to Firestore
-If you have historical `.txt` logs in the `logs/` directory, you can push them to Firebase in one go:
-```bash
-python3 scripts/migrate_local_logs.py
 ```
-This will:
-1. Parse your `91*.txt` files into individual chat sessions.
-2. Create standard Firestore `sessions` documents.
-3. Automatically populate the `live_transcript` and `messages` sub-collections.
+leads/{phone}
+  ├─ name, push_name
+  ├─ duration_months
+  ├─ delivery_location: {pincode, city}
+  ├─ lead_stage: new | browsing | quote_ready | cart_created | converted
+  └─ browse_cart_link
 
-### 🔄 Syncing File Logs from Render
-File-based logs (`.txt`) continue to work as a backup. Sync them locally:
+sessions/{session_id}
+  ├─ phone, push_name, created_at
+  ├─ live_transcript[]
+  └─ messages/ (subcollection)
 
-1. **Manual Sync**: `python3 scripts/sync_logs.py`
-2. **Watch Mode**: `python3 scripts/sync_logs.py --watch`
-
-3. **Locations**:
-   - `logs/demo_user.txt` - Local demo mode logs
-   - `logs/919xxxxxxxxx.txt` - Synced WhatsApp user logs
-
----
-
-## 🛠️ Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| `ModuleNotFoundError` | Run `pip install -r requirements.txt` |
-| `OPENAI_API_KEY not set` | Check `.env` file exists and has valid key |
-| Webhook verification fails | Ensure `VERIFY_TOKEN` matches Meta dashboard |
-| ngrok URL expired | Restart ngrok; update webhook URL in Meta |
-| No response on WhatsApp | Check webhook server logs; verify ngrok is running |
-| Firebase Init Error | Ensure `FIREBASE_CONFIG` is a valid JSON string |
+analytics/{phone}/events[]
+  └─ action, data, timestamp
+```
 
 ---
 
-## 📝 License
+## Feature Changelog
 
-Private - RentBasket © 2026
+### V1.1 (Current)
+- Share Item List button added as primary greeting action
+- GPT-4o powered voice/text item extraction (Hindi/Hinglish/English)
+- Bye/exit detection with farewell message + sales contact
+- 30-minute ghost timer for inactive users
+- 19-hour follow-up re-engagement message
+- RentBasket Catalogue image sent at Browse Products entry
+- Smart category defaults (TV → 43", Study Chair → Premium, etc.)
+- Room reorder: Study Room first, 1BHK removed from room list
+
+### V1.0
+- LangGraph multi-agent architecture (Sales, Recommendation, Support)
+- Interactive Browse Products flow (Room → Subcategory → Variants)
+- Voice note transcription with Whisper
+- Firebase Firestore lead + session persistence
+- Pincode serviceability check
+- Pricing negotiation detection
+- Human handoff escalation
+- RAG knowledge base for policy Q&A
+
+---
+
+## Project Structure
+
+```
+RentBasket_LangGraph_WABot/
+├── webhook_server_revised.py   # Main Flask server (~4500 lines)
+├── config.py                   # Business config, phones, API endpoints
+├── main.py                     # Local interactive demo
+├── requirements.txt
+│
+├── agents/
+│   ├── orchestrator.py         # Intent routing + customer verification
+│   ├── sales_agent.py          # Lead qualification + cart creation
+│   ├── recommendation_agent.py # Browse + compare + packages
+│   ├── support_agent.py        # Maintenance/billing/refund/relocation
+│   └── state.py                # LangGraph conversation state schema
+│
+├── tools/
+│   ├── product_tools.py        # Search, quote, cart link generation
+│   ├── location_tools.py       # Pincode extraction + serviceability API
+│   ├── catalogue_tools.py      # Full catalogue, compare, budget filter
+│   ├── customer_tools.py       # Customer verification
+│   ├── support_tools.py        # Ticket logging + policy lookup
+│   ├── lead_tools.py           # Lead sync to Firestore
+│   └── human_handoff.py        # Escalation tool
+│
+├── whatsapp/
+│   └── client.py               # WhatsApp Cloud API client
+│
+├── utils/
+│   ├── firebase_client.py      # Firestore operations
+│   ├── db_logger.py            # Session + turn logging
+│   ├── phone_utils.py          # Phone normalization
+│   ├── session_cache.py        # In-memory user fact cache
+│   └── support_menus.py        # Pre-built interactive menus
+│
+├── data/
+│   ├── products.py             # 60+ products, pricing, search functions
+│   └── RentBasket_Catalogue.png # Product catalogue image
+│
+└── rag/
+    └── vectorstore.py          # ChromaDB policy knowledge base
+```
+
+---
+
+## Built With
+
+- [LangGraph](https://github.com/langchain-ai/langgraph) — Multi-agent state machine orchestration
+- [LangChain](https://langchain.com) — LLM integration & tool calling
+- [OpenAI GPT-4o](https://openai.com) — Agent reasoning + product extraction
+- [OpenAI Whisper](https://openai.com/research/whisper) — Voice note transcription
+- [Meta WhatsApp Cloud API](https://developers.facebook.com/docs/whatsapp) — Messaging
+- [Firebase Firestore](https://firebase.google.com) — Lead & session persistence
+- [Flask](https://flask.palletsprojects.com) — Webhook server
+- [Render](https://render.com) — Deployment
+
+---
+
+*RentBasket — Comfort On Rent, Happiness Delivered.*
