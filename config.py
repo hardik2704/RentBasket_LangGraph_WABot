@@ -62,10 +62,21 @@ KU_REFERRAL_LINK = "https://qr.rentbasket.com/dealer?referral_code=AS1c2NzAy"
 CART_LINK_BASE_URL = os.getenv("CART_LINK_BASE_URL", "https://testqr.rentbasket.com/lead-shopping")
 CART_LINK_REFERRAL_CODE = os.getenv("CART_LINK_REFERRAL_CODE", "ATFU1NTg1")
 
-# RentBasket JWT — used for API authentication AND as the cart link token param
+# RentBasket JWT secret — used to sign the JWT token for cart link authorization
+RENTBASKET_JWT_SECRET = os.getenv("RENTBASKET_JWT_SECRET", "7QX2M9A4L5Z8R1T6C3K0H2F9D8P7B4")
+
+# Generate JWT token signed with the secret above
+import jwt as _jwt
+import time as _time
+
+_jwt_payload = {
+    "iat": int(_time.time()),
+    "exp": int(_time.time()) + (10 * 365 * 24 * 60 * 60),  # 10 years
+    "data": {"id": 1, "email": "vijaymahen@gmail.com"},
+}
 RENTBASKET_JWT = os.getenv(
     "RENTBASKET_JWT",
-    "7QX2M9A4L5Z8R1T6C3K0H2F9D8P7B4",
+    _jwt.encode(_jwt_payload, RENTBASKET_JWT_SECRET, algorithm="HS256"),
 )
 
 # ========================================
