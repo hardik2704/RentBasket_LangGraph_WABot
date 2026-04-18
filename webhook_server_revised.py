@@ -494,6 +494,41 @@ def _save_browse_lead_data(normalized_phone: str, payload: dict) -> None:
         print(f"   Warning: failed to save browse lead data for {normalized_phone}: {e}")
 
 
+def _save_browsed_products(normalized_phone: str, items: list) -> None:
+    """
+    Append browsed products (product_id + product_name) to the lead's
+    `browsed_products` field in Firestore. Deduplicates by product_id so
+    the list accumulates unique products the user has asked about across
+    the entire lifetime of the lead — regardless of whether they end up
+    in the final cart.
+    """
+    if not items:
+        return
+    try:
+        existing_lead = get_lead(normalized_phone) or {}
+        existing = existing_lead.get("browsed_products") or []
+        existing_ids = {
+            p.get("product_id") for p in existing if isinstance(p, dict)
+        }
+
+        added_any = False
+        for it in items:
+            pid = it.get("product_id")
+            if pid is None or pid in existing_ids:
+                continue
+            existing.append({
+                "product_id": pid,
+                "product_name": it.get("product_name") or it.get("name") or "",
+            })
+            existing_ids.add(pid)
+            added_any = True
+
+        if added_any:
+            upsert_lead(normalized_phone, {"browsed_products": existing})
+    except Exception as e:
+        print(f"   Warning: failed to save browsed products for {normalized_phone}: {e}")
+
+
 def _send_duration_buttons(phone: str) -> None:
     """Show 3/6/12 month duration buttons."""
     _set_browse_context(phone, browse_mode=True, browse_step="await_duration")
@@ -1235,6 +1270,10 @@ def _handle_share_item_list_input(phone: str, sender_name: str, text: str) -> bo
     ctx["share_resolved_items"] = resolved_items
     ctx["share_unmatched"] = unmatched_names
 
+    # Persist every browsed product (id + name) to Firestore — accumulates
+    # across the user's lifetime, independent of what reaches the final cart
+    _save_browsed_products(normalize_phone(phone), resolved_items)
+
     # Check if duration was included in the text
     duration_from_text = extract_duration(text, None)
     if duration_from_text:
@@ -1810,59 +1849,16 @@ def _handle_browse_products_text(phone: str, sender_name: str, text: str, messag
         )
         return True
 
-    if step == "await_duration":
-        duration = _parse_duration_from_text(raw_text)
-        if duration is None:
-            # Re-show the duration buttons
-            _send_duration_buttons(phone)
-            return True
-
-        ctx["browse_duration"] = duration
-        ctx["browse_step"] = "await_room"
-        _save_browse_lead_data(normalized_phone, {"duration_months": duration, "lead_stage": "browse_duration_set"})
-        whatsapp_client.send_text_message(
-            phone,
-            f"Got it, {duration} months. Now pick a room to start browsing.",
-            preview_url=False,
-        )
-        time.sleep(0.3)
-        _send_room_selection(phone)
-        return True
+    # V1.1: Room-based flow removed. Any legacy `await_duration`/`await_room`/
+    # `await_subcategory` state from a pre-upgrade session is silently rerouted
+    # into the share-item-list LLM flow so the user just asks for a product.
+    if step in ("await_duration", "await_room", "await_subcategory"):
+        ctx["browse_step"] = "share_await_items"
+        ctx["share_item_list_flow"] = True
+        return _handle_share_item_list_input_llm(phone, sender_name, raw_text)
 
     if step == "await_checkout_location":
         return _handle_checkout_location(phone, raw_text, sender_name)
-
-    if step == "await_room":
-        # User typed a room name instead of tapping the list
-        matched_room = ROOM_TEXT_MATCH.get(raw_text.lower().strip())
-        if matched_room:
-            if matched_room == "ROOM_1BHK":
-                _send_1bhk_package_buttons(phone)
-            else:
-                _send_subcategory_selection(phone, matched_room)
-            return True
-        # Not a room — re-show list
-        _send_room_selection(phone)
-        return True
-
-    if step == "await_subcategory":
-        # User typed a subcategory name instead of tapping
-        room_id = ctx.get("browse_room", "")
-        room = ROOM_CATEGORIES.get(room_id, {})
-        subcats = room.get("subcategories", {})
-        lower = raw_text.lower().strip()
-        for sc_id, sc in subcats.items():
-            if lower in sc["title"].lower() or sc["title"].lower() in lower:
-                _send_variant_list(phone, room_id, sc_id)
-                return True
-        # Not matched — re-show subcategories
-        if room_id == "ROOM_1BHK":
-            _send_1bhk_package_buttons(phone)
-        elif room_id:
-            _send_subcategory_selection(phone, room_id)
-        else:
-            _send_room_selection(phone)
-        return True
 
     if step == "await_variant_action":
         # User typed an item number/name from the variant list
@@ -2780,6 +2776,10 @@ def _handle_share_item_list_input_llm(phone: str, sender_name: str, text: str) -
         # Save LLM-resolved items in context for after duration selection
         ctx["share_resolved_items"] = llm_items
         ctx["share_unmatched"] = []
+
+        # Persist every browsed product (id + name) to Firestore — accumulates
+        # across the user's lifetime, independent of what reaches the final cart
+        _save_browsed_products(normalize_phone(phone), llm_items)
 
         # Check if duration was mentioned in the text
         duration_from_text = extract_duration(text, None)
@@ -4134,51 +4134,38 @@ Thank you for choosing RentBasket!"""
             return jsonify({"status": "ok", "action": "share_item_list_started"}), 200
 
         elif button_id == "BROWSE_PRODUCTS":
-            ctx = _browse_context(phone)
-            existing_duration = ctx.get("browse_duration")
-            # Always send catalogue image first on fresh Browse Products entry
-            if not existing_duration:
-                whatsapp_client.send_image(
-                    to_phone=phone,
-                    image_url=CATALOGUE_IMAGE_URL,
-                    caption="Here's our full product catalogue. Browse below to add items to your cart!",
-                )
-                time.sleep(0.5)
-                normalized = normalize_phone(phone)
-                _save_browse_lead_data(normalized, {"lead_stage": "browse_started"})
-                _send_duration_buttons(phone)
-            else:
-                # Duration already set — go straight to room selection (Browse More flow)
-                _set_browse_context(phone, browse_mode=True)
-                _send_room_selection(phone)
-            return jsonify({"status": "ok", "action": "browse_products_started"}), 200
+            # V1.1: Browse Products (and "Browse More") only sends the catalogue image,
+            # then invites the user to ask for any product. Free-text/voice goes straight
+            # into the LLM-powered cart builder (share-item-list flow) — no duration
+            # question, no room selection.
+            whatsapp_client.send_image(
+                to_phone=phone,
+                image_url=CATALOGUE_IMAGE_URL,
+                caption="Here's our full product catalogue. Ask for any product, and we'll share the pricing instantly.",
+            )
+            time.sleep(0.4)
+            ctx = _set_browse_context(phone, browse_mode=True, browse_step="share_await_items")
+            ctx["share_item_list_flow"] = True
+            # Wipe any stale room/subcategory/direct-request state from earlier sessions
+            for _k in ("browse_room", "browse_subcategory", "browse_variant_list",
+                       "direct_request", "direct_segments", "direct_option_list",
+                       "browse_modify_mode"):
+                ctx.pop(_k, None)
+            normalized = normalize_phone(phone)
+            _save_browse_lead_data(normalized, {"lead_stage": "browse_catalogue_sent"})
+            return jsonify({"status": "ok", "action": "browse_products_catalogue_sent"}), 200
 
         elif button_id in ("BROWSE_DUR_3", "BROWSE_DUR_6", "BROWSE_DUR_12"):
+            # V1.1: Duration buttons are only reachable through the Share Item List
+            # flow (either via the "Share Item List" greeting button or after the
+            # user asks for a product after Browse Products). Always build the
+            # share-list cart here — room-based flow has been removed.
             dur_map = {"BROWSE_DUR_3": 3, "BROWSE_DUR_6": 6, "BROWSE_DUR_12": 12}
             duration = dur_map[button_id]
-            ctx = _set_browse_context(phone, browse_mode=True, browse_duration=duration)
+            _set_browse_context(phone, browse_mode=True, browse_duration=duration)
             _save_browse_lead_data(normalize_phone(phone), {"duration_months": duration, "lead_stage": "browse_duration_set"})
-
-            # If this is a share-item-list flow, build the cart directly
-            if ctx.get("share_item_list_flow") or ctx.get("browse_step") == "share_await_duration":
-                _build_share_item_list_cart(phone, sender_name)
-                return jsonify({"status": "ok", "action": f"share_list_duration_{duration}"}), 200
-
-            # If this is a direct-request flow, show product options instead of room selection
-            if ctx.get("direct_request"):
-                ctx["browse_step"] = "direct_await_selection"
-                _send_direct_request_options(phone)
-                return jsonify({"status": "ok", "action": f"direct_duration_{duration}"}), 200
-
-            ctx["browse_step"] = "await_room"
-            whatsapp_client.send_text_message(
-                phone,
-                f"Got it, {duration} months. Now pick a room to start browsing.",
-                preview_url=False,
-            )
-            time.sleep(0.3)
-            _send_room_selection(phone)
-            return jsonify({"status": "ok", "action": f"browse_duration_{duration}"}), 200
+            _build_share_item_list_cart(phone, sender_name)
+            return jsonify({"status": "ok", "action": f"share_list_duration_{duration}"}), 200
 
         # ── Room-based browse hierarchy ─────────────────────────────
         elif button_id.startswith("ROOM_"):
@@ -4287,7 +4274,14 @@ Thank you for choosing RentBasket!"""
                     header=BROWSE_FLOW_HEADER,
                 )
             else:
-                _send_room_selection(phone)
+                # Empty cart — send catalogue image and invite them to ask for products
+                whatsapp_client.send_image(
+                    to_phone=phone,
+                    image_url=CATALOGUE_IMAGE_URL,
+                    caption="Here's our full product catalogue. Ask for any product, and we'll share the pricing instantly.",
+                )
+                ctx["browse_step"] = "share_await_items"
+                ctx["share_item_list_flow"] = True
             return jsonify({"status": "ok", "action": "browse_modify_cart"}), 200
 
         elif button_id in ("BROWSE_CUSTOMER_REVIEWS", "CUSTOMER_REVIEWS"):

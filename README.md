@@ -13,7 +13,7 @@ Ku is RentBasket's AI-powered WhatsApp sales & support bot, built on **LangGraph
 |---|---|
 | **Instant Greeting** | Smart welcome with 3 action buttons |
 | **Share Item List** | Type or voice-note your items — Ku builds a cart instantly |
-| **Browse by Room** | Navigate Study → Living → Bedroom → Kitchen with subcategories |
+| **Catalogue-First Browse** | Browse Products sends the catalogue image — ask for any product, Ku prices it instantly |
 | **Voice Note Support** | Whisper transcribes, GPT-4o extracts products (Hindi/English/Hinglish) |
 | **Smart Pricing** | 30% off MRP shown instantly; 10% extra for 12+ month upfront |
 | **Checkout Link** | Personalized cart URL generated with JWT + referral code |
@@ -91,24 +91,26 @@ Each agent has its own LangGraph state machine, tool set, and system prompt.
 
 ## Browse Products Flow
 
+Browse Products is a single-step catalogue handoff: Ku sends the product
+catalogue image and invites the user to ask for any product directly —
+no duration question, no room selection. Free-text or voice-note
+requests are handled by the same GPT-4o extraction pipeline that powers
+Share Item List, so the user goes straight from catalogue to cart.
+
 ```
-[Browse Products Button]
+[Browse Products Button]   (also "Browse More")
      │
      ▼
-RentBasket Catalogue Image  ← NEW in V1.1
+RentBasket Catalogue Image
+  + "Here's our full product catalogue.
+     Ask for any product, and we'll share
+     the pricing instantly."
+     │
+     ▼  (text or voice note: "I need a fridge and a sofa")
+GPT-4o Extraction  →  Firestore: browsed_products[] updated
      │
      ▼
 Select Duration (3 / 6 / 12 months)
-     │
-     ▼
-Select Room
-  ├─ Study Room    (Desk, Chair, Shelf)
-  ├─ Living Room   (Sofas, TVs, Tables, AC)
-  ├─ Bedroom       (Beds, Mattresses, Storage)
-  └─ Kitchen       (Fridge, Washing Machine, Cooking)
-     │
-     ▼
-Select Subcategory → Select Variant
      │
      ▼
 Cart Quote (MRP → 30% off → Savings shown)
@@ -265,6 +267,7 @@ leads/{phone}
   ├─ name, push_name
   ├─ duration_months
   ├─ delivery_location: {pincode, city}
+  ├─ browsed_products: [{product_id, product_name}, ...]   # cumulative, deduped
   ├─ lead_stage: new | browsing | quote_ready | cart_created | converted
   └─ browse_cart_link
 
@@ -287,9 +290,11 @@ analytics/{phone}/events[]
 - Bye/exit detection with farewell message + sales contact
 - 30-minute ghost timer for inactive users
 - 19-hour follow-up re-engagement message
-- RentBasket Catalogue image sent at Browse Products entry
+- Browse Products simplified: catalogue image only, then direct ask-for-any-product cart building (room/subcategory flow removed)
+- Every browsed product (id + name) persisted to Firestore `browsed_products` field, independent of final cart
 - Smart category defaults (TV → 43", Study Chair → Premium, etc.)
-- Room reorder: Study Room first, 1BHK removed from room list
+- Website WhatsApp link greeting ("Hi! I'm interested in your services.") recognised
+- JWT cart-link token signed from configurable secret (`RENTBASKET_JWT_SECRET`)
 
 ### V1.0
 - LangGraph multi-agent architecture (Sales, Recommendation, Support)
