@@ -239,6 +239,8 @@ ngrok http 8000
 | `OPENAI_API_KEY` | Yes | OpenAI API key |
 | `FIREBASE_CONFIG` | Yes | Firebase Admin SDK JSON (as string) |
 | `RENDER_URL` | Yes | Your Render deployment URL |
+| `RENTBASKET_JWT_SECRET` | Yes | Secret key used to sign cart link JWT tokens |
+| `RENTBASKET_JWT` | Yes | Signed JWT generated from the secret above (set on Render) |
 | `PORT` | No | Server port (default: 8000) |
 | `DATABASE_URL` | No | PostgreSQL URL (optional analytics DB) |
 
