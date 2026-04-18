@@ -29,7 +29,36 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 load_dotenv()
 
-from config import BOT_NAME, SALES_PHONE_GURGAON, SALES_PHONE_NOIDA, KU_REFERRAL_LINK, RENTBASKET_JWT
+from config import (
+    BOT_NAME, SALES_PHONE_GURGAON, SALES_PHONE_NOIDA, KU_REFERRAL_LINK, RENTBASKET_JWT,
+    GLOBAL_DISCOUNT, RETAINED_FACTOR, UPFRONT_EXTRA_DISCOUNT, UPFRONT_RETAINED_FACTOR,
+)
+
+# Shorthand percentages for user-facing strings
+_DISCOUNT_PCT = int(round(GLOBAL_DISCOUNT * 100))           # e.g. 30
+_UPFRONT_PCT  = int(round(UPFRONT_EXTRA_DISCOUNT * 100))    # e.g. 10
+
+
+# ── Step progress indicator (V1.3) ───────────────────────────────────
+# Single source of truth for the user-facing 5-step journey.
+#   1. Providing items to build the cart
+#   2. Duration
+#   3. Cart Finalisation
+#   4. Location (Address + 6-digit Pincode)
+#   5. Checkout
+_STEPS_TOTAL = 5
+_STEP_LABELS = {
+    1: "Share items",
+    2: "Duration",
+    3: "Cart Finalisation",
+    4: "Location & Pincode",
+    5: "Checkout",
+}
+
+def _step_header(n: int) -> str:
+    """Return a short markdown line like '*Step 2 of 5 — Duration*' for message prefixes."""
+    label = _STEP_LABELS.get(n, "")
+    return f"*Step {n} of {_STEPS_TOTAL} — {label}*"
 from tools.location_tools import _extract_pincode, _identify_city_from_pincode, _call_distance_api
 from agents.orchestrator import route_and_run
 from agents.state import create_initial_state
@@ -539,7 +568,7 @@ def _send_duration_buttons(phone: str) -> None:
     ]
     whatsapp_client.send_interactive_buttons(
         to_phone=phone,
-        body_text="Your expected rental duration in months (you can always extend the duration):",
+        body_text=f"{_step_header(2)}\n\nYour expected rental duration in months (you can always extend the duration):",
         buttons=buttons,
         header=BROWSE_FLOW_HEADER,
     )
@@ -623,10 +652,11 @@ def _handle_checkout_location(phone: str, text: str, sender_name: str) -> bool:
 
         whatsapp_client.send_text_message(
             phone,
+            f"{_step_header(5)}\n\n"
             f"Pincode {pincode} ({city}) is serviceable.\n"
             f"Delivery from our *{office} Office* — approximately {dist:.1f} km away.\n"
             f"Standard delivery: within 72 hours.\n\n"
-            f"Get an *additional 10% discount* by completing your order through this link:",
+            f"Get an *additional {_UPFRONT_PCT}% discount* by completing your order through this link:",
             preview_url=False,
         )
         time.sleep(0.3)
@@ -770,7 +800,7 @@ def _send_variant_list(phone: str, room_id: str, subcat_id: str) -> None:
     lines = [f"*{subcat_title} — {room_title}*", f"Duration: {duration} months", ""]
     for idx, (pid, name) in enumerate(variants, 1):
         price = calculate_rent(pid, duration) or 0
-        discounted = int(round(price * 0.70)) if price else 0
+        discounted = int(round(price * RETAINED_FACTOR)) if price else 0
         if discounted:
             lines.append(f"{idx}. {name} — from Rs. {discounted:,}/mo")
         else:
@@ -818,7 +848,7 @@ def _handle_1bhk_package_selection(phone: str, package_id: str, sender_name: str
         if not product:
             continue
         mrp = calculate_rent(pid, duration) or 0
-        discounted = int(round(mrp * 0.70)) if mrp else 0
+        discounted = int(round(mrp * RETAINED_FACTOR)) if mrp else 0
         items.append({
             "product_id": pid,
             "product_name": product.get("name", "Product"),
@@ -886,7 +916,7 @@ def _handle_browse_item_selection(phone: str, sender_name: str, product_id: int)
         return True
 
     mrp = calculate_rent(product_id, duration) or 0
-    discounted = int(round(mrp * 0.70)) if mrp else 0
+    discounted = int(round(mrp * RETAINED_FACTOR)) if mrp else 0
     product_name = product.get("name", "Product")
 
     new_item = {
@@ -927,12 +957,12 @@ def _handle_browse_item_selection(phone: str, sender_name: str, product_id: int)
         "",
         f"*{product_name}* | {duration} months",
         f"MRP: Rs. {mrp:,}/mo",
-        f"After 30% discount: Rs. {discounted:,}/mo",
+        f"After {_DISCOUNT_PCT}% discount: Rs. {discounted:,}/mo",
     ]
     if duration >= 12 and discounted:
-        upfront_price = int(round(discounted * 0.90))
+        upfront_price = int(round(discounted * UPFRONT_RETAINED_FACTOR))
         upfront_save = (mrp - upfront_price) * duration
-        pricing_lines.append(f"Pay upfront: Rs. {upfront_price:,}/mo (extra 10% off, save Rs. {upfront_save:,} total)")
+        pricing_lines.append(f"Pay upfront: Rs. {upfront_price:,}/mo (extra {_UPFRONT_PCT}% off, save Rs. {upfront_save:,} total)")
 
     whatsapp_client.send_text_message(phone, "\n".join(pricing_lines), preview_url=False)
     time.sleep(0.4)
@@ -1028,7 +1058,7 @@ def _send_direct_request_options(phone: str) -> None:
         if len(matches) == 1:
             p = matches[0]
             mrp = calculate_rent(p["id"], duration) or 0
-            disc = int(round(mrp * 0.70)) if mrp else 0
+            disc = int(round(mrp * RETAINED_FACTOR)) if mrp else 0
             idx = len(option_list) + 1
             option_list.append((p["id"], p["name"]))
             lines.append(f"{idx}. {p['name']} -- ~Rs. {mrp:,}~ Rs. {disc:,}/mo +GST")
@@ -1036,7 +1066,7 @@ def _send_direct_request_options(phone: str) -> None:
             lines.append(f"*{query_title}:*")
             for p in matches:
                 mrp = calculate_rent(p["id"], duration) or 0
-                disc = int(round(mrp * 0.70)) if mrp else 0
+                disc = int(round(mrp * RETAINED_FACTOR)) if mrp else 0
                 idx = len(option_list) + 1
                 option_list.append((p["id"], p["name"]))
                 lines.append(f"{idx}. {p['name']} -- ~Rs. {mrp:,}~ Rs. {disc:,}/mo +GST")
@@ -1096,7 +1126,7 @@ def _handle_direct_selection(phone: str, text: str, sender_name: str) -> bool:
         if not product:
             continue
         mrp = calculate_rent(pid, duration) or 0
-        discounted = int(round(mrp * 0.70)) if mrp else 0
+        discounted = int(round(mrp * RETAINED_FACTOR)) if mrp else 0
         items.append({
             "product_id": pid,
             "product_name": product.get("name", pname),
@@ -1220,6 +1250,7 @@ def _handle_share_item_list_button(phone: str) -> None:
     whatsapp_client.send_text_message(
         phone,
         (
+            f"{_step_header(1)}\n\n"
             "Please share the items you're looking for.\n\n"
             "*Example* : 2x Double Beds, 1x Washing Machine, 1x 5 Seater Sofa\n\n"
             "You can also send a voice note.\n"
@@ -1312,7 +1343,7 @@ def _handle_share_item_list_input(phone: str, sender_name: str, text: str) -> bo
         ]
         whatsapp_client.send_interactive_buttons(
             to_phone=phone,
-            body_text="Your expected rental duration in months (you can always extend the duration):",
+            body_text=f"{_step_header(2)}\n\nYour expected rental duration in months (you can always extend the duration):",
             buttons=buttons,
             header="Share Item List",
         )
@@ -1343,7 +1374,7 @@ def _build_share_item_list_cart(phone: str, sender_name: str) -> None:
         if not product:
             continue
         mrp = calculate_rent(pid, duration) or 0
-        discounted = int(round(mrp * 0.70)) if mrp else 0
+        discounted = int(round(mrp * RETAINED_FACTOR)) if mrp else 0
         cart_items.append({
             "product_id": pid,
             "product_name": product.get("name", it["product_name"]),
@@ -1373,7 +1404,7 @@ def _build_share_item_list_cart(phone: str, sender_name: str) -> None:
 
     # Save quote in context (same structure as Browse Products)
     original_monthly = sum(int(it.get("original_rent", 0)) * int(it.get("qty", 1)) for it in cart_items)
-    discounted_monthly = int(round(original_monthly * 0.70))
+    discounted_monthly = int(round(original_monthly * RETAINED_FACTOR))
     savings_total = max(0, (original_monthly - discounted_monthly) * duration)
 
     ctx["last_browse_quote"] = {
@@ -1497,7 +1528,7 @@ def _apply_browse_cart_modification(phone: str, text: str, sender_name: str) -> 
             item["duration"] = duration
             mrp = calculate_rent(item["product_id"], duration) or int(item.get("original_rent") or 0)
             item["original_rent"] = mrp
-            item["rent"] = int(round(mrp * 0.70)) if mrp else 0
+            item["rent"] = int(round(mrp * RETAINED_FACTOR)) if mrp else 0
 
         existing_pids = {it.get("product_id") for it in items if it.get("product_id")}
         for item in matched_new:
@@ -1578,7 +1609,7 @@ def _format_browse_estimate(items: List[dict], duration: int) -> Tuple[str, int,
     original_monthly = 0
     for item in matched_items:
         original_monthly += int(item.get("original_rent") or item.get("rent") or 0) * int(item.get("qty", 1))
-    discounted_monthly = int(round(original_monthly * 0.70))
+    discounted_monthly = int(round(original_monthly * RETAINED_FACTOR))
     savings_total = max(0, (original_monthly - discounted_monthly) * int(duration))
 
     if original_monthly == 0:
@@ -1589,12 +1620,12 @@ def _format_browse_estimate(items: List[dict], duration: int) -> Tuple[str, int,
         return message, 0, 0, 0
 
     # Per-item breakdown
-    lines = [f"*Your Cart - {duration} Month Rental*", ""]
+    lines = [_step_header(3), "", f"*Your Cart - {duration} Month Rental*", ""]
     for item in matched_items:
         name = item.get("product_name") or item.get("name") or "Product"
         qty = int(item.get("qty", 1))
         per_unit_mrp = int(item.get("original_rent") or item.get("rent") or 0)
-        per_unit_disc = int(round(per_unit_mrp * 0.70)) if per_unit_mrp else 0
+        per_unit_disc = int(round(per_unit_mrp * RETAINED_FACTOR)) if per_unit_mrp else 0
         if qty > 1:
             line_total = per_unit_disc * qty
             lines.append(f"- {name} x{qty}:  Rs. {per_unit_disc:,} x {qty} = Rs. {line_total:,}/mo")
@@ -1608,9 +1639,9 @@ def _format_browse_estimate(items: List[dict], duration: int) -> Tuple[str, int,
 
     # Upfront option for 12+ month rentals
     if duration >= 12:
-        upfront_monthly = int(round(discounted_monthly * 0.90))
+        upfront_monthly = int(round(discounted_monthly * UPFRONT_RETAINED_FACTOR))
         upfront_total_saving = max(0, (original_monthly - upfront_monthly) * int(duration))
-        lines.append(f"\nPay upfront: Rs. {upfront_monthly:,}/mo  (extra 10% off — save Rs. {upfront_total_saving:,} total)")
+        lines.append(f"\nPay upfront: Rs. {upfront_monthly:,}/mo  (extra {_UPFRONT_PCT}% off — save Rs. {upfront_total_saving:,} total)")
 
     message = "\n".join(lines)
     return message, original_monthly, discounted_monthly, savings_total
@@ -1701,6 +1732,8 @@ def _send_browse_full_details(phone: str, sender_name: str) -> bool:
     sep = "\u2501" * 20  # ━━━━━━━━━━━━━━━━━━━━
 
     lines = [
+        _step_header(3),
+        "",
         "Here are the details for your selected items:",
         "",
         "*Order Confirmation*",
@@ -1717,7 +1750,7 @@ def _send_browse_full_details(phone: str, sender_name: str) -> bool:
         product_name = item.get("product_name") or item.get("name") or "Product"
         qty = int(item.get("qty", 1))
         per_unit_mrp = int(item.get("original_rent") or item.get("rent") or 0)
-        per_unit_disc = int(item.get("rent") or int(round(per_unit_mrp * 0.70)) if per_unit_mrp else 0)
+        per_unit_disc = int(item.get("rent") or int(round(per_unit_mrp * RETAINED_FACTOR)) if per_unit_mrp else 0)
         line_rent = per_unit_disc * qty
         line_mrp = per_unit_mrp * qty
         total_rent += line_rent
@@ -1820,7 +1853,7 @@ def _handle_browse_products_text(phone: str, sender_name: str, text: str, messag
             ]
             whatsapp_client.send_interactive_buttons(
                 to_phone=phone,
-                body_text="Your expected rental duration in months (you can always extend the duration):",
+                body_text=f"{_step_header(2)}\n\nYour expected rental duration in months (you can always extend the duration):",
                 buttons=buttons,
                 header="Share Item List",
             )
@@ -1936,7 +1969,7 @@ def _handle_browse_products_text(phone: str, sender_name: str, text: str, messag
                 original_rent = calculate_rent(item["product_id"], duration) or int(item.get("original_rent") or item.get("rent") or 0)
                 item["duration"] = duration
                 item["original_rent"] = original_rent
-                item["rent"] = int(round(original_rent * 0.70)) if original_rent else 0
+                item["rent"] = int(round(original_rent * RETAINED_FACTOR)) if original_rent else 0
                 if isinstance(product, dict):
                     item["product_name"] = product.get("name") or item.get("product_name")
 
@@ -2827,7 +2860,7 @@ def _handle_share_item_list_input_llm(phone: str, sender_name: str, text: str) -
             ]
             whatsapp_client.send_interactive_buttons(
                 to_phone=phone,
-                body_text="Your expected rental duration in months (you can always extend the duration):",
+                body_text=f"{_step_header(2)}\n\nYour expected rental duration in months (you can always extend the duration):",
                 buttons=buttons,
                 header="Share Item List",
             )
@@ -2847,7 +2880,7 @@ def _send_browse_more_preview(phone: str, items: list) -> None:
     adding them to the existing Draft Cart.
     """
     PREVIEW_DURATION = 12
-    UPFRONT_DISCOUNT = 0.90  # extra 10% off for 12m+ upfront
+    UPFRONT_DISCOUNT = UPFRONT_RETAINED_FACTOR  # extra 10% off for 12m+ upfront
 
     lines = ["*Great choice! Here's the Max Savings price (12-month upfront):*", ""]
     any_priced = False
@@ -2863,7 +2896,7 @@ def _send_browse_more_preview(phone: str, items: list) -> None:
         if not mrp:
             lines.append(f"- {qty}x {name}  (pricing on confirmation)")
             continue
-        discounted = int(round(mrp * 0.70))           # 30% off MRP
+        discounted = int(round(mrp * RETAINED_FACTOR))           # 30% off MRP
         upfront = int(round(discounted * UPFRONT_DISCOUNT))  # extra 10% off upfront
         line_total = upfront * qty
         any_priced = True
@@ -2936,7 +2969,7 @@ def _merge_browse_more_into_cart(phone: str, sender_name: str) -> None:
             mrp = calculate_rent(pid, duration) or 0
         except Exception:
             mrp = 0
-        discounted = int(round(mrp * 0.70)) if mrp else 0
+        discounted = int(round(mrp * RETAINED_FACTOR)) if mrp else 0
         name = (product or {}).get("name") or it.get("product_name") or "Product"
         existing_items.append({
             "product_id": pid,
@@ -2967,7 +3000,7 @@ def _merge_browse_more_into_cart(phone: str, sender_name: str) -> None:
     # Recompute totals + cart link, re-render the draft cart view
     matched_items = [it for it in existing_items if it.get("matched", True) and it.get("product_id")]
     original_monthly = sum(int(it.get("original_rent") or 0) * int(it.get("qty", 1)) for it in matched_items)
-    discounted_monthly = int(round(original_monthly * 0.70))
+    discounted_monthly = int(round(original_monthly * RETAINED_FACTOR))
     savings_total = max(0, (original_monthly - discounted_monthly) * duration)
     cart_link = _build_browse_cart_link(matched_items, duration)
 
@@ -4349,7 +4382,7 @@ Thank you for choosing RentBasket!"""
             whatsapp_client.send_image(
                 to_phone=phone,
                 image_url=CATALOGUE_IMAGE_URL,
-                caption="Here's our full product catalogue. Ask for any product, and we'll share the pricing instantly.",
+                caption=f"{_step_header(1)}\n\nHere's our full product catalogue. Ask for any product, and we'll share the pricing instantly.",
             )
             time.sleep(0.4)
 
@@ -4476,6 +4509,7 @@ Thank you for choosing RentBasket!"""
                 return jsonify({"status": "ok", "action": "browse_checkout_empty"}), 200
             whatsapp_client.send_text_message(
                 phone,
+                f"{_step_header(4)}\n\n"
                 "Great, let us check if we can deliver to your location.\n\n"
                 "Please share your delivery location and make sure to include the *pincode (6-digit number)*.\n\n"
                 "Example: Sector 52, Gurugram 122003",
@@ -4525,7 +4559,7 @@ Thank you for choosing RentBasket!"""
                 whatsapp_client.send_image(
                     to_phone=phone,
                     image_url=CATALOGUE_IMAGE_URL,
-                    caption="Here's our full product catalogue. Ask for any product, and we'll share the pricing instantly.",
+                    caption=f"{_step_header(1)}\n\nHere's our full product catalogue. Ask for any product, and we'll share the pricing instantly.",
                 )
                 ctx["browse_step"] = "share_await_items"
                 ctx["share_item_list_flow"] = True

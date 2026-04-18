@@ -18,6 +18,19 @@ WHATSAPP_VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "12345")
 WHATSAPP_VERSION = os.getenv("VERSION", "v23.0")
 
 # ========================================
+# PRICING / DISCOUNTS (single source of truth)
+# ========================================
+# V1.3: global promo discount applied to MRP across the whole bot.
+# Changing this value updates every price display, cart total, preview,
+# and detail view automatically — do NOT hardcode 0.30 / 0.70 elsewhere.
+GLOBAL_DISCOUNT = 0.30               # 30% off MRP
+RETAINED_FACTOR = 1 - GLOBAL_DISCOUNT  # 0.70 — what the customer pays vs MRP
+
+# Extra loyalty discount for 12-month upfront payment
+UPFRONT_EXTRA_DISCOUNT = 0.10
+UPFRONT_RETAINED_FACTOR = 1 - UPFRONT_EXTRA_DISCOUNT  # 0.90
+
+# ========================================
 # MODEL CONFIGURATION
 # ========================================
 LLM_MODEL = "gpt-4o-mini"

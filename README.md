@@ -1,6 +1,6 @@
 # RentBasket WhatsApp Bot — Ku
 
-**Version: V1.2** | Production-Ready AI Rental Assistant
+**Version: V1.3** | Production-Ready AI Rental Assistant
 
 Ku is RentBasket's AI-powered WhatsApp sales & support bot, built on **LangGraph + GPT-4o + WhatsApp Cloud API**. Customers can browse furniture and appliance rentals, get instant pricing, share item lists via text or voice note, and complete checkout — entirely within WhatsApp.
 
@@ -285,7 +285,12 @@ analytics/{phone}/events[]
 
 ## Feature Changelog
 
-### V1.2 (Current)
+### V1.3 (Current)
+- **5-step progress indicator** on every user-facing checkpoint: Step 1 Share items → Step 2 Duration → Step 3 Cart Finalisation → Step 4 Location & Pincode → Step 5 Checkout
+- **`GLOBAL_DISCOUNT` single source of truth** in `config.py` (set to 30%) — every price display, cart total, preview, and detail view now derives from this one constant; no more hardcoded `0.70`/`0.30`/`"30%"` scattered across the code
+- `UPFRONT_EXTRA_DISCOUNT` (10% for 12-month upfront) also centralized as a config constant
+
+### V1.2
 - Browse More preserves the existing Draft Cart — new items are never replaced
 - Browse More sub-flow shows a 12-month-upfront (Max Savings) price preview and asks the user to confirm before merging
 - Duration is inherited from the existing Draft Cart on Browse More (no re-asking)
