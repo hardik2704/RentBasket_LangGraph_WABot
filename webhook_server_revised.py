@@ -564,14 +564,29 @@ def _handle_checkout_location(phone: str, text: str, sender_name: str) -> bool:
     city = _identify_city_from_pincode(pincode)
     distances = _call_distance_api(pincode)
 
+    # V1.2: Pincode-prefix fallback when the distance API is unavailable.
+    # Every 122XXX pincode is inside Gurgaon and every 201XXX pincode is
+    # inside Noida — both well inside our standard delivery range — so we
+    # can safely mark them serviceable without the API distance value.
     if distances is None:
-        whatsapp_client.send_text_message(
-            phone,
-            f"Could not verify serviceability for pincode {pincode} right now. Please try again or contact our sales team:\n"
-            f"Gurgaon: {SALES_PHONE_GURGAON}\nNoida: {SALES_PHONE_NOIDA}",
-            preview_url=False,
-        )
-        return True
+        if pincode.startswith("122"):
+            distances = {"gurgaon_km": 10.0, "noida_km": 999.0,
+                         "gurgaon_max_km": 20.0, "noida_max_km": 20.0}
+            print(f"   [ServiceabilityAPI] fallback: pin {pincode} -> Gurgaon (prefix 122)")
+        elif pincode.startswith("201"):
+            distances = {"gurgaon_km": 999.0, "noida_km": 10.0,
+                         "gurgaon_max_km": 20.0, "noida_max_km": 20.0}
+            print(f"   [ServiceabilityAPI] fallback: pin {pincode} -> Noida (prefix 201)")
+        else:
+            whatsapp_client.send_text_message(
+                phone,
+                f"Could not verify serviceability for pincode {pincode} right now. "
+                f"We currently serve Gurgaon (122xxx) and Noida (201xxx). "
+                f"Please try again or contact our sales team:\n"
+                f"Gurgaon: {SALES_PHONE_GURGAON}\nNoida: {SALES_PHONE_NOIDA}",
+                preview_url=False,
+            )
+            return True
 
     gurgaon_km = distances["gurgaon_km"]
     noida_km = distances["noida_km"]
@@ -2773,13 +2788,23 @@ def _handle_share_item_list_input_llm(phone: str, sender_name: str, text: str) -
     llm_items = extract_items_with_llm(text)
 
     if llm_items:
-        # Save LLM-resolved items in context for after duration selection
-        ctx["share_resolved_items"] = llm_items
-        ctx["share_unmatched"] = []
-
         # Persist every browsed product (id + name) to Firestore — accumulates
         # across the user's lifetime, independent of what reaches the final cart
         _save_browsed_products(normalize_phone(phone), llm_items)
+
+        # V1.2: If this is a "Browse More" sub-flow (a draft cart already
+        # exists), show a 12-month upfront-discount preview and ask the
+        # user to confirm adding these items to the existing draft cart —
+        # do NOT re-ask duration, do NOT overwrite the existing cart.
+        if ctx.get("browse_more_flow"):
+            ctx["browse_more_pending_items"] = llm_items
+            ctx["browse_step"] = "browse_more_await_confirm"
+            _send_browse_more_preview(phone, llm_items)
+            return True
+
+        # First-time Share Item List flow (no existing cart): ask duration as usual
+        ctx["share_resolved_items"] = llm_items
+        ctx["share_unmatched"] = []
 
         # Check if duration was mentioned in the text
         duration_from_text = extract_duration(text, None)
@@ -2811,6 +2836,178 @@ def _handle_share_item_list_input_llm(phone: str, sender_name: str, text: str) -
     # Step 2: Fallback to original regex-based parser
     print(f"   LLM extraction returned nothing, falling back to regex parser")
     return _handle_share_item_list_input(phone, sender_name, text)
+
+
+# ── Browse More sub-flow (V1.2) ──────────────────────────────────────
+
+def _send_browse_more_preview(phone: str, items: list) -> None:
+    """
+    Show the newly-requested items at their BEST price
+    (12-month upfront, 10% extra off) and ask the user to confirm
+    adding them to the existing Draft Cart.
+    """
+    PREVIEW_DURATION = 12
+    UPFRONT_DISCOUNT = 0.90  # extra 10% off for 12m+ upfront
+
+    lines = ["*Great choice! Here's the Max Savings price (12-month upfront):*", ""]
+    any_priced = False
+    for it in items:
+        pid = it.get("product_id")
+        qty = int(it.get("qty", 1))
+        name = it.get("product_name") or "Product"
+        mrp = 0
+        try:
+            mrp = calculate_rent(pid, PREVIEW_DURATION) or 0
+        except Exception:
+            mrp = 0
+        if not mrp:
+            lines.append(f"- {qty}x {name}  (pricing on confirmation)")
+            continue
+        discounted = int(round(mrp * 0.70))           # 30% off MRP
+        upfront = int(round(discounted * UPFRONT_DISCOUNT))  # extra 10% off upfront
+        line_total = upfront * qty
+        any_priced = True
+        if qty > 1:
+            lines.append(f"- {name} x{qty}:  Rs. {upfront:,} x {qty} = Rs. {line_total:,}/mo  (was Rs. {mrp:,})")
+        else:
+            lines.append(f"- {name}:  Rs. {upfront:,}/mo  (was Rs. {mrp:,})")
+
+    if any_priced:
+        lines.append("")
+        lines.append("_Shown at 12-month upfront rate — the maximum savings._")
+
+    whatsapp_client.send_text_message(phone, "\n".join(lines), preview_url=False)
+    time.sleep(0.3)
+
+    buttons = [
+        {"id": "BROWSE_MORE_ADD_YES", "title": "Add to Draft Cart"},
+        {"id": "BROWSE_MORE_ADD_NO",  "title": "Not Now"},
+    ]
+    whatsapp_client.send_interactive_buttons(
+        to_phone=phone,
+        body_text="Would you like to add these to your Draft Cart?",
+        buttons=buttons,
+        header="Add to Cart?",
+    )
+
+
+def _merge_browse_more_into_cart(phone: str, sender_name: str) -> None:
+    """
+    User confirmed — merge the pending items into the existing draft cart
+    using the EXISTING cart's duration, dedupe by product_id (increment qty
+    on duplicates), and re-render the cart with the standard action buttons.
+    """
+    ctx = _browse_context(phone)
+    pending = ctx.get("browse_more_pending_items") or []
+    existing_quote = ctx.get("last_browse_quote") or {}
+    existing_items = list(existing_quote.get("items") or [])
+    duration = int(existing_quote.get("duration") or ctx.get("browse_duration") or 12)
+
+    if not pending or not existing_items:
+        # Fallback — treat like a fresh Share Item List cart
+        ctx["share_resolved_items"] = pending
+        ctx["share_unmatched"] = []
+        ctx["browse_duration"] = duration
+        _build_share_item_list_cart(phone, sender_name)
+        return
+
+    existing_ids = {it.get("product_id") for it in existing_items if it.get("product_id")}
+
+    added_names = []
+    for it in pending:
+        pid = it.get("product_id")
+        qty = int(it.get("qty", 1))
+        if pid is None:
+            continue
+        if pid in existing_ids:
+            for ex in existing_items:
+                if ex.get("product_id") == pid:
+                    ex["qty"] = int(ex.get("qty", 1)) + qty
+                    added_names.append(f"{qty}x {ex.get('product_name') or it.get('product_name')}")
+                    break
+            continue
+        product = None
+        try:
+            product = get_product_by_id(pid)
+        except Exception:
+            product = None
+        mrp = 0
+        try:
+            mrp = calculate_rent(pid, duration) or 0
+        except Exception:
+            mrp = 0
+        discounted = int(round(mrp * 0.70)) if mrp else 0
+        name = (product or {}).get("name") or it.get("product_name") or "Product"
+        existing_items.append({
+            "product_id": pid,
+            "product_name": name,
+            "name": name,
+            "qty": qty,
+            "original_rent": mrp,
+            "rent": discounted,
+            "duration": duration,
+            "matched": True,
+        })
+        existing_ids.add(pid)
+        added_names.append(f"{qty}x {name}")
+
+    # Clear pending + browse-more flag
+    ctx.pop("browse_more_pending_items", None)
+    ctx.pop("browse_more_flow", None)
+    ctx["browse_step"] = "quote_ready"
+
+    if added_names:
+        whatsapp_client.send_text_message(
+            phone,
+            f"Added to your cart: {', '.join(added_names)}.",
+            preview_url=False,
+        )
+        time.sleep(0.3)
+
+    # Recompute totals + cart link, re-render the draft cart view
+    matched_items = [it for it in existing_items if it.get("matched", True) and it.get("product_id")]
+    original_monthly = sum(int(it.get("original_rent") or 0) * int(it.get("qty", 1)) for it in matched_items)
+    discounted_monthly = int(round(original_monthly * 0.70))
+    savings_total = max(0, (original_monthly - discounted_monthly) * duration)
+    cart_link = _build_browse_cart_link(matched_items, duration)
+
+    ctx["last_browse_quote"] = {
+        "items": matched_items,
+        "duration": duration,
+        "original_monthly": original_monthly,
+        "discounted_monthly": discounted_monthly,
+        "savings_total": savings_total,
+        "cart_link": cart_link,
+        "source_text": ", ".join(it.get("product_name") or "" for it in matched_items),
+    }
+
+    _save_browse_lead_data(normalize_phone(phone), {
+        "duration_months": duration,
+        "browse_requested_items": ", ".join(
+            f"{int(it.get('qty', 1))}x {it.get('product_name') or ''}" for it in matched_items
+        ),
+        "browse_quote_original_monthly": original_monthly,
+        "browse_quote_discounted_monthly": discounted_monthly,
+        "browse_quote_savings_total": savings_total,
+        "browse_cart_link": cart_link,
+        "lead_stage": "browse_more_merged",
+    })
+
+    quote_text, _, _, _ = _format_browse_estimate(matched_items, duration)
+    whatsapp_client.send_text_message(phone, quote_text, preview_url=False)
+    time.sleep(0.4)
+
+    buttons = [
+        {"id": "BROWSE_SHOW_DETAILS", "title": "View Cart"},
+        {"id": "BROWSE_PRODUCTS", "title": "Browse More"},
+        {"id": "BROWSE_CUSTOMER_REVIEWS", "title": "Reviews"},
+    ]
+    whatsapp_client.send_interactive_buttons(
+        to_phone=phone,
+        body_text="What would you like to do next?",
+        buttons=buttons,
+        header="Your Draft Cart",
+    )
 
 
 # ---------------------------
@@ -4134,25 +4331,45 @@ Thank you for choosing RentBasket!"""
             return jsonify({"status": "ok", "action": "share_item_list_started"}), 200
 
         elif button_id == "BROWSE_PRODUCTS":
-            # V1.1: Browse Products (and "Browse More") only sends the catalogue image,
-            # then invites the user to ask for any product. Free-text/voice goes straight
-            # into the LLM-powered cart builder (share-item-list flow) — no duration
-            # question, no room selection.
+            # V1.1: Browse Products (and "Browse More") sends the catalogue image
+            # then invites the user to ask for any product. Free-text/voice goes
+            # straight into the LLM-powered cart builder — no duration question,
+            # no room selection.
+            #
+            # V1.2: If a draft cart already exists (user tapped "Browse More"
+            # from the cart view), we enter a NEW "browse-more" sub-flow:
+            #   - Preserve the existing cart and its duration
+            #   - After the user asks for a product, show a preview at
+            #     12-month upfront-discount pricing (Max Savings)
+            #   - Ask the user to confirm before merging into the draft cart
+            ctx = _browse_context(phone)
+            existing_quote = ctx.get("last_browse_quote") or {}
+            has_existing_cart = bool(existing_quote.get("items"))
+
             whatsapp_client.send_image(
                 to_phone=phone,
                 image_url=CATALOGUE_IMAGE_URL,
                 caption="Here's our full product catalogue. Ask for any product, and we'll share the pricing instantly.",
             )
             time.sleep(0.4)
+
             ctx = _set_browse_context(phone, browse_mode=True, browse_step="share_await_items")
             ctx["share_item_list_flow"] = True
-            # Wipe any stale room/subcategory/direct-request state from earlier sessions
+            # Wipe stale room/subcategory/direct-request state
             for _k in ("browse_room", "browse_subcategory", "browse_variant_list",
                        "direct_request", "direct_segments", "direct_option_list",
-                       "browse_modify_mode"):
+                       "browse_modify_mode", "browse_more_pending_items"):
                 ctx.pop(_k, None)
+
+            if has_existing_cart:
+                ctx["browse_more_flow"] = True
+                stage = "browse_more_catalogue_sent"
+            else:
+                ctx.pop("browse_more_flow", None)
+                stage = "browse_catalogue_sent"
+
             normalized = normalize_phone(phone)
-            _save_browse_lead_data(normalized, {"lead_stage": "browse_catalogue_sent"})
+            _save_browse_lead_data(normalized, {"lead_stage": stage})
             return jsonify({"status": "ok", "action": "browse_products_catalogue_sent"}), 200
 
         elif button_id in ("BROWSE_DUR_3", "BROWSE_DUR_6", "BROWSE_DUR_12"):
@@ -4166,6 +4383,36 @@ Thank you for choosing RentBasket!"""
             _save_browse_lead_data(normalize_phone(phone), {"duration_months": duration, "lead_stage": "browse_duration_set"})
             _build_share_item_list_cart(phone, sender_name)
             return jsonify({"status": "ok", "action": f"share_list_duration_{duration}"}), 200
+
+        # V1.2: Browse-More confirm/reject buttons — merge (or discard)
+        # pending items into the existing draft cart. No duration re-ask.
+        elif button_id == "BROWSE_MORE_ADD_YES":
+            _merge_browse_more_into_cart(phone, sender_name)
+            return jsonify({"status": "ok", "action": "browse_more_merged"}), 200
+
+        elif button_id == "BROWSE_MORE_ADD_NO":
+            ctx = _browse_context(phone)
+            ctx.pop("browse_more_pending_items", None)
+            ctx.pop("browse_more_flow", None)
+            ctx["browse_step"] = "quote_ready"
+            whatsapp_client.send_text_message(
+                phone,
+                "No problem — your Draft Cart is unchanged.",
+                preview_url=False,
+            )
+            time.sleep(0.3)
+            buttons = [
+                {"id": "BROWSE_SHOW_DETAILS", "title": "View Cart"},
+                {"id": "BROWSE_PRODUCTS", "title": "Browse More"},
+                {"id": "BROWSE_CUSTOMER_REVIEWS", "title": "Reviews"},
+            ]
+            whatsapp_client.send_interactive_buttons(
+                to_phone=phone,
+                body_text="What would you like to do next?",
+                buttons=buttons,
+                header="Your Draft Cart",
+            )
+            return jsonify({"status": "ok", "action": "browse_more_discarded"}), 200
 
         # ── Room-based browse hierarchy ─────────────────────────────
         elif button_id.startswith("ROOM_"):

@@ -16,10 +16,19 @@ from config import (
     MAX_SERVICEABLE_DISTANCE_KM,
 )
 
-# JWT for RentBasket API authentication
-_RENTBASKET_JWT = os.environ.get(
-    "RENTBASKET_JWT",
-    "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3NzUwNjExMDQsImV4cCI6MTE3NzUwNjExMDQsImRhdGEiOnsiaWQiOjEsImVtYWlsIjoidmlqYXltYWhlbkBnbWFpbC5jb20ifX0.WZBiCCK6R0MmubatJWpLerv5GXSSmFHC5-IjZw7jE4M",
+# V1.2: The RentBasket backend API is authenticated with a JWT that was
+# issued by RentBasket itself. This JWT is INDEPENDENT of the self-signed
+# cart-link JWT (which uses RENTBASKET_JWT_SECRET). Keep them separate so
+# rotating one never breaks the other.
+#
+# Precedence:
+#   1. RENTBASKET_API_JWT  (preferred, new env var)
+#   2. RENTBASKET_JWT      (legacy env var, back-compat)
+#   3. Hardcoded original  (last-resort fallback)
+_RENTBASKET_API_JWT = (
+    os.environ.get("RENTBASKET_API_JWT")
+    or os.environ.get("RENTBASKET_JWT")
+    or "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3NzUwNjExMDQsImV4cCI6MTE3NzUwNjExMDQsImRhdGEiOnsiaWQiOjEsImVtYWlsIjoidmlqYXltYWhlbkBnbWFpbC5jb20ifX0.WZBiCCK6R0MmubatJWpLerv5GXSSmFHC5-IjZw7jE4M"
 )
 
 
@@ -27,7 +36,7 @@ def _api_auth_headers() -> dict:
     """Auth headers for RentBasket API using JWT Bearer token."""
     return {
         "Accept": "application/json",
-        "Authorization": f"Bearer {_RENTBASKET_JWT}",
+        "Authorization": f"Bearer {_RENTBASKET_API_JWT}",
     }
 
 

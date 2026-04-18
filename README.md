@@ -1,6 +1,6 @@
 # RentBasket WhatsApp Bot — Ku
 
-**Version: V1.1** | Production-Ready AI Rental Assistant
+**Version: V1.2** | Production-Ready AI Rental Assistant
 
 Ku is RentBasket's AI-powered WhatsApp sales & support bot, built on **LangGraph + GPT-4o + WhatsApp Cloud API**. Customers can browse furniture and appliance rentals, get instant pricing, share item lists via text or voice note, and complete checkout — entirely within WhatsApp.
 
@@ -243,6 +243,7 @@ ngrok http 8000
 | `RENDER_URL` | Yes | Your Render deployment URL |
 | `RENTBASKET_JWT_SECRET` | Yes | Secret key used to sign cart link JWT tokens |
 | `RENTBASKET_JWT` | Yes | Signed JWT generated from the secret above (set on Render) |
+| `RENTBASKET_API_JWT` | Yes | JWT used to authenticate with the RentBasket backend API (distance / serviceability). Separate from the cart-link JWT. |
 | `PORT` | No | Server port (default: 8000) |
 | `DATABASE_URL` | No | PostgreSQL URL (optional analytics DB) |
 
@@ -284,7 +285,15 @@ analytics/{phone}/events[]
 
 ## Feature Changelog
 
-### V1.1 (Current)
+### V1.2 (Current)
+- Browse More preserves the existing Draft Cart — new items are never replaced
+- Browse More sub-flow shows a 12-month-upfront (Max Savings) price preview and asks the user to confirm before merging
+- Duration is inherited from the existing Draft Cart on Browse More (no re-asking)
+- Added `BROWSE_MORE_ADD_YES` / `BROWSE_MORE_ADD_NO` confirm buttons
+- Serviceability: split API-auth JWT from cart-link JWT — new `RENTBASKET_API_JWT` env var (falls back to `RENTBASKET_JWT`, then original hardcoded token)
+- Serviceability fallback: pincode-prefix routing (122xxx → Gurgaon, 201xxx → Noida) when the distance API is unavailable, so a transient API blip no longer blocks a serviceable customer
+
+### V1.1
 - Share Item List button added as primary greeting action
 - GPT-4o powered voice/text item extraction (Hindi/Hinglish/English)
 - Bye/exit detection with farewell message + sales contact
