@@ -58,7 +58,7 @@ _STEP_LABELS = {
 def _step_header(n: int) -> str:
     """Return a short markdown line like '*Step 2 of 5 — Duration*' for message prefixes."""
     label = _STEP_LABELS.get(n, "")
-    return f"*Step {n} of {_STEPS_TOTAL} — {label}*"
+    return f"*Step {n} of {_STEPS_TOTAL}: {label}*"
 from tools.location_tools import _extract_pincode, _identify_city_from_pincode, _call_distance_api
 from agents.orchestrator import route_and_run
 from agents.state import create_initial_state
@@ -1345,7 +1345,7 @@ def _handle_share_item_list_input(phone: str, sender_name: str, text: str) -> bo
             to_phone=phone,
             body_text=f"{_step_header(2)}\n\nYour expected rental duration in months (you can always extend the duration):",
             buttons=buttons,
-            header="Share Item List",
+            header="Duration",
         )
 
     return True
@@ -1855,7 +1855,7 @@ def _handle_browse_products_text(phone: str, sender_name: str, text: str, messag
                 to_phone=phone,
                 body_text=f"{_step_header(2)}\n\nYour expected rental duration in months (you can always extend the duration):",
                 buttons=buttons,
-                header="Share Item List",
+                header="Duration",
             )
             return True
         ctx["browse_duration"] = duration
@@ -2862,7 +2862,7 @@ def _handle_share_item_list_input_llm(phone: str, sender_name: str, text: str) -
                 to_phone=phone,
                 body_text=f"{_step_header(2)}\n\nYour expected rental duration in months (you can always extend the duration):",
                 buttons=buttons,
-                header="Share Item List",
+                header="Duration",
             )
         return True
 
