@@ -654,7 +654,7 @@ def _handle_checkout_location(phone: str, text: str, sender_name: str) -> bool:
             phone,
             f"{_step_header(5)}\n\n"
             f"Pincode {pincode} ({city}) is serviceable.\n"
-            f"Delivery from our *{office} Office* — approximately {dist:.1f} km away.\n"
+            f"Delivery from our *{office} Office* - approximately {dist:.1f} km away.\n"
             f"Standard delivery: within 72 hours.\n\n"
             f"Get an *additional {_UPFRONT_PCT}% discount* by completing your order through this link:",
             preview_url=False,
@@ -670,16 +670,15 @@ def _handle_checkout_location(phone: str, text: str, sender_name: str) -> bool:
         whatsapp_client.send_text_message(
             phone,
             f"Sorry, pincode {pincode} ({city}) is outside our delivery range.\n\n"
-            f"Nearest office: *{closer_office}* — approximately {closer_km:.1f} km away.\n"
+            f"Nearest office: *{closer_office}* - approximately {closer_km:.1f} km away.\n"
             f"We currently serve within 20 km of our Gurgaon and Noida offices.\n\n"
             f"For special arrangements, contact:\n"
             f"Gurgaon: {SALES_PHONE_GURGAON}\nNoida: {SALES_PHONE_NOIDA}",
             preview_url=False,
         )
-        # Let them modify or browse more
+        # Let them browse more
         time.sleep(0.3)
         buttons = [
-            {"id": "BROWSE_MODIFY_CART", "title": "Modify Cart"},
             {"id": "BROWSE_PRODUCTS", "title": "Browse More"},
         ]
         whatsapp_client.send_interactive_buttons(
@@ -1439,8 +1438,7 @@ def _build_share_item_list_cart(phone: str, sender_name: str) -> None:
 
     # 3 action buttons (same as Browse Products quote)
     buttons = [
-        {"id": "BROWSE_SHOW_DETAILS", "title": "View Cart"},
-        {"id": "BROWSE_PRODUCTS", "title": "Browse More"},
+        {"id": "BROWSE_CHECKOUT", "title": "Checkout"},
         {"id": "BROWSE_CUSTOMER_REVIEWS", "title": "Reviews"},
     ]
     whatsapp_client.send_interactive_buttons(
@@ -1620,7 +1618,7 @@ def _format_browse_estimate(items: List[dict], duration: int) -> Tuple[str, int,
         return message, 0, 0, 0
 
     # Per-item breakdown
-    lines = [_step_header(3), "", f"*Your Cart - {duration} Month Rental*", ""]
+    lines = [_step_header(3), "", f"*Your Draft Cart: {duration} Month Rental*", ""]
     for item in matched_items:
         name = item.get("product_name") or item.get("name") or "Product"
         qty = int(item.get("qty", 1))
@@ -1704,8 +1702,7 @@ def _send_browse_quote(phone: str, sender_name: str, source_text: str, items: Li
     time.sleep(0.4)
 
     buttons = [
-        {"id": "BROWSE_SHOW_DETAILS", "title": "View Cart"},
-        {"id": "BROWSE_PRODUCTS", "title": "Browse More"},
+        {"id": "BROWSE_CHECKOUT", "title": "Checkout"},
         {"id": "BROWSE_CUSTOMER_REVIEWS", "title": "Reviews"},
     ]
     whatsapp_client.send_interactive_buttons(
@@ -1716,7 +1713,7 @@ def _send_browse_quote(phone: str, sender_name: str, source_text: str, items: Li
     )
 
 
-def _send_browse_full_details(phone: str, sender_name: str) -> bool:
+def _send_browse_full_details(phone: str, sender_name: str, send_buttons: bool = True) -> bool:
     ctx = session_context.get(phone, {})
     quote = ctx.get("last_browse_quote", {})
     items = quote.get("items", [])
@@ -1811,18 +1808,18 @@ def _send_browse_full_details(phone: str, sender_name: str) -> bool:
     whatsapp_client.send_text_message(phone, "\n".join(lines), preview_url=False)
     time.sleep(0.4)
 
-    # Three action buttons
-    buttons = [
-        {"id": "BROWSE_MODIFY_CART", "title": "Modify Cart"},
-        {"id": "BROWSE_CUSTOMER_REVIEWS", "title": "Check Reviews"},
-        {"id": "BROWSE_CHECKOUT", "title": "Checkout"},
-    ]
-    whatsapp_client.send_interactive_buttons(
-        to_phone=phone,
-        body_text="What would you like to do?",
-        buttons=buttons,
-        header="Your Cart",
-    )
+    # Action buttons (suppressed when called as part of a larger flow, e.g. Checkout)
+    if send_buttons:
+        buttons = [
+            {"id": "BROWSE_CUSTOMER_REVIEWS", "title": "Check Reviews"},
+            {"id": "BROWSE_CHECKOUT", "title": "Checkout"},
+        ]
+        whatsapp_client.send_interactive_buttons(
+            to_phone=phone,
+            body_text="What would you like to do?",
+            buttons=buttons,
+            header="Your Cart",
+        )
     return True
 
 
@@ -3031,8 +3028,7 @@ def _merge_browse_more_into_cart(phone: str, sender_name: str) -> None:
     time.sleep(0.4)
 
     buttons = [
-        {"id": "BROWSE_SHOW_DETAILS", "title": "View Cart"},
-        {"id": "BROWSE_PRODUCTS", "title": "Browse More"},
+        {"id": "BROWSE_CHECKOUT", "title": "Checkout"},
         {"id": "BROWSE_CUSTOMER_REVIEWS", "title": "Reviews"},
     ]
     whatsapp_client.send_interactive_buttons(
@@ -3071,7 +3067,7 @@ def build_and_send_sales_cart(phone: str, sender_name: str, text: str, source: s
     # Build cart text with only matched items (or show "no matches" message)
     cart_text = format_sales_cart(matched, duration)
 
-    # Store cart in session for later actions like Upfront Payment / Modify Cart
+    # Store cart in session for later actions like Upfront Payment / Final Link
     ctx = session_context.get(phone, {})
     ctx["last_cart"] = matched
     ctx["last_duration"] = duration
@@ -3087,7 +3083,6 @@ def build_and_send_sales_cart(phone: str, sender_name: str, text: str, source: s
     if matched:
         cart_buttons = [
             {"id": "UPFRONT_PAYMENT", "title": "Upfront Payment"},
-            {"id": "MODIFY_CART", "title": "Modify Cart"},
             {"id": "FINAL_LINK", "title": "Final Link"},
         ]
 
@@ -3206,7 +3201,6 @@ def _apply_cart_modification(phone: str, text: str) -> bool:
 
         cart_buttons = [
             {"id": "UPFRONT_PAYMENT", "title": "Upfront Payment"},
-            {"id": "MODIFY_CART", "title": "Modify Cart"},
             {"id": "FINAL_LINK", "title": "Final Link"},
         ]
         whatsapp_client.send_interactive_buttons(
@@ -3237,7 +3231,6 @@ def _apply_cart_modification(phone: str, text: str) -> bool:
 
         cart_buttons = [
             {"id": "UPFRONT_PAYMENT", "title": "Upfront Payment"},
-            {"id": "MODIFY_CART", "title": "Modify Cart"},
             {"id": "FINAL_LINK", "title": "Final Link"},
         ]
         whatsapp_client.send_interactive_buttons(
@@ -3754,7 +3747,6 @@ def process_webhook_async(phone, text, sender_name, message_id, message_type, in
 
                     cart_action_buttons = [
                         primary_btn,
-                        {"id": "MODIFY_CART",    "title": "Modify Cart"},
                         {"id": "TALK_TO_EXPERT", "title": "Talk to Expert"},
                     ]
                     whatsapp_client.send_interactive_buttons(
@@ -4183,49 +4175,6 @@ Thank you for choosing RentBasket!"""
             thread.start()
             return jsonify({"status": "ok", "action": "reserved"}), 200
 
-        elif button_id == "MODIFY_CART":
-            normalized = normalize_phone(phone)
-            try:
-                from utils.firebase_client import upsert_lead
-                upsert_lead(normalized, {"lead_stage": "cart_modification"})
-            except Exception as e:
-                print(f"   Lead update failed (non-fatal): {e}")
-
-            ctx = session_context.get(phone, {})
-            last_cart = ctx.get("last_cart", [])
-
-            # If we have a SALES-mode cart, stay in SALES modify mode
-            if last_cart:
-                ctx["sales_mode"] = True
-                ctx["sales_modify_mode"] = True
-                # Show current cart summary so user knows what to modify
-                item_names = [f"{it.get('qty', 1)}x {it.get('product_name', it.get('name', '?'))}" for it in last_cart if it.get("matched")]
-                summary = ", ".join(item_names) if item_names else "your current items"
-                whatsapp_client.send_text_message(
-                    phone,
-                    f"Your current cart: {summary}\n\n"
-                    f"Tell me what to change, for example:\n"
-                    f"- \"Remove the mattress\"\n"
-                    f"- \"Add 1 study chair\"\n"
-                    f"- \"Change bed to queen bed\"\n"
-                    f"Or send a completely new list to replace the cart."
-                )
-                print(f"   Cart modification requested by {phone}. Staying in SALES modify mode.")
-                return jsonify({"status": "ok", "action": "cart_modification_sales"}), 200
-
-            # No SALES cart — route to the agent
-            print(f"   Cart modification requested by {phone}. Routing to sales agent.")
-            thread = threading.Thread(
-                target=process_webhook_async,
-                args=(
-                    phone,
-                    "I want to modify my cart. What are my options?",
-                    sender_name, message_id, "text", None,
-                )
-            )
-            thread.start()
-            return jsonify({"status": "ok", "action": "cart_modification"}), 200
-
         elif button_id == "TALK_TO_EXPERT":
             # 👨‍💼  High-intent human handoff
             normalized = normalize_phone(phone)
@@ -4435,8 +4384,7 @@ Thank you for choosing RentBasket!"""
             )
             time.sleep(0.3)
             buttons = [
-                {"id": "BROWSE_SHOW_DETAILS", "title": "View Cart"},
-                {"id": "BROWSE_PRODUCTS", "title": "Browse More"},
+                {"id": "BROWSE_CHECKOUT", "title": "Checkout"},
                 {"id": "BROWSE_CUSTOMER_REVIEWS", "title": "Reviews"},
             ]
             whatsapp_client.send_interactive_buttons(
@@ -4501,69 +4449,27 @@ Thank you for choosing RentBasket!"""
             return jsonify({"status": "ok", "action": "browse_show_details"}), 200
 
         elif button_id == "BROWSE_CHECKOUT":
-            # Ask for delivery location before sending checkout link
+            # Step 3: show full order details, then Step 4: ask for delivery location
             ctx = _set_browse_context(phone, browse_step="await_checkout_location")
             browse_quote = ctx.get("last_browse_quote", {})
             if not browse_quote.get("items"):
                 whatsapp_client.send_text_message(phone, "No items in your cart yet. Please browse and add items first.")
                 return jsonify({"status": "ok", "action": "browse_checkout_empty"}), 200
+
+            # First message: full Order Confirmation details (no trailing buttons)
+            _send_browse_full_details(phone, sender_name, send_buttons=False)
+            time.sleep(0.4)
+
+            # Second message: Step 4 location prompt
             whatsapp_client.send_text_message(
                 phone,
                 f"{_step_header(4)}\n\n"
                 "Great, let us check if we can deliver to your location.\n\n"
-                "Please share your delivery location and make sure to include the *pincode (6-digit number)*.\n\n"
+                "Please share your delivery location and make sure to include the *Pincode (6-digit number)*.\n\n"
                 "Example: Sector 52, Gurugram 122003",
                 preview_url=False,
             )
             return jsonify({"status": "ok", "action": "browse_checkout_ask_location"}), 200
-
-        elif button_id == "BROWSE_MODIFY_CART":
-            ctx = _browse_context(phone)
-            browse_quote = ctx.get("last_browse_quote", {})
-            items = browse_quote.get("items", [])
-
-            if items:
-                # Show current cart with numbered items and modify instructions
-                ctx["browse_modify_mode"] = True
-                ctx["browse_step"] = "browse_modify"
-                item_lines = []
-                for i, it in enumerate(items, 1):
-                    name = it.get("product_name") or it.get("name") or "Product"
-                    qty = int(it.get("qty", 1))
-                    rent = int(it.get("rent") or 0)
-                    item_lines.append(f"{i}. {name} (x{qty}) - Rs. {rent:,}/mo")
-
-                whatsapp_client.send_text_message(
-                    phone,
-                    f"*Your current cart:*\n" + "\n".join(item_lines) + "\n\n"
-                    f"Tell me what to change:\n"
-                    f"- \"Remove the fridge\"\n"
-                    f"- \"Add a study table\"\n"
-                    f"- Or reply with an item number to remove it (e.g., 2)\n\n"
-                    f"Or browse more products to add:",
-                    preview_url=False,
-                )
-                time.sleep(0.3)
-                buttons = [
-                    {"id": "BROWSE_PRODUCTS", "title": "Browse More"},
-                    {"id": "BROWSE_SHOW_DETAILS", "title": "View Cart"},
-                ]
-                whatsapp_client.send_interactive_buttons(
-                    to_phone=phone,
-                    body_text="Or pick an option:",
-                    buttons=buttons,
-                    header=BROWSE_FLOW_HEADER,
-                )
-            else:
-                # Empty cart — send catalogue image and invite them to ask for products
-                whatsapp_client.send_image(
-                    to_phone=phone,
-                    image_url=CATALOGUE_IMAGE_URL,
-                    caption=f"{_step_header(1)}\n\nHere's our full product catalogue. Ask for any product, and we'll share the pricing instantly.",
-                )
-                ctx["browse_step"] = "share_await_items"
-                ctx["share_item_list_flow"] = True
-            return jsonify({"status": "ok", "action": "browse_modify_cart"}), 200
 
         elif button_id in ("BROWSE_CUSTOMER_REVIEWS", "CUSTOMER_REVIEWS"):
             # Send reviews as plain text (exceeds 1024 char interactive limit)
@@ -4573,7 +4479,7 @@ Thank you for choosing RentBasket!"""
             if has_cart:
                 follow_buttons = [
                     {"id": "BROWSE_SHOW_DETAILS", "title": "View Cart"},
-                    {"id": "BROWSE_PRODUCTS", "title": "Browse More"},
+                    {"id": "BROWSE_CHECKOUT", "title": "Checkout"},
                 ]
             else:
                 follow_buttons = [
