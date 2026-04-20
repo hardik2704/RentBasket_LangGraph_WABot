@@ -2162,7 +2162,7 @@ def handle_greeting(phone: str, sender_name: str):
         f"I'm Ku from RentBasket, your personal rental assistant.\n"
         f"\n"
         f"We offer quality furniture and appliances on rent at competitive prices,"
-        f"powered by customer service which is best in the market.\n"
+        f" powered by customer service which is best in the market.\n"
     )
     buttons = GREETING_BUTTONS
     action_type = "greeting"
